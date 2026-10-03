@@ -99,3 +99,14 @@ test("a navigation that did not come from typing shows its address in the focuse
   for (const fn of states) fn({ url: "https://example.test/typed", title: "back", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } });
   assert.equal(address.value, "https://example.test/typed");
 });
+
+test("browser.navigate refuses a missing or empty address before the document region", { timeout: 10000 }, async (t) => {
+  const { navigations, controller, commands } = await setup(t);
+  t.after(() => controller.dispose());
+  const before = [...navigations];
+  for (const params of [{}, { url: "" }, { url: 7 }]) {
+    await assert.rejects(Promise.resolve().then(() => commands.get("browser.navigate")(params)),
+      /browser\.navigate requires an address/, JSON.stringify(params));
+  }
+  assert.deepEqual(navigations, before, "a refused address reached the document region");
+});

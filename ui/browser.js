@@ -118,7 +118,11 @@ export async function mount(root, context) {
     return () => addressListeners.delete(fn);
   });
   context.exposure.command("browser.address.select", () => { address.focus(); address.select(); return null; });
-  context.exposure.command("browser.navigate", navigated(({ url }) => region.load(url).then(() => null)));
+  context.exposure.command("browser.navigate", navigated(({ url }) => {
+    // 주소가 없는 이동은 문서 영역에 보내지 않고 여기서 거부한다.
+    if (typeof url !== "string" || url === "") throw new Error(`browser.navigate requires an address, not ${JSON.stringify(url)}`);
+    return region.load(url).then(() => null);
+  }));
   context.exposure.command("browser.back", navigated(() => region.back()));
   context.exposure.command("browser.forward", navigated(() => region.forward()));
   context.exposure.command("browser.reload", navigated(() => region.reload()));

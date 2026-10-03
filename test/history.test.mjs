@@ -20,7 +20,7 @@ async function setup(t) {
     icon: (name) => `<svg data-icon="${name}"></svg>`,
     runtime: { settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     surfaceId: "browser-history-test",
-    tab: { title: (text) => titles.push(text) },
+    tab: { title: (text) => titles.push(text), footer() {} },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
       status(name, read, subscribe) { statuses.set(name, { read, subscribe }); }, dom() {},
@@ -33,10 +33,10 @@ async function setup(t) {
   const send = (index) => {
     const history = { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://a.test/two", title: "Two" }], index };
     for (const fn of states) fn({ url: history.entries[index].url, title: history.entries[index].title, history,
-      elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } });
+      elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" });
   };
   const state = (url, title) => { for (const fn of states) fn({ url, title, history: { entries: [], index: -1 },
-    elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } }); };
+    elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); };
   return { statuses, commands, entries, send, titles, state };
 }
 

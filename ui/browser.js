@@ -63,9 +63,15 @@ export async function mount(root, context) {
     const text = (state.title || state.url).replace(/[\u0000-\u001f\u007f-\u009f]/g, "").slice(0, 256);
     context.tab.title(text === "" ? null : text);
   };
+  // 카드 발은 포인터 아래 링크의 주소를 보인다. 1024자보다 긴 주소는 앞 1023자와 말줄임표로 보인다.
+  const tabFooter = (link) => {
+    if (typeof link !== "string") throw new Error("the document state has no link");
+    context.tab.footer(link === "" ? null : link.length > 1024 ? `${link.slice(0, 1023)}…` : link);
+  };
   const show = ({ history: sessionHistory, elements: documentElements, requests: documentRequests, ...state }) => {
     current = state;
     tabTitle(state);
+    tabFooter(state.link);
     history = sessionHistory;
     elements = documentElements;
     requests = documentRequests;

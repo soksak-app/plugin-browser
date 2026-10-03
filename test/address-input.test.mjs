@@ -19,13 +19,13 @@ async function setup(t) {
   const navigations = [];
   const region = {
     onState(fn) { states.add(fn); return () => states.delete(fn); },
-    async load(url) { navigations.push(url); for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } }); },
+    async load(url) { navigations.push(url); for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
     runtime: { settings: { read: () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {} },
+    tab: { title() {}, footer() {} },
     surfaceId: "browser-address-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
@@ -93,10 +93,10 @@ test("a navigation that did not come from typing shows its address in the focuse
   assert.equal(address.value, "https://example.test/other");
   // 입력 중인 글자는 이동이 아닌 문서 상태 변화로 바뀌지 않는다.
   type("https://example.test/oth");
-  for (const fn of states) fn({ url: "https://example.test/other", title: "scrolled", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } });
+  for (const fn of states) fn({ url: "https://example.test/other", title: "scrolled", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" });
   assert.equal(address.value, "https://example.test/oth");
   await commands.get("browser.back")({});
-  for (const fn of states) fn({ url: "https://example.test/typed", title: "back", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } });
+  for (const fn of states) fn({ url: "https://example.test/typed", title: "back", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" });
   assert.equal(address.value, "https://example.test/typed");
 });
 
@@ -110,3 +110,31 @@ test("browser.navigate refuses a missing or empty address before the document re
   }
   assert.deepEqual(navigations, before, "a refused address reached the document region");
 });
+
+test("the card footer shows the address of the link under the pointer", { timeout: 10000 }, async (t) => {
+  const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
+  t.after(() => dom.window.close());
+  const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
+  const states = new Set(), footers = [];
+  const binder = createBinder(() => null, { check() {} });
+  const region = {
+    onState(fn) { states.add(fn); return () => states.delete(fn); },
+    async load() {}, async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
+  };
+  const controller = await mount(root, {
+    runtime: { settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
+    icon: (name) => `<svg data-icon="${name}"></svg>`,
+    tab: { title() {}, footer(text) { footers.push(text); } },
+    surfaceId: "browser-footer-test",
+    composition: { async create() { return { region: () => region, async dispose() {} }; } },
+    exposure: { status() {}, dom() {}, command() {}, bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose },
+    status: { report() {} },
+  });
+  t.after(() => controller.dispose());
+  const state = (link) => ({ url: "https://example.test/", title: "t", history: { entries: [], index: -1 },
+    elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link });
+  const long = `https://example.test/${"a".repeat(1100)}`;
+  for (const link of ["https://example.test/next", "", long]) for (const fn of states) fn(state(link));
+  assert.deepEqual(footers, ["https://example.test/next", null, `${long.slice(0, 1023)}…`]);
+});
+

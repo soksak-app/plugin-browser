@@ -18,13 +18,13 @@ async function setup(t) {
   }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
   const region = {
     onState(fn) { states.add(fn); return () => states.delete(fn); },
-    async load(url) { for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false } }); },
+    async load(url) { for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
     runtime: { settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {} },
+    tab: { title() {}, footer() {} },
     surfaceId: "browser-empty-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {

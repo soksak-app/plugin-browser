@@ -55,7 +55,7 @@
     "status": [
       {
         "name": "browser.location",
-        "description": "The state of the document region: address, title, loading and its progress from 0 to 1, whether history can go back or forward, the last load error or null, and the document scroll position in CSS pixels.",
+        "description": "The state of the document region: address, title, loading and its progress from 0 to 1, whether history can go back or forward, the last load error or null, the document scroll position in CSS pixels, and the address of the link under the pointer or an empty string.",
         "schema": {
           "type": "object",
           "properties": {
@@ -93,6 +93,9 @@
                   "type": "number"
                 }
               }
+            },
+            "link": {
+              "type": "string"
             }
           }
         }

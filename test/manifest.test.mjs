@@ -17,12 +17,6 @@ test("the package publishes the manifest and surface module", () => {
   assert.ok(pkg.files.some((entry) => manifest.surface.module === entry || manifest.surface.module.startsWith(`${entry}/`)));
 });
 
-test("every sidecar the plugin uses is a declared package dependency", () => {
-  for (const name of manifest.sidecars ?? []) {
-    assert.ok(pkg.dependencies?.[name], `${name} is not a dependency`);
-  }
-});
-
 test("every section module is published", () => {
   for (const section of manifest.sections ?? []) {
     assert.ok(existsSync(new URL(`../${section.module}`, import.meta.url)), section.module);

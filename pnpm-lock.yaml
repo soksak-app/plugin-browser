@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@soksak/plugin-api':
-        specifier: git+https://github.com/soksak-app/core.git#v0.0.2&path:/packages/plugin-api
-        version: https://codeload.github.com/soksak-app/core/tar.gz/6f2de3d11f8036bc9a87b5180c9a988a99703bf5#path:/packages/plugin-api
+        specifier: git+https://github.com/soksak-app/core.git#22162a748982f5cbef22a7eff13a833790649142&path:/packages/plugin-api
+        version: https://codeload.github.com/soksak-app/core/tar.gz/22162a748982f5cbef22a7eff13a833790649142#path:/packages/plugin-api
       jsdom:
         specifier: ^30.0.1
         version: 30.1.1
@@ -74,9 +74,9 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@soksak/plugin-api@https://codeload.github.com/soksak-app/core/tar.gz/6f2de3d11f8036bc9a87b5180c9a988a99703bf5#path:/packages/plugin-api':
-    resolution: {gitHosted: true, integrity: sha512-jh6a4SzKmxBjSUVo+Ah2vemVLsGmqWe0VDkFjGJAOQ0R3cAmTWHbphgoH5Z/DJojT9TnMYcnB4tJtvf4p7FgVA==, path: /packages/plugin-api, tarball: https://codeload.github.com/soksak-app/core/tar.gz/6f2de3d11f8036bc9a87b5180c9a988a99703bf5}
-    version: 0.0.2
+  '@soksak/plugin-api@https://codeload.github.com/soksak-app/core/tar.gz/22162a748982f5cbef22a7eff13a833790649142#path:/packages/plugin-api':
+    resolution: {gitHosted: true, integrity: sha512-noUVeQw44DWuiZVsWxLwHPh1pwT8iZiw3ItNGUYd94b7ZDB/N1PBscr4MR8rxR5JrY4FHgNXBfd142SekQ+waA==, path: /packages/plugin-api, tarball: https://codeload.github.com/soksak-app/core/tar.gz/22162a748982f5cbef22a7eff13a833790649142}
+    version: 0.0.3
     hasBin: true
 
   bidi-js@1.1.0:
@@ -232,7 +232,7 @@ snapshots:
 
   '@exodus/bytes@1.16.0': {}
 
-  '@soksak/plugin-api@https://codeload.github.com/soksak-app/core/tar.gz/6f2de3d11f8036bc9a87b5180c9a988a99703bf5#path:/packages/plugin-api': {}
+  '@soksak/plugin-api@https://codeload.github.com/soksak-app/core/tar.gz/22162a748982f5cbef22a7eff13a833790649142#path:/packages/plugin-api': {}
 
   bidi-js@1.1.0:
     dependencies:

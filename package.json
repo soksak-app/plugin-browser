@@ -1,6 +1,6 @@
 {
   "name": "@soksak/plugin-browser",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "description": "Browser plugin: an address bar and a document region that shows web pages.",
@@ -10,7 +10,7 @@
     "url": "git+https://github.com/soksak-app/plugin-browser.git"
   },
   "engines": {
-    "soksak": "^0.0.2"
+    "soksak": "^0.0.3"
   },
   "files": [
     "plugin.json",
@@ -21,7 +21,7 @@
     "test": "node --test test/"
   },
   "devDependencies": {
-    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.2&path:/packages/plugin-api",
+    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#22162a748982f5cbef22a7eff13a833790649142&path:/packages/plugin-api",
     "jsdom": "^30.0.1"
   }
 }

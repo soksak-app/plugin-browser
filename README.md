@@ -6,7 +6,7 @@ Browser plugin: an address bar and a document region that shows web pages. The p
 
 ```sh
 make test                                   # tests
-make pack OUT=<folder> SOK=<core>/target/debug/sok   # the plugin package
+make pack OUT=<folder> SOK=<core>/target/debug/sok   # the plugin release
 ```
 
 The checklist is [docs/features.md](docs/features.md).

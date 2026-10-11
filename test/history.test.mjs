@@ -18,7 +18,7 @@ async function setup(t) {
   };
   const controller = await mount(root, {
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    runtime: { settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     surfaceId: "browser-history-test",
     tab: { title: (text) => titles.push(text), footer() {} },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },

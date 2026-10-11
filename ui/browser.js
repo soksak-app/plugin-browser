@@ -1,3 +1,5 @@
+import { createEmitter } from "./events.js";
+
 const css = `:host{display:flex;height:100%;flex-direction:column;background:var(--card);color:var(--fg);font:12px/1.4 var(--font)}#bar{display:flex;gap:4px;padding:4px 6px;border-bottom:1px solid var(--rule);background:var(--card)}#bar button{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--r-xs);background:transparent;color:var(--muted);cursor:pointer}#bar button:hover:not(:disabled){background:var(--inset);color:var(--fg)}#bar svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.95;stroke-linecap:round;stroke-linejoin:round}#bar{align-items:center}input{flex:1;min-width:0;background:transparent;color:inherit;border:1px solid var(--edge);border-radius:5px;padding:3px 8px}#document,#empty{flex:1;min-height:0}#empty{display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--muted);cursor:text}[hidden]{display:none!important}`;
 
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
@@ -7,6 +9,7 @@ export async function mount(root, context) {
     throw new TypeError("browser surface requires a surfaceId for location persistence");
   }
   root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${context.icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${context.icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${context.icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
+  const emitEvent = createEmitter(context.runtime, "browser");
   const address = root.querySelector("#address");
   const area = root.querySelector("#document");
   const empty = root.querySelector("#empty");
@@ -30,7 +33,7 @@ export async function mount(root, context) {
   };
   address.addEventListener("pointerdown", beginSelection);
   address.addEventListener("mouseup", retainSelection);
-  // 기본값: 새 탭에는 저장된 주소(restored)가 없다. 주소 없이 빈 상태를 보이고, 아래에서 home 을 연다.
+  // default: 새 탭에는 저장된 주소(restored)가 없다. 주소 없이 빈 상태를 보이고, 아래에서 home 을 연다.
   showEmpty(restored ?? "");
   const composition = await context.composition.create({ regions: { page: area }, overlays: {} });
   const region = composition.region("page");
@@ -44,10 +47,23 @@ export async function mount(root, context) {
   const typed = () => { editing = true; notifyAddress(); };
   const left = () => { editing = false; notifyAddress(); };
   const navigated = (run) => (params) => { editing = false; return run(params); };
+  // Every command states its result: ok and micros, and for a failure the code and the text (core docs/spec/logging.md#result-form).
+  const reported = (name, run) => async (params) => {
+    const started = performance.now();
+    const micros = () => Math.round((performance.now() - started) * 1000);
+    try {
+      const result = await run(params);
+      emitEvent("debug", "plugin.browser.command", { name, micros: micros(), ok: true });
+      return result;
+    } catch (error) {
+      emitEvent("warn", "plugin.browser.command", { name, micros: micros(), ok: false, error: `${error?.code ?? -32000}: ${error?.message ?? String(error)}` });
+      throw error;
+    }
+  };
   address.addEventListener("input", typed);
   address.addEventListener("focus", notifyAddress);
   address.addEventListener("blur", left);
-  // 기본값: 새 탭에는 저장된 주소(restored)가 없다. 문서를 열기 전의 위치는 빈 주소다.
+  // default: 새 탭에는 저장된 주소(restored)가 없다. 문서를 열기 전의 위치는 빈 주소다.
   let current = { url: restored ?? "", title: "", loading: false, progress: 0, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 } };
   // 세션 기록은 문서 영역 상태의 history 다(docs/spec/native-surfaces.md#document-regions).
   let history = { entries: [], index: -1 };
@@ -57,9 +73,9 @@ export async function mount(root, context) {
   let requests = { entries: [], truncated: false };
   const elementListeners = new Set();
   const requestListeners = new Set();
-  // 기본값: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다. 제어 문자를 지우고 256자로 자른다.
+  // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다. 제어 문자를 지우고 256자로 자른다.
   const tabTitle = (state) => {
-    // 기본값: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다.
+    // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다.
     const text = (state.title || state.url).replace(/[\u0000-\u001f\u007f-\u009f]/g, "").slice(0, 256);
     context.tab.title(text === "" ? null : text);
   };
@@ -68,7 +84,21 @@ export async function mount(root, context) {
     if (typeof link !== "string") throw new Error("the document state has no link");
     context.tab.footer(link === "" ? null : link.length > 1024 ? `${link.slice(0, 1023)}…` : link);
   };
+  // A load is the time between the state that reports loading and the next state that does not.
+  let loadStarted = null;
+  const observe = (state) => {
+    if (state.url !== current.url) emitEvent("info", "plugin.browser.navigation", { from: current.url, to: state.url });
+    if (state.loading && loadStarted === null) loadStarted = performance.now();
+    if (!state.loading && loadStarted !== null) {
+      emitEvent("info", "plugin.browser.load", { url: state.url, micros: Math.round((performance.now() - loadStarted) * 1000), ok: state.error === null });
+      loadStarted = null;
+    }
+    if (state.error !== null && state.error !== current.error) {
+      emitEvent("error", "plugin.browser.region.failure", { url: state.url, reason: typeof state.error === "string" ? state.error : JSON.stringify(state.error) });
+    }
+  };
   const show = ({ history: sessionHistory, elements: documentElements, requests: documentRequests, ...state }) => {
+    observe(state);
     current = state;
     tabTitle(state);
     tabFooter(state.link);
@@ -111,28 +141,29 @@ export async function mount(root, context) {
     fn(requests);
     return () => requestListeners.delete(fn);
   });
-  context.exposure.command("browser.history.go", navigated(({ index }) => {
+  context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);
     }
     if (index === history.index) return false;
+    emitEvent("debug", "plugin.browser.history.move", { from: history.index, to: index });
     return region.entry(index - history.index);
-  }));
+  })));
   context.exposure.status("browser.address.text", addressText, (fn) => {
     addressListeners.add(fn);
     fn(addressText());
     return () => addressListeners.delete(fn);
   });
-  context.exposure.command("browser.address.select", () => { address.focus(); address.select(); return null; });
-  context.exposure.command("browser.navigate", navigated(({ url }) => {
+  context.exposure.command("browser.address.select", reported("browser.address.select", () => { address.focus(); address.select(); return null; }));
+  context.exposure.command("browser.navigate", reported("browser.navigate", navigated(({ url }) => {
     // 주소가 없는 이동은 문서 영역에 보내지 않고 여기서 거부한다.
     if (typeof url !== "string" || url === "") throw new Error(`browser.navigate requires an address, not ${JSON.stringify(url)}`);
     return region.load(url).then(() => null);
-  }));
-  context.exposure.command("browser.back", navigated(() => region.back()));
-  context.exposure.command("browser.forward", navigated(() => region.forward()));
-  context.exposure.command("browser.reload", navigated(() => region.reload()));
-  context.exposure.command("browser.stop", () => region.stop());
+  })));
+  context.exposure.command("browser.back", reported("browser.back", navigated(() => region.back())));
+  context.exposure.command("browser.forward", reported("browser.forward", navigated(() => region.forward())));
+  context.exposure.command("browser.reload", reported("browser.reload", navigated(() => region.reload())));
+  context.exposure.command("browser.stop", reported("browser.stop", () => region.stop()));
   context.exposure.dom("browser.address", address);
   context.exposure.dom("browser.document", area);
   context.exposure.dom("browser.empty", empty);
@@ -143,11 +174,14 @@ export async function mount(root, context) {
   await context.exposure.bind(address, "browser.address.select", {}, { event: "focus" });
   await context.exposure.bind(address, "browser.navigate", () => {
     const value = address.value.trim();
-    return { url: /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}` };
+    const url = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+    emitEvent("debug", "plugin.browser.address.commit", { value, url });
+    return { url };
   }, { event: "keydown", when: (event) => event.key === "Enter" });
   // 저장된 주소가 없으면 설정 home 을 연다. 비어 있으면 빈 상태로 시작한다.
-  // 기본값: 새 탭에는 저장된 주소(restored)가 없다. 그 탭은 설정 home 을 연다.
+  // default: 새 탭에는 저장된 주소(restored)가 없다. 그 탭은 설정 home 을 연다.
   const start = restored ?? context.runtime.settings.read().home;
+  emitEvent("info", "plugin.browser.start", { url: start, source: restored === null ? "home" : "restored" });
   if (start !== "") await region.load(start);
   context.status.report("ready");
   return { async dispose() {

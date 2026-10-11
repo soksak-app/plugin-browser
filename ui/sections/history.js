@@ -24,7 +24,7 @@ export function mount(root, context) {
       },
       update: (item, { entry, index }) => {
         const button = item.firstElementChild;
-        // 기본값: 기록 제목이 비어 있으면 해당 항목의 주소를 표시한다.
+        // default: 기록 제목이 비어 있으면 해당 항목의 주소를 표시한다.
         const text = entry.title || entry.url;
         if (button.textContent !== text) button.textContent = text;
         if (index === history.index) button.setAttribute("aria-current", "page");

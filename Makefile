@@ -11,11 +11,13 @@ node_modules: package.json
 	touch node_modules
 
 # 페이지와 섹션 소스의 공개 이름은 core 의 soksak-exposure 로 plugin.json 과 core 의 선언에 대해 검사한다.
+# soksak-events 는 core 의 지침에 따라 소스의 기록 누락을 세고 events.json 을 소스의 emit 와 맞춘다.
 # engines.soksak 은 core 의 soksak-engines 로 그 @soksak/plugin-api 의 release 를 선언하는지 검사한다.
 test: node_modules
 	pnpm test
 	pnpm exec soksak-exposure
 	pnpm exec soksak-engines
+	pnpm exec soksak-events --census census.json --catalog events.json
 
 pack:
 	@test -n "$(OUT)" || { echo "make pack OUT=<folder>" >&2; exit 2; }

@@ -15,7 +15,9 @@
   },
   "files": [
     "plugin.json",
+    "events.json",
     "ui/browser.js",
+    "ui/events.js",
     "ui/sections"
   ],
   "scripts": {

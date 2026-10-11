@@ -23,7 +23,7 @@ async function setup(t) {
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
-    runtime: { settings: { read: () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
     tab: { title() {}, footer() {} },
     surfaceId: "browser-address-test",
@@ -122,7 +122,7 @@ test("the card footer shows the address of the link under the pointer", { timeou
     async load() {}, async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
-    runtime: { settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
     tab: { title() {}, footer(text) { footers.push(text); } },
     surfaceId: "browser-footer-test",

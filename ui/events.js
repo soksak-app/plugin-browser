@@ -1,0 +1,12 @@
+const LEVELS = ["error", "warn", "info", "debug", "trace"];
+
+// Returns the entrance of this plugin to the event log (core docs/spec/plugins.md#logging). A call names the whole event
+// `plugin.<plugin>.<event>`, as events.json declares it; the runtime adds the prefix and the surface.
+export function createEmitter(runtime, pluginId) {
+  const prefix = `plugin.${pluginId}.`;
+  return function emitEvent(level, name, fields) {
+    if (!LEVELS.includes(level)) throw new TypeError(`emitEvent requires a level of ${LEVELS.join(", ")}, not ${JSON.stringify(level)}`);
+    if (typeof name !== "string" || !name.startsWith(prefix)) throw new TypeError(`emitEvent requires a name that starts with ${prefix}`);
+    runtime.log[level](name.slice(prefix.length), fields);
+  };
+}

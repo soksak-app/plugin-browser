@@ -1,0 +1,55 @@
+{
+  "schema": 2,
+  "layers": ["plugin"],
+  "events": {
+    "plugin.browser.start": {
+      "layer": "plugin",
+      "class": "lifecycle",
+      "level": "info",
+      "fields": { "url": "string", "source": "string" },
+      "description": "A browser surface mounted; url is the address it opens (empty when none) and source is restored for the saved address of the tab or home for the home setting."
+    },
+    "plugin.browser.command": {
+      "layer": "plugin",
+      "class": "call",
+      "level": ["debug", "warn"],
+      "fields": { "name": "string", "micros": "number", "ok": "boolean", "error?": "string" },
+      "description": "A command of the surface ran; error is <code>: <text> when ok is false, and the level is warn for a failure."
+    },
+    "plugin.browser.address.commit": {
+      "layer": "plugin",
+      "class": "input",
+      "level": "debug",
+      "fields": { "value": "string", "url": "string" },
+      "description": "The person pressed Enter in the address bar; value is the text of the bar and url the address that was sent to the document region."
+    },
+    "plugin.browser.history.move": {
+      "layer": "plugin",
+      "class": "call",
+      "level": "debug",
+      "fields": { "from": "number", "to": "number" },
+      "description": "A move to another entry of the session history, by index."
+    },
+    "plugin.browser.navigation": {
+      "layer": "plugin",
+      "class": "call",
+      "level": "info",
+      "fields": { "from": "string", "to": "string" },
+      "description": "The address of the document changed."
+    },
+    "plugin.browser.load": {
+      "layer": "plugin",
+      "class": "call",
+      "level": "info",
+      "fields": { "url": "string", "micros": "number", "ok": "boolean" },
+      "description": "The document finished loading; micros is the time since the state reported loading."
+    },
+    "plugin.browser.region.failure": {
+      "layer": "plugin",
+      "class": "call",
+      "level": "error",
+      "fields": { "url": "string", "reason": "string" },
+      "description": "The document region reported an error in its state; reason is the text of the error."
+    }
+  }
+}

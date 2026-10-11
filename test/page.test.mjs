@@ -58,7 +58,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
       dispose: async () => { exposed.disposed = true; },
     },
     status: { report: (phase) => { exposed.phase = phase; } },
-    runtime: { settings: { read: () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: () => 1.25,
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: () => 1.25,
       on: (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
   };
   const { mount } = await import("../ui/browser.js");

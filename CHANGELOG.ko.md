@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## 미배포
+
+- P21: `make hooks`가 `.githooks`를 hook 폴더로 정해, commit message의 형식이나 용어 규칙, record 규칙을 어긴 commit이 만들어질 때 거부된다.
+
 ## 0.0.5 (2026-10-13)
 
 - P20: 이벤트 계약(P18)과 record 검사(P19)를 담은 version 0.0.5를 release한다. tag `v0.0.5`가 `browser-0.0.5.tgz`를 게시한다.

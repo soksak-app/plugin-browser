@@ -2,6 +2,10 @@
 
 [한국어](CHANGELOG.ko.md)
 
+## Unreleased
+
+- P21: `make hooks` sets `.githooks` as the hook folder, so a commit whose message breaks the commit form or the term rules, or whose records break the record rules, is refused when it is made.
+
 ## 0.0.5 (2026-10-13)
 
 - P20: Release version 0.0.5 with the event contract (P18) and the record checks (P19); the tag `v0.0.5` publishes `browser-0.0.5.tgz`.

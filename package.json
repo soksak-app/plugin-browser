@@ -11,7 +11,7 @@
     "url": "git+https://github.com/soksak-app/plugin-browser.git"
   },
   "engines": {
-    "soksak": "*"
+    "soksak": ">=0.0.11"
   },
   "files": [
     "plugin.json",
@@ -24,7 +24,7 @@
     "test": "node --test test/"
   },
   "devDependencies": {
-    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.4&path:/packages/plugin-api",
+    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.11&path:/packages/plugin-api",
     "jsdom": "^30.0.1"
   }
 }

@@ -2,6 +2,11 @@ import { createEmitter } from "./events.js";
 
 const css = `:host{display:flex;height:100%;flex-direction:column;background:var(--card);color:var(--fg);font:12px/1.4 var(--font)}#bar{display:flex;gap:4px;padding:4px 6px;border-bottom:1px solid var(--rule);background:var(--card)}#bar button{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--r-xs);background:transparent;color:var(--muted);cursor:pointer}#bar button:hover:not(:disabled){background:var(--inset);color:var(--fg)}#bar svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.95;stroke-linecap:round;stroke-linejoin:round}#bar{align-items:center}input{flex:1;min-width:0;background:transparent;color:inherit;border:1px solid var(--edge);border-radius:5px;padding:3px 8px}#document,#empty{flex:1;min-height:0}#empty{display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--muted);cursor:text}[hidden]{display:none!important}`;
 
+// The document region keeps at most 200 request entries (docs/spec/native-surfaces.md#document-streams), and the status keeps the same bound.
+const REQUEST_LOG_LIMIT = 200;
+// A read of a document stream fails when no data message arrives within this limit (docs/spec/native-surfaces.md#document-streams).
+const STREAM_READ_LIMIT_MS = 10000;
+
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
 export async function mount(root, context) {
@@ -68,11 +73,6 @@ export async function mount(root, context) {
   // 세션 기록은 문서 영역 상태의 history 다(docs/spec/native-surfaces.md#document-regions).
   let history = { entries: [], index: -1 };
   const historyListeners = new Set();
-  // 문서의 요소와 기록된 요청도 영역 상태에서 온다.
-  let elements = { nodes: [], truncated: false };
-  let requests = { entries: [], truncated: false };
-  const elementListeners = new Set();
-  const requestListeners = new Set();
   // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다. 제어 문자를 지우고 256자로 자른다.
   const tabTitle = (state) => {
     // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다.
@@ -97,17 +97,13 @@ export async function mount(root, context) {
       emitEvent("error", "plugin.browser.region.failure", { url: state.url, reason: typeof state.error === "string" ? state.error : JSON.stringify(state.error) });
     }
   };
-  const show = ({ history: sessionHistory, elements: documentElements, requests: documentRequests, ...state }) => {
+  const show = ({ history: sessionHistory, ...state }) => {
     observe(state);
     current = state;
     tabTitle(state);
     tabFooter(state.link);
     history = sessionHistory;
-    elements = documentElements;
-    requests = documentRequests;
     for (const listener of historyListeners) listener(history);
-    for (const listener of elementListeners) listener(elements);
-    for (const listener of requestListeners) listener(requests);
     showEmpty(state.url);
     if (state.url !== "") storage.setItem(storageKey, state.url);
     if (!editing) address.value = state.url;
@@ -131,16 +127,93 @@ export async function mount(root, context) {
     fn(history);
     return () => historyListeners.delete(fn);
   });
-  context.exposure.status("browser.elements", () => elements, (fn) => {
-    elementListeners.add(fn);
-    fn(elements);
-    return () => elementListeners.delete(fn);
-  });
-  context.exposure.status("browser.requests", () => requests, (fn) => {
-    requestListeners.add(fn);
-    fn(requests);
-    return () => requestListeners.delete(fn);
-  });
+  // The element and request streams of the document region (docs/spec/native-surfaces.md#document-streams). A watch holds one
+  // subscription of the region, and a read takes the first message of its own subscription. A reset sets the value to null.
+  // The element value is the latest snapshot. The request value is the request log, which the status keeps at the bound
+  // of the region log, because a status delivers only its latest value and each entries message is a batch of new entries.
+  // Creates the status functions of one document stream. message.type of the data is dataType, and next(current, message) returns the
+  // value after a data message. A failure of a delivered message or of the subscription is reported as a page error.
+  const documentStream = (stream, dataType, next) => {
+    const watchers = new Set();
+    let latest = null;
+    let subscription = null;
+    const deliver = (value) => {
+      latest = value;
+      for (const fn of watchers) fn(value);
+    };
+    // A message of a subscription that is closed and not yet removed by the region is dropped, so it cannot set a stale value.
+    const receive = (opening, message) => {
+      if (subscription !== opening) return;
+      try {
+        if (message.type === "reset") return deliver(null);
+        if (message.type !== dataType) throw new Error(`document ${stream} stream sent ${message.type}, not ${dataType}`);
+        deliver(next(latest, message));
+      } catch (error) {
+        context.status.report("error", error);
+      }
+    };
+    const open = () => {
+      const opening = region.subscribe(stream, (message) => receive(opening, message)).catch((error) => {
+        if (subscription === opening) subscription = null;
+        context.status.report("error", error);
+        return null;
+      });
+      subscription = opening;
+    };
+    // Ends the watched subscription and returns a promise that settles after the region has closed it.
+    const close = () => {
+      const closing = subscription;
+      subscription = null;
+      latest = null;
+      if (closing === null) return Promise.resolve();
+      return closing.then((handle) => handle?.close()).catch((error) => { context.status.report("error", error); });
+    };
+    // Reads the first data message of a new subscription. The subscription ends with the read, and the read fails when no data message
+    // arrives within STREAM_READ_LIMIT_MS.
+    const readFirst = async () => {
+      let resolveFirst;
+      let rejectFirst;
+      const first = new Promise((resolve, reject) => { resolveFirst = resolve; rejectFirst = reject; });
+      const opening = region.subscribe(stream, (message) => {
+        try {
+          if (message.type === dataType) resolveFirst(next(null, message));
+          else if (message.type !== "reset") throw new Error(`document ${stream} stream sent ${message.type}, not ${dataType}`);
+        } catch (error) {
+          rejectFirst(error);
+        }
+      });
+      opening.catch(rejectFirst);
+      const timer = setTimeout(() => rejectFirst(new Error(`document ${stream} stream sent no message within ${STREAM_READ_LIMIT_MS}ms`)), STREAM_READ_LIMIT_MS);
+      try {
+        return await first;
+      } finally {
+        clearTimeout(timer);
+        // default: a failed subscription has no handle to close, and its failure already rejected the read through rejectFirst.
+        const handle = await opening.catch(() => null);
+        if (handle !== null) await handle.close();
+      }
+    };
+    return {
+      close,
+      read: () => (latest !== null ? latest : readFirst()),
+      subscribe(fn) {
+        watchers.add(fn);
+        fn(latest);
+        if (subscription === null) open();
+        return () => {
+          watchers.delete(fn);
+          if (watchers.size === 0) close();
+        };
+      },
+    };
+  };
+  const elementStream = documentStream("elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }));
+  const requestStream = documentStream("requests", "entries", (current, { entries, dropped }) => ({
+    entries: [...(current?.entries ?? []), ...entries].slice(-REQUEST_LOG_LIMIT),
+    dropped,
+  }));
+  context.exposure.status("browser.elements", elementStream.read, elementStream.subscribe);
+  context.exposure.status("browser.requests", requestStream.read, requestStream.subscribe);
   context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);
@@ -195,8 +268,8 @@ export async function mount(root, context) {
     stopTextSize();
     locationListeners.clear();
     historyListeners.clear();
-    elementListeners.clear();
-    requestListeners.clear();
+    // The watched streams end before the region closes, so each subscription is closed by its own handle.
+    await Promise.all([elementStream.close(), requestStream.close()]);
     await composition.dispose();
     await context.exposure.dispose();
     root.replaceChildren();

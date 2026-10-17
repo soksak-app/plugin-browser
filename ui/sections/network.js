@@ -12,9 +12,10 @@ export function mount(root, context) {
       item.textContent = `${entry.type} ${entry.url} ${Math.round(entry.duration)}ms`;
       return item;
     });
-    if (requests.truncated) {
+    // dropped counts the entries that the request log dropped since the last reset.
+    if (requests.dropped !== 0) {
       const more = document.createElement("li");
-      more.textContent = "요청이 더 있음";
+      more.textContent = `${requests.dropped} dropped`;
       items.push(more);
     }
     list.replaceChildren(...items);

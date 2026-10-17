@@ -77,12 +77,12 @@ test("the DOM section lists browser.elements indented by depth", async () => {
   const s = await mountSection("browser.dom");
   s.send("browser.elements", null, null);
   assert.equal(s.root.textContent, "브라우저 표면 없음");
-  s.send("browser.elements", { nodes: [], truncated: false });
+  s.send("browser.elements", { nodes: [], total: 0, truncated: false });
   assert.equal(s.root.textContent, "요소 없음");
-  s.send("browser.elements", { nodes: [{ depth: 0, tag: "html", id: "", class: "" }, { depth: 1, tag: "div", id: "box", class: " a  b " }], truncated: true });
+  s.send("browser.elements", { nodes: [{ depth: 0, tag: "html", id: "", class: "" }, { depth: 1, tag: "div", id: "box", class: " a  b " }], total: 2000, truncated: true });
   const items = [...s.root.children[0].children];
   assert.deepEqual(items.map((item) => [item.textContent, item.style.paddingLeft]),
-    [["html", "0px"], ["div#box.a.b", "8px"], ["요소가 더 있음", ""]]);
+    [["html", "0px"], ["div#box.a.b", "8px"], ["2 of 2000", ""]]);
   assert.equal(s.bound.length, 0);
   s.dispose();
   assert.equal(s.observers.size, 0);
@@ -90,10 +90,10 @@ test("the DOM section lists browser.elements indented by depth", async () => {
 
 test("the network section lists browser.requests with type, address, and duration", async () => {
   const s = await mountSection("browser.network");
-  s.send("browser.requests", { entries: [], truncated: false });
+  s.send("browser.requests", null);
   assert.equal(s.root.textContent, "요청 없음");
   s.send("browser.requests", { entries: [{ url: "https://a.test/", type: "navigation", start: 0, duration: 12.4 },
-    { url: "https://a.test/x.png", type: "img", start: 20, duration: 3.6 }], truncated: false });
+    { url: "https://a.test/x.png", type: "img", start: 20, duration: 3.6 }], dropped: 0 });
   assert.deepEqual([...s.root.children[0].children].map((item) => item.textContent),
     ["navigation https://a.test/ 12ms", "img https://a.test/x.png 4ms"]);
   s.dispose();

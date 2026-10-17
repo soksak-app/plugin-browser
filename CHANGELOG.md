@@ -5,6 +5,7 @@
 ## Unreleased
 
 - P21: `make hooks` sets `.githooks` as the hook folder, so a commit whose message breaks the commit form or the term rules, or whose records break the record rules, is refused when it is made.
+- P22: The DOM and Network panels and the statuses `browser.elements` and `browser.requests` read the document streams of the region instead of `elements` and `requests` of the document state, which core no longer sends. The DOM panel shows `500 of 2000` when the snapshot is truncated, and the Network panel shows the request log and `N dropped`. `@soksak/plugin-api` comes from the core revision that carries the streams.
 
 ## 0.0.5 (2026-10-13)
 

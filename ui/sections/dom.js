@@ -13,9 +13,10 @@ export function mount(root, context) {
       item.textContent = `${node.tag}${node.id ? `#${node.id}` : ""}${classes}`;
       return item;
     });
+    // The snapshot lists the first nodes of the document; the count shows how many of its elements are listed.
     if (elements.truncated) {
       const more = document.createElement("li");
-      more.textContent = "요소가 더 있음";
+      more.textContent = `${elements.nodes.length} of ${elements.total}`;
       items.push(more);
     }
     list.replaceChildren(...items);

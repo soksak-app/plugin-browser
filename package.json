@@ -24,7 +24,7 @@
     "test": "node --test test/"
   },
   "devDependencies": {
-    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.11&path:/packages/plugin-api",
+    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#f38dbb92236a187aedbbe2ec74e0966fb83d54c1&path:/packages/plugin-api",
     "jsdom": "^30.0.1"
   }
 }

@@ -20,7 +20,7 @@ async function setup(t) {
     icon: (name) => `<svg data-icon="${name}"></svg>`,
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     surfaceId: "browser-history-test",
-    tab: { title: (text) => titles.push(text), footer() {} },
+    tab: { title: (text) => titles.push(text), footer() {}, state: { read: () => null, write() {} } },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
       status(name, read, subscribe) { statuses.set(name, { read, subscribe }); }, dom() {},

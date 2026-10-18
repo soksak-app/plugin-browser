@@ -25,7 +25,7 @@ async function setup(t) {
   const controller = await mount(root, {
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {}, footer() {} },
+    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-address-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
@@ -124,7 +124,7 @@ test("the card footer shows the address of the link under the pointer", { timeou
   const controller = await mount(root, {
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {}, footer(text) { footers.push(text); } },
+    tab: { title() {}, footer(text) { footers.push(text); }, state: { read: () => null, write() {} } },
     surfaceId: "browser-footer-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: { status() {}, dom() {}, command() {}, bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose },

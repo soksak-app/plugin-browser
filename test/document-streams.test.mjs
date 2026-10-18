@@ -31,7 +31,7 @@ async function mountBrowser() {
   const composition = { region: () => region, dispose: async () => {} };
   const context = {
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {}, footer() {} },
+    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-streams-test",
     composition: { create: async () => composition },
     exposure: {

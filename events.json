@@ -7,7 +7,7 @@
       "class": "lifecycle",
       "level": "info",
       "fields": { "url": "string", "source": "string" },
-      "description": "A browser surface mounted; url is the address it opens (empty when none) and source is restored for the saved address of the tab or home for the home setting."
+      "description": "A browser surface mounted; url is the address it opens (empty when none) and source is restored for the address of the tab state, home for the home setting, or history for a region that restored the session history of an unloaded tab, which loads nothing."
     },
     "plugin.browser.command": {
       "layer": "plugin",

@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- P23: The surface declares `surface.unload` `{format: 1, maxBytes: 16384}`, writes its address as the core tab state instead of `localStorage`, and loads it at mount only when its document region restored no session history; `@soksak/plugin-api` and `CORE_RELEASE` come from core 0.0.18, which `engines.soksak` requires. Red: the stored address case loaded `https://home.test/`; Green: `make test` passes 52 of 52.
 - P21: `make hooks` sets `.githooks` as the hook folder, so a commit whose message breaks the commit form or the term rules, or whose records break the record rules, is refused when it is made.
 - P22: The DOM and Network panels and the statuses `browser.elements` and `browser.requests` read the document streams of the region instead of `elements` and `requests` of the document state, which core no longer sends. The DOM panel shows `500 of 2000` when the snapshot is truncated, and the Network panel shows the request log and `N dropped`. `@soksak/plugin-api` comes from the core revision that carries the streams.
 

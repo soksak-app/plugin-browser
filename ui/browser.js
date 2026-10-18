@@ -10,9 +10,6 @@ const STREAM_READ_LIMIT_MS = 10000;
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
 export async function mount(root, context) {
-  if (typeof context.surfaceId !== "string" || context.surfaceId === "") {
-    throw new TypeError("browser surface requires a surfaceId for location persistence");
-  }
   root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${context.icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${context.icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${context.icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
   const emitEvent = createEmitter(context.runtime, "browser");
   const address = root.querySelector("#address");
@@ -23,12 +20,14 @@ export async function mount(root, context) {
     area.hidden = url === "";
     empty.hidden = url !== "";
   };
-  const storageKey = `soksak.browser.location.${context.surfaceId}`;
-  const storage = root.ownerDocument.defaultView.localStorage;
-  const restored = storage.getItem(storageKey);
-  if (restored !== null && !/^https?:\/\/[^/]/i.test(restored)) {
-    throw new Error(`stored browser location for ${context.surfaceId} is not an http or https address`);
+  // The tab state is the address of the document, which a restored or restarted tab opens (core docs/spec/plugins.md#memory-saver).
+  // default: a new tab has no tab state and reads null.
+  const stored = context.tab.state.read();
+  if (stored !== null && (typeof stored?.url !== "string" || !/^https?:\/\/[^/]/i.test(stored.url))) {
+    throw new Error(`the tab state of browser tab ${context.surfaceId} has no http or https address: ${JSON.stringify(stored)}`);
   }
+  // default: a new tab has no stored address.
+  const restored = stored?.url ?? null;
   // 첫 클릭으로 얻은 전체 선택은 뗄 때까지 유지하고 이후 클릭은 캐럿 이동을 허용한다.
   let selecting = false;
   const beginSelection = () => { selecting = root.activeElement !== address; };
@@ -70,6 +69,8 @@ export async function mount(root, context) {
   address.addEventListener("blur", left);
   // default: 새 탭에는 저장된 주소(restored)가 없다. 문서를 열기 전의 위치는 빈 주소다.
   let current = { url: restored ?? "", title: "", loading: false, progress: 0, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 } };
+  // The address last written as the tab state; a state that keeps the address writes nothing.
+  let written = restored;
   // 세션 기록은 문서 영역 상태의 history 다(docs/spec/native-surfaces.md#document-regions).
   let history = { entries: [], index: -1 };
   const historyListeners = new Set();
@@ -105,7 +106,10 @@ export async function mount(root, context) {
     history = sessionHistory;
     for (const listener of historyListeners) listener(history);
     showEmpty(state.url);
-    if (state.url !== "") storage.setItem(storageKey, state.url);
+    if (state.url !== "" && state.url !== written) {
+      written = state.url;
+      context.tab.state.write({ url: state.url });
+    }
     if (!editing) address.value = state.url;
     for (const listener of locationListeners) listener(current);
     notifyAddress();
@@ -251,11 +255,17 @@ export async function mount(root, context) {
     emitEvent("debug", "plugin.browser.address.commit", { value, url });
     return { url };
   }, { event: "keydown", when: (event) => event.key === "Enter" });
-  // 저장된 주소가 없으면 설정 home 을 연다. 비어 있으면 빈 상태로 시작한다.
-  // default: 새 탭에는 저장된 주소(restored)가 없다. 그 탭은 설정 home 을 연다.
-  const start = restored ?? context.runtime.settings.read().home;
-  emitEvent("info", "plugin.browser.start", { url: start, source: restored === null ? "home" : "restored" });
-  if (start !== "") await region.load(start);
+  // A region that restored the session history of an unloaded tab already shows its document, and a load would add an entry
+  // after it (core docs/spec/plugins.md#memory-saver). Otherwise the tab opens its stored address, and a new tab opens the
+  // setting home; an empty home starts with the empty state.
+  if (region.history) {
+    emitEvent("info", "plugin.browser.start", { url: restored ?? "", source: "history" });
+  } else {
+    // default: a new tab has no stored address (restored) and opens the setting home.
+    const start = restored ?? context.runtime.settings.read().home;
+    emitEvent("info", "plugin.browser.start", { url: start, source: restored === null ? "home" : "restored" });
+    if (start !== "") await region.load(start);
+  }
   context.status.report("ready");
   return { async dispose() {
     address.removeEventListener("pointerdown", beginSelection);

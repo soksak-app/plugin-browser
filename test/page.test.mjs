@@ -47,7 +47,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   };
   const context = {
     icon: (name) => `<svg data-icon="${name}"></svg>`,
-    tab: { title() {}, footer() {} },
+    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-page-test",
     composition: { create: async () => composition },
     exposure: {
@@ -90,4 +90,61 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   assert.equal(notifyTextSize, null, "disposing stops following the text size");
   assert.equal(shadow.childNodes.length, 0);
   dom.window.close();
+});
+
+/** Mounts the browser with a fake region whose attach restored a session history when history is true, and a tab state. */
+async function mountRestored({ stored, history }) {
+  const dom = new JSDOM("<div></div>", { url: "https://example.test/" });
+  const shadow = dom.window.document.createElement("div").attachShadow({ mode: "open" });
+  const states = [];
+  const loads = [];
+  const writes = [];
+  const region = {
+    history,
+    onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
+    load: async (url) => { loads.push(url); },
+    zoom: async () => {},
+  };
+  const context = {
+    icon: () => "<svg></svg>",
+    tab: { title() {}, footer() {}, state: { read: () => stored, write: (value) => writes.push(value) } },
+    surfaceId: "browser-state-test",
+    composition: { create: async () => ({ region: () => region, dispose: async () => {} }) },
+    exposure: { status: async () => {}, command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
+    status: { report() {} },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://home.test/" }), on: () => () => {} },
+      textSize: { read: () => 1, on: () => () => {} } },
+  };
+  const { mount } = await import("../ui/browser.js");
+  const mounted = await mount(shadow, context);
+  return { dom, states, loads, writes, mounted };
+}
+
+test("a tab opens the address of its tab state and writes each new address", async () => {
+  const { dom, states, loads, writes, mounted } = await mountRestored({ stored: { url: "https://stored.test/" }, history: false });
+  assert.deepEqual(loads, ["https://stored.test/"]);
+  assert.equal(dom.window.localStorage.length, 0, "the address is not kept in localStorage");
+  const state = (url) => ({ url, title: "", history: { entries: [], index: -1 }, link: "", error: null, scroll: { x: 0, y: 0 } });
+  states[0](state("https://stored.test/"));
+  states[0](state("https://next.test/"));
+  states[0](state("https://next.test/"));
+  assert.deepEqual(writes, [{ url: "https://next.test/" }]);
+  await mounted.dispose();
+  dom.window.close();
+});
+
+test("a region that restored the session history loads nothing, and a new tab opens home", async () => {
+  const restored = await mountRestored({ stored: { url: "https://stored.test/" }, history: true });
+  assert.deepEqual(restored.loads, []);
+  await restored.mounted.dispose();
+  restored.dom.window.close();
+  const fresh = await mountRestored({ stored: null, history: false });
+  assert.deepEqual(fresh.loads, ["https://home.test/"]);
+  await fresh.mounted.dispose();
+  fresh.dom.window.close();
+});
+
+test("a tab state without an http or https address is refused", async () => {
+  await assert.rejects(mountRestored({ stored: { url: "file:///etc" }, history: false }),
+    /the tab state of browser tab browser-state-test has no http or https address: \{"url":"file:\/\/\/etc"\}/);
 });

@@ -2,6 +2,10 @@
 
 [한국어](CHANGELOG.ko.md)
 
+## Unreleased
+
+- P26: new commits are authored as `min-0-max <max@blue.tools>`; `.mailmap` maps the former name `min-median-max`, and published commits are not rewritten.
+
 ## 0.0.6 (2026-10-19)
 
 - P24: Release version 0.0.6 with the document streams (P22), the memory saver declaration (P23) and its address replacement (P25); the tag `v0.0.6` publishes `browser-0.0.6.tgz` built with `sok` of core v0.0.18.

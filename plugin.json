@@ -30,12 +30,12 @@
     {
       "id": "browser.dom",
       "name": "DOM",
-      "module": "ui/sections/dom.js"
+      "status": "browser.elements"
     },
     {
       "id": "browser.network",
       "name": "네트워크",
-      "module": "ui/sections/network.js"
+      "status": "browser.requests"
     },
     {
       "id": "browser.tabs",
@@ -45,7 +45,7 @@
     {
       "id": "browser.history",
       "name": "히스토리",
-      "module": "ui/sections/history.js"
+      "status": "browser.history"
     }
   ],
   "settings": {
@@ -118,43 +118,31 @@
       },
       {
         "name": "browser.history",
-        "description": "The session history of the document region: its entries from the oldest with address and title, and the position of the current entry, or -1 before the first load.",
+        "description": "The declared UI value of the 히스토리 section: one list of the session history entries of the document region from the oldest, each with the title or the address as its label and bound to browser.history.go with its position, the current entry selected, or the empty list.",
         "schema": {
           "type": "object",
           "properties": {
-            "entries": {
-              "type": "array",
-              "items": { "type": "object", "properties": { "url": { "type": "string" }, "title": { "type": "string" } } }
-            },
-            "index": { "type": "integer" }
+            "elements": { "type": "array" }
           }
         }
       },
       {
         "name": "browser.elements",
-        "description": "The elements of the document in document order with depth, tag, id, and class, at most 500, and whether the list was truncated.",
+        "description": "The declared UI value of the DOM section: one tree of the elements of the document in document order, each with tag, id and class as its label nested by depth, a status line for a snapshot cut above 500 nodes, and a status line for the elements below the 16-level limit of a tree, or the empty tree before the first snapshot and after a reset of the document.",
         "schema": {
           "type": "object",
           "properties": {
-            "nodes": {
-              "type": "array",
-              "items": { "type": "object", "properties": { "depth": { "type": "integer" }, "tag": { "type": "string" }, "id": { "type": "string" }, "class": { "type": "string" } } }
-            },
-            "truncated": { "type": "boolean" }
+            "elements": { "type": "array" }
           }
         }
       },
       {
         "name": "browser.requests",
-        "description": "The requests of the document that its Performance API recorded, the navigation first, with address, type, start, and duration in milliseconds, at most 200, and whether the list was truncated.",
+        "description": "The declared UI value of the 네트워크 section: one static list of the requests that the document recorded, each with type and address as its label and the duration in milliseconds as its detail, and a status line with the count the request log dropped, or the empty list before the first entries and after a reset of the document.",
         "schema": {
           "type": "object",
           "properties": {
-            "entries": {
-              "type": "array",
-              "items": { "type": "object", "properties": { "url": { "type": "string" }, "type": { "type": "string" }, "start": { "type": "number" }, "duration": { "type": "number" } } }
-            },
-            "truncated": { "type": "boolean" }
+            "elements": { "type": "array" }
           }
         }
       }

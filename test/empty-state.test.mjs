@@ -30,6 +30,7 @@ async function setup(t) {
       status() {}, dom(name, element) { doms.set(name, element); }, command(name, run) { commands.set(name, run); },
       bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose,
     },
+    declared: { push() {} },
     status: { report() {} },
   });
   t.after(async () => { await controller.dispose(); dom.window.close(); });

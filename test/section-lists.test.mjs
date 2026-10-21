@@ -1,5 +1,6 @@
 // 상태 값이 바뀌어도 바뀌지 않은 항목의 조작 요소는 문서에 남는다(core docs/spec/exposure.md, P13). 누름과 뗌
-// 사이에 눌린 요소가 문서에서 빠지면 WebKit 은 click 을 보내지 않는다.
+// 사이에 눌린 요소가 문서에서 빠지면 WebKit 은 click 을 보내지 않는다. 히스토리, 네트워크, DOM 섹션은 declared UI
+// status 형태라 workbench가 그리며(#P27.2) 이 저장소의 테스트 대상이 아니다.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
@@ -31,20 +32,6 @@ test("the tabs section keeps the controls of its tabs when the grid changes", as
   assert.ok(before.every((button) => button.isConnected), "a grid change took the tab controls out of the document");
   assert.deepEqual([...root.querySelectorAll("button")].map((button) => [button.textContent, button.getAttribute("aria-current")]),
     [["A2", null], ["B", "page"]]);
-  section.dispose();
-  dom.window.close();
-});
-
-test("the history section keeps the controls of its entries when a page is added", async () => {
-  const { dom, root, context, send } = setup("tab-a");
-  const { mount } = await import("../ui/sections/history.js");
-  const section = mount(root, context);
-  const first = { title: "A", url: "https://a.example/" };
-  send("browser.history", { index: 0, entries: [first] });
-  const before = root.querySelector("button");
-  send("browser.history", { index: 1, entries: [first, { title: "B", url: "https://b.example/" }] });
-  assert.ok(before.isConnected, "a new history entry took the earlier entry's control out of the document");
-  assert.deepEqual([...root.querySelectorAll("button")].map((button) => button.getAttribute("aria-current")), [null, "page"]);
   section.dispose();
   dom.window.close();
 });

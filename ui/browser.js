@@ -15,9 +15,81 @@ const css = `:host{display:flex;height:100%;flex-direction:column;background:var
 const REQUEST_LOG_LIMIT = 200;
 // A read of a document stream fails when no data message arrives within this limit (docs/spec/native-surfaces.md#document-streams).
 const STREAM_READ_LIMIT_MS = 10000;
+// A text field of a declared UI value accepts 500 code points (core docs/spec/declared-ui.md#limits), so a label is cut to them.
+const cutText = (text) => (text.length > 500 ? [...text].slice(0, 500).join("") : text);
+// A tree accepts at most 16 levels (core docs/spec/declared-ui.md#limits); the elements below the limit are counted and stated.
+const TREE_LEVELS = 16;
 
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
+/** The declared UI value of the 히스토리 section from the session history of the document region. */
+export const declaredHistory = (history) => ({
+  elements: [{
+    kind: "list",
+    key: "history",
+    empty: "기록 없음",
+    items: history.entries.map((entry, index) => ({
+      key: `h${index}`,
+      label: cutText(entry.title || entry.url),
+      command: "browser.history.go",
+      params: { index },
+      selected: index === history.index,
+    })),
+  }],
+});
+
+/** The label of one element of the document, as the tag with its id and classes. */
+const elementLabel = (node) => {
+  const classes = node.class.trim().split(/\s+/).filter(Boolean).map((name) => `.${name}`).join("");
+  return cutText(`${node.tag}${node.id ? `#${node.id}` : ""}${classes}`);
+};
+
+/** The declared UI value of the DOM section from one snapshot of the elements stream of the document region. */
+export const declaredElements = (elements) => {
+  const roots = [];
+  const stack = [];
+  let count = 0;
+  let below = 0;
+  // default: a node whose depth continues an earlier branch nests under it; a gap of depth nests at the root.
+  for (const node of elements?.nodes ?? []) {
+    if (node.depth >= TREE_LEVELS) {
+      below += 1;
+      continue;
+    }
+    const item = { key: `n${count}`, label: elementLabel(node) };
+    count += 1;
+    const parent = stack[node.depth - 1];
+    if (parent) {
+      parent.children ??= [];
+      parent.children.push(item);
+    } else {
+      roots.push(item);
+    }
+    stack.length = node.depth;
+    stack[node.depth] = item;
+  }
+  const value = [{ kind: "tree", key: "elements", empty: "요소 없음", nodes: roots }];
+  if (elements?.truncated) value.push({ kind: "status-line", key: "elements.cut", text: `${elements.nodes.length} of ${elements.total}` });
+  if (below > 0) value.push({ kind: "status-line", key: "elements.levels", text: `16 단계 아래의 요소 ${below}개는 보이지 않음` });
+  return { elements: value };
+};
+
+/** The declared UI value of the 네트워크 section from one value of the requests stream of the document region. */
+export const declaredRequests = (requests) => {
+  const elements = [{
+    kind: "list",
+    key: "requests",
+    empty: "요청 없음",
+    items: (requests?.entries ?? []).map((entry, index) => ({
+      key: `r${index}`,
+      label: cutText(`${entry.type} ${entry.url}`),
+      detail: `${Math.round(entry.duration)}ms`,
+    })),
+  }];
+  if (requests?.dropped) elements.push({ kind: "status-line", key: "requests.dropped", text: `${requests.dropped} dropped` });
+  return { elements };
+};
+
 export async function mount(root, context) {
   root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
   const emitEvent = createEmitter(context.runtime, "browser");
@@ -114,7 +186,9 @@ export async function mount(root, context) {
     tabTitle(state);
     tabFooter(state.link);
     history = sessionHistory;
-    for (const listener of historyListeners) listener(history);
+    const declared = declaredHistory(history);
+    for (const listener of historyListeners) listener(declared);
+    context.declared.push("browser.history", declared);
     showEmpty(state.url);
     if (state.url !== "" && state.url !== written) {
       written = state.url;
@@ -136,9 +210,9 @@ export async function mount(root, context) {
     fn(current);
     return () => locationListeners.delete(fn);
   });
-  context.exposure.status("browser.history", () => history, (fn) => {
+  context.exposure.status("browser.history", () => declaredHistory(history), (fn) => {
     historyListeners.add(fn);
-    fn(history);
+    fn(declaredHistory(history));
     return () => historyListeners.delete(fn);
   });
   // The element and request streams of the document region (docs/spec/native-surfaces.md#document-streams). A watch holds one
@@ -147,13 +221,15 @@ export async function mount(root, context) {
   // of the region log, because a status delivers only its latest value and each entries message is a batch of new entries.
   // Creates the status functions of one document stream. message.type of the data is dataType, and next(current, message) returns the
   // value after a data message. A failure of a delivered message or of the subscription is reported as a page error.
-  const documentStream = (stream, dataType, next) => {
+  const documentStream = (status, stream, dataType, next, declared) => {
     const watchers = new Set();
     let latest = null;
     let subscription = null;
     const deliver = (value) => {
       latest = value;
-      for (const fn of watchers) fn(value);
+      const view = declared(latest);
+      context.declared.push(status, view);
+      for (const fn of watchers) fn(view);
     };
     // A message of a subscription that is closed and not yet removed by the region is dropped, so it cannot set a stale value.
     const receive = (opening, message) => {
@@ -209,10 +285,10 @@ export async function mount(root, context) {
     };
     return {
       close,
-      read: () => (latest !== null ? latest : readFirst()),
+      read: () => (latest !== null ? declared(latest) : readFirst().then(declared)),
       subscribe(fn) {
         watchers.add(fn);
-        fn(latest);
+        fn(declared(latest));
         if (subscription === null) open();
         return () => {
           watchers.delete(fn);
@@ -221,13 +297,17 @@ export async function mount(root, context) {
       },
     };
   };
-  const elementStream = documentStream("elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }));
-  const requestStream = documentStream("requests", "entries", (current, { entries, dropped }) => ({
+  const elementStream = documentStream("browser.elements", "elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), declaredElements);
+  const requestStream = documentStream("browser.requests", "requests", "entries", (current, { entries, dropped }) => ({
     entries: [...(current?.entries ?? []), ...entries].slice(-REQUEST_LOG_LIMIT),
     dropped,
-  }));
+  }), declaredRequests);
   context.exposure.status("browser.elements", elementStream.read, elementStream.subscribe);
   context.exposure.status("browser.requests", requestStream.read, requestStream.subscribe);
+  // The first snapshot of each section status is its whole value (core docs/spec/plugin-processes.md, rule 2); before the
+  // first message of a stream the value is the empty form of its section.
+  context.declared.push("browser.elements", declaredElements(null));
+  context.declared.push("browser.requests", declaredRequests(null));
   context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);

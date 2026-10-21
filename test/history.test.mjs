@@ -26,6 +26,7 @@ async function setup(t) {
       command(name, run) { commands.set(name, run); },
       async bind() {}, async delegate() {}, async dispose() {},
     },
+    declared: { push() {} },
     status: { report() {} },
   });
   t.after(async () => { await controller.dispose(); dom.window.close(); });
@@ -47,10 +48,16 @@ test("the browser declares its session history status and the command that loads
 test("browser.history follows the region state and browser.history.go loads an entry by its offset", { timeout: 10000 }, async (t) => {
   const { statuses, commands, entries, send } = await setup(t);
   const seen = [];
-  statuses.get("browser.history").subscribe((value) => seen.push(value.index));
-  assert.deepEqual(statuses.get("browser.history").read(), { entries: [], index: -1 });
+  // The status serves the declared UI value of the 히스토리 section (#P27.2): the current entry is the selected item.
+  const selected = (value) => value.elements[0].items.findIndex((item) => item.selected === true);
+  statuses.get("browser.history").subscribe((value) => seen.push(selected(value)));
+  assert.deepEqual(statuses.get("browser.history").read().elements,
+    [{ kind: "list", key: "history", empty: "기록 없음", items: [] }]);
   send(1);
-  assert.equal(statuses.get("browser.history").read().entries.length, 2);
+  const value = statuses.get("browser.history").read();
+  assert.equal(value.elements[0].items.length, 2);
+  assert.deepEqual(value.elements[0].items.map((item) => [item.label, item.command, item.params]),
+    [["One", "browser.history.go", { index: 0 }], ["Two", "browser.history.go", { index: 1 }]]);
   assert.equal(statuses.get("browser.location").read().history, undefined, "browser.location does not carry the history");
   assert.equal(await commands.get("browser.history.go")({ index: 0 }), true);
   assert.deepEqual(entries, [-1]);

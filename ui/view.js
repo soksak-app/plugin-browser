@@ -120,6 +120,18 @@ export function createViewContext({ bridge, start, report }) {
           await exposure.dispose();
         },
       },
+      // The declared UI values of the section statuses: the page pushes each value through the snapshot sender of the
+      // bridge, and the workbench draws the declared sections from the snapshots (core docs/spec/declared-ui.md). A send
+      // that fails is a record, so that a failure of the channel does not end the command that changed the value.
+      declared: {
+        push: (status, value) => {
+          try {
+            bridge.snapshots.push(status, value);
+          } catch (error) {
+            report(`declared UI push of ${status} failed: ${error?.message ?? error}`);
+          }
+        },
+      },
       // The state of the surface is the state that the workbench keeps; the page of a view reports no phase.
       status: { report: () => {} },
     },

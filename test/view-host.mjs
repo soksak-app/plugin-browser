@@ -50,7 +50,7 @@ const settle = (rounds = 8) => {
 function fakeRegion(name, emit) {
   const region = { name, streams: [], handles: 0, loads: [], history: false };
   region.show = (url, change = {}) => {
-    const state = { url, title: "", loading: false, progress: 1, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 }, link: "", ...change };
+    const state = { url, title: "", loading: false, progress: 1, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 }, link: "", history: { entries: [], index: -1 }, ...change };
     setTimeout(() => emit("document-state", { document: name, state }), 0);
     return state;
   };
@@ -106,6 +106,7 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
   };
   const reports = { title: [], footer: [], modified: [], error: [], keep: [], state: [], registered: [], native: [] };
   const logs = [];
+  const snapshots = [];
   const calls = [];
   const pending = new Map();
   const subscribed = new Set();
@@ -123,6 +124,7 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
   const reply = (id, payload) => post({ sok: 1, id, ...payload });
   const deliver = (message) => {
     if (message?.event === "declared-ui.snapshot") {
+      snapshots.push(message);
       post({ sok: 1, event: "declared-ui.snapshot.ack", data: { plugin: message.plugin, status: message.status, seq: message.seq } });
       return;
     }
@@ -239,5 +241,5 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     exposurePending.set(id, resolve);
     post({ sok: 1, event: "exposure-request", data: { id, surface: "browser-1", method, params: paramsOfRequest } });
   });
-  return { window, region, reports, logs, calls, subscribed, run, post, settle, expose };
+  return { window, region, reports, logs, calls, snapshots, subscribed, run, post, settle, expose };
 }

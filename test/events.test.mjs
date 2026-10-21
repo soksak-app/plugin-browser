@@ -70,6 +70,8 @@ async function setup(t, { home = "https://home.test/", failLoad } = {}) {
     surfaceId: "browser-events-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: { status() {}, dom() {}, command(name, run) { commands.set(name, run); }, bind() {}, delegate() {}, dispose() {} },
+    declared: { push() {} },
+    declared: { push() {} },
     status: { report() {} },
   });
   t.after(() => { controller.dispose(); dom.window.close(); });
@@ -106,7 +108,7 @@ test("a failed load keeps the code of the error", async (t) => {
 
 test("a history move names the entries it moves between", async (t) => {
   const { events, commands, push } = await setup(t, { home: "" });
-  push({ history: { entries: [{}, {}, {}], index: 2 } });
+  push({ history: { entries: [{ url: "https://a.test/", title: "A" }, { url: "https://b.test/", title: "B" }, { url: "https://c.test/", title: "C" }], index: 2 } });
   await commands.get("browser.history.go")({ index: 0 });
   assert.deepEqual(events.find((event) => event.event === "history.move").fields, { from: 2, to: 0 });
 });

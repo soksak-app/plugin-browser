@@ -119,6 +119,22 @@ test("a region that restored the session history of an unloaded tab loads nothin
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
 });
 
+test("the page pushes the declared UI value of each section status", async (t) => {
+  const { region, snapshots, settle } = createViewPage(t, "declared");
+  await import("../ui/view.js?case=declared");
+  await settle();
+  region.show("https://a.test/one", { title: "One" });
+  await settle();
+  const byStatus = Object.fromEntries(snapshots.map((snapshot) => [snapshot.status, snapshot]));
+  assert.deepEqual(Object.keys(byStatus).toSorted(), ["browser.elements", "browser.history", "browser.requests"]);
+  assert.equal(byStatus["browser.history"].plugin, "browser");
+  assert.deepEqual(byStatus["browser.history"].value.elements,
+    [{ kind: "list", key: "history", empty: "기록 없음", items: [] }], "the first value is the whole value of the status");
+  assert.ok(Number.isInteger(byStatus["browser.history"].seq) && byStatus["browser.history"].seq > 0);
+  assert.deepEqual(byStatus["browser.requests"].value,
+    { elements: [{ kind: "list", key: "requests", empty: "요청 없음", items: [] }] });
+});
+
 test("a browser.address.select run focuses the address field of the view", async (t) => {
   const { window, run, settle } = createViewPage(t, "select");
   await import("../ui/view.js?case=select");

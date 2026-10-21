@@ -20,8 +20,22 @@ test("the package publishes the manifest and surface module", () => {
 
 test("every section module is published", () => {
   for (const section of manifest.sections ?? []) {
+    if (section.module === undefined) continue;
     assert.ok(existsSync(new URL(`../${section.module}`, import.meta.url)), section.module);
     assert.ok(pkg.files.some((entry) => section.module === entry || section.module.startsWith(`${entry}/`)), section.module);
+  }
+});
+
+test("the 히스토리, 네트워크 and DOM sections are declared UI statuses of this plugin", () => {
+  const declared = (name) => manifest.exposes.status.some((entry) => entry.name === name);
+  const sections = Object.fromEntries(manifest.sections.map((section) => [section.id, section]));
+  assert.equal(sections["browser.history"].status, "browser.history");
+  assert.equal(sections["browser.network"].status, "browser.requests");
+  assert.equal(sections["browser.dom"].status, "browser.elements");
+  assert.equal(sections["browser.tabs"].module, "ui/sections/tabs.js");
+  for (const id of ["browser.history", "browser.network", "browser.dom"]) {
+    assert.equal(sections[id].module, undefined, `${id} declares no module`);
+    assert.ok(declared(sections[id].status), `${sections[id].status} is not a status of this plugin`);
   }
 });
 
@@ -43,19 +57,6 @@ async function mountSection(id, surface = "t1") {
   return { root, observers, bound, send, dispose: () => { mounted.dispose(); delete globalThis.document; dom.window.close(); } };
 }
 
-test("the history section lists browser.history and loads an entry on press", async () => {
-  const s = await mountSection("browser.history");
-  s.send("browser.history", null, null);
-  assert.equal(s.root.textContent, "브라우저 표면 없음");
-  s.send("browser.history", { entries: [], index: -1 });
-  assert.equal(s.root.textContent, "기록 없음");
-  s.send("browser.history", { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://a.test/two", title: "" }], index: 1 });
-  assert.deepEqual(s.bound.map(({ el, name, params }) => [el.textContent, el.getAttribute("aria-current"), name, params]),
-    [["One", null, "browser.history.go", { index: 0 }], ["https://a.test/two", "page", "browser.history.go", { index: 1 }]]);
-  s.dispose();
-  assert.equal(s.observers.size, 0);
-});
-
 test("the tabs section lists the browser tabs of the card that holds its surface and selects a tab on press", async () => {
   const s = await mountSection("browser.tabs", "b1");
   const grid = { cards: [
@@ -71,30 +72,4 @@ test("the tabs section lists the browser tabs of the card that holds its surface
   assert.equal(s.root.textContent, "브라우저 탭 없음");
   s.dispose();
   assert.equal(s.observers.size, 0);
-});
-
-test("the DOM section lists browser.elements indented by depth", async () => {
-  const s = await mountSection("browser.dom");
-  s.send("browser.elements", null, null);
-  assert.equal(s.root.textContent, "브라우저 표면 없음");
-  s.send("browser.elements", { nodes: [], total: 0, truncated: false });
-  assert.equal(s.root.textContent, "요소 없음");
-  s.send("browser.elements", { nodes: [{ depth: 0, tag: "html", id: "", class: "" }, { depth: 1, tag: "div", id: "box", class: " a  b " }], total: 2000, truncated: true });
-  const items = [...s.root.children[0].children];
-  assert.deepEqual(items.map((item) => [item.textContent, item.style.paddingLeft]),
-    [["html", "0px"], ["div#box.a.b", "8px"], ["2 of 2000", ""]]);
-  assert.equal(s.bound.length, 0);
-  s.dispose();
-  assert.equal(s.observers.size, 0);
-});
-
-test("the network section lists browser.requests with type, address, and duration", async () => {
-  const s = await mountSection("browser.network");
-  s.send("browser.requests", null);
-  assert.equal(s.root.textContent, "요청 없음");
-  s.send("browser.requests", { entries: [{ url: "https://a.test/", type: "navigation", start: 0, duration: 12.4 },
-    { url: "https://a.test/x.png", type: "img", start: 20, duration: 3.6 }], dropped: 0 });
-  assert.deepEqual([...s.root.children[0].children].map((item) => item.textContent),
-    ["navigation https://a.test/ 12ms", "img https://a.test/x.png 4ms"]);
-  s.dispose();
 });

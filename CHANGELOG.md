@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- P27.3: The surface is a view. `plugin.json` declares the composition `{kind: "view", page: "ui/index.html", regions: [page document native]}` and no module; the view page carries the static import map of `VIEW_IMPORTS`, reads the start values of `window.sokSurface`, builds the surface context over `createViewBridge` of `@soksak/plugin-api/view` on the `sok://browser` origin, attaches the document region `page` through the composition of the view, and mounts `ui/browser.js` into a shadow root of the page. Every declared command, status and dom name keeps its name; the bar buttons draw the core icon paths directly, because a view page has no `icon` route. `@soksak/plugin-api` is pinned to the core main revision that holds F228 (0.0.20). One tracked view case is skipped with its reason: the composition controller of that core commit exposes no region `history` (F198.19), so the page cannot see a restored session history; P27.5 tracks it.
 - P26: new commits are authored as `min-0-max <max@blue.tools>`; `.mailmap` maps the former name `min-median-max`, and published commits are not rewritten.
 
 ## 0.0.6 (2026-10-19)

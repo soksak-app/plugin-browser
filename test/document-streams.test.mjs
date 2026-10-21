@@ -30,7 +30,6 @@ async function mountBrowser() {
   const reports = [];
   const composition = { region: () => region, dispose: async () => {} };
   const context = {
-    icon: (name) => `<svg data-icon="${name}"></svg>`,
     tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-streams-test",
     composition: { create: async () => composition },
@@ -42,8 +41,8 @@ async function mountBrowser() {
     status: { report: (phase, error) => { reports.push([phase, error]); } },
     runtime: {
       log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} },
-      settings: { read: () => ({ home: "" }), on: () => () => {} },
-      textSize: { read: () => 1, on: () => () => {} },
+      settings: { read: async () => ({ home: "" }), on: async () => () => {} },
+      textSize: { read: async () => 1, on: async () => () => {} },
     },
   };
   const { mount } = await import("../ui/browser.js");

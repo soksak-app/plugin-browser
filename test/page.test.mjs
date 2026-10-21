@@ -46,7 +46,6 @@ test("browser mount publishes document state, respects shadow focus, and dispose
     dispose: async () => { composition.disposed = true; },
   };
   const context = {
-    icon: (name) => `<svg data-icon="${name}"></svg>`,
     tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-page-test",
     composition: { create: async () => composition },
@@ -58,8 +57,8 @@ test("browser mount publishes document state, respects shadow focus, and dispose
       dispose: async () => { exposed.disposed = true; },
     },
     status: { report: (phase) => { exposed.phase = phase; } },
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: () => 1.25,
-      on: (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: async () => 1.25,
+      on: async (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
   };
   const { mount } = await import("../ui/browser.js");
   const mounted = await mount(shadow, context);
@@ -68,9 +67,11 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   notifyTextSize(2);
   await Promise.resolve();
   assert.deepEqual(zooms, [1.25, 2], "the document follows text size changes");
-  // 기록 이동과 새로 고침 단추는 코어 아이콘을 그린다.
-  const iconOf = (command) => shadow.querySelector(`[data-command="${command}"] svg`)?.dataset.icon;
-  assert.deepEqual(["browser.back", "browser.forward", "browser.reload"].map(iconOf), ["chevron-left", "chevron-right", "rotate-cw"]);
+  // 기록 이동과 새로 고침 단추는 core 아이콘 표의 경로를 직접 그린다.
+  const pathOf = (command) => shadow.querySelector(`[data-command="${command}"] svg`)?.innerHTML;
+  assert.deepEqual(["browser.back", "browser.forward", "browser.reload"].map(pathOf),
+    ['<path d="m15 18-6-6 6-6"></path>', '<path d="m9 18 6-6-6-6"></path>',
+      '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path>']);
   const address = shadow.querySelector("#address");
   address.focus();
   address.value = "https://typing.test/";
@@ -106,14 +107,13 @@ async function mountRestored({ stored, history }) {
     zoom: async () => {},
   };
   const context = {
-    icon: () => "<svg></svg>",
     tab: { title() {}, footer() {}, state: { read: () => stored, write: (value) => writes.push(value) } },
     surfaceId: "browser-state-test",
     composition: { create: async () => ({ region: () => region, dispose: async () => {} }) },
     exposure: { status: async () => {}, command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
     status: { report() {} },
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://home.test/" }), on: () => () => {} },
-      textSize: { read: () => 1, on: () => () => {} } },
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
+      textSize: { read: async () => 1, on: async () => () => {} } },
   };
   const { mount } = await import("../ui/browser.js");
   const mounted = await mount(shadow, context);

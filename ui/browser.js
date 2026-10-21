@@ -1,5 +1,14 @@
 import { createEmitter } from "./events.js";
 
+// 이동 단추의 아이콘은 core 아이콘 표(chevron-left, chevron-right, rotate-cw)의 경로다. 뷰 페이지에는 아직
+// icon(name) 경로가 없으므로(core docs/spec/plugins.md#view-surfaces) 모듈이 경로를 직접 그린다.
+const ICONS = {
+  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+  "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "rotate-cw": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24">${ICONS[name]}</svg>`;
+
 const css = `:host{display:flex;height:100%;flex-direction:column;background:var(--card);color:var(--fg);font:12px/1.4 var(--font)}#bar{display:flex;gap:4px;padding:4px 6px;border-bottom:1px solid var(--rule);background:var(--card)}#bar button{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--r-xs);background:transparent;color:var(--muted);cursor:pointer}#bar button:hover:not(:disabled){background:var(--inset);color:var(--fg)}#bar svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.95;stroke-linecap:round;stroke-linejoin:round}#bar{align-items:center}input{flex:1;min-width:0;background:transparent;color:inherit;border:1px solid var(--edge);border-radius:5px;padding:3px 8px}#document,#empty{flex:1;min-height:0}#empty{display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--muted);cursor:text}[hidden]{display:none!important}`;
 
 // The document region keeps at most 200 request entries (docs/spec/native-surfaces.md#document-streams), and the status keeps the same bound.
@@ -10,7 +19,7 @@ const STREAM_READ_LIMIT_MS = 10000;
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
 export async function mount(root, context) {
-  root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${context.icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${context.icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${context.icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
+  root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
   const emitEvent = createEmitter(context.runtime, "browser");
   const address = root.querySelector("#address");
   const area = root.querySelector("#document");
@@ -21,8 +30,9 @@ export async function mount(root, context) {
     empty.hidden = url !== "";
   };
   // The tab state is the address of the document, which a restored or restarted tab opens (core docs/spec/plugins.md#memory-saver).
+  // The read is a call of the view channel, so the page awaits it.
   // default: a new tab has no tab state and reads null.
-  const stored = context.tab.state.read();
+  const stored = await context.tab.state.read();
   if (stored !== null && (typeof stored?.url !== "string" || !/^https?:\/\/[^/]/i.test(stored.url))) {
     throw new Error(`the tab state of browser tab ${context.surfaceId} has no http or https address: ${JSON.stringify(stored)}`);
   }
@@ -115,9 +125,9 @@ export async function mount(root, context) {
     notifyAddress();
   };
   const stopState = region.onState(show);
-  // 문서의 페이지 확대는 이 표면의 실제 글자 배율이다(docs/spec/text-size.md).
+  // 문서의 페이지 확대는 이 표면의 실제 글자 배율이다(docs/spec/text-size.md). 읽기와 구독은 뷰 채널의 호출이다.
   const textSize = context.runtime.textSize;
-  await region.zoom(textSize.read());
+  await region.zoom(await textSize.read());
   const stopTextSize = textSize.on((factor) => {
     region.zoom(factor).catch((error) => context.status.report("error", error));
   });
@@ -261,8 +271,8 @@ export async function mount(root, context) {
   if (region.history) {
     emitEvent("info", "plugin.browser.start", { url: restored ?? "", source: "history" });
   } else {
-    // default: a new tab has no stored address (restored) and opens the setting home.
-    const start = restored ?? context.runtime.settings.read().home;
+    // default: a new tab has no stored address (restored) and opens the setting home. The read is a call of the view channel.
+    const start = restored ?? (await context.runtime.settings.read()).home;
     emitEvent("info", "plugin.browser.start", { url: start, source: restored === null ? "home" : "restored" });
     if (start !== "") await region.load(start);
   }
@@ -275,7 +285,7 @@ export async function mount(root, context) {
     address.removeEventListener("blur", left);
     addressListeners.clear();
     stopState();
-    stopTextSize();
+    await stopTextSize.then((stop) => stop());
     locationListeners.clear();
     historyListeners.clear();
     // The watched streams end before the region closes, so each subscription is closed by its own handle.

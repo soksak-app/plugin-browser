@@ -65,8 +65,7 @@ async function setup(t, { home = "https://home.test/", failLoad } = {}) {
     async entry() { return true; },
   };
   const controller = await mount(root, {
-    runtime: { ...runtime, settings: { read: () => ({ home }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
-    icon: () => "<svg></svg>",
+    runtime: { ...runtime, settings: { read: async () => ({ home }), on: async () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
     tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-events-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },

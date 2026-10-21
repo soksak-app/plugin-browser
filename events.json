@@ -50,6 +50,13 @@
       "level": "error",
       "fields": { "url": "string", "reason": "string" },
       "description": "The document region reported an error in its state; reason is the text of the error."
+    },
+    "plugin.browser.report": {
+      "layer": "plugin",
+      "class": "call",
+      "level": "error",
+      "fields": { "text": "string" },
+      "description": "The page of the view failed: an error or a rejection of the page, a refused call of the view channel, or a loss of the view calls; text states the error."
     }
   }
 }

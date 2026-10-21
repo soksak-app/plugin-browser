@@ -18,13 +18,15 @@
     "events.json",
     "ui/browser.js",
     "ui/events.js",
+    "ui/index.html",
+    "ui/view.js",
     "ui/sections"
   ],
   "scripts": {
     "test": "node --test test/"
   },
   "devDependencies": {
-    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.18&path:/packages/plugin-api",
+    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#0f9267425370f3cb103ce2c39d2d3e7fe93ccb4d&path:/packages/plugin-api",
     "jsdom": "^30.0.1"
   }
 }

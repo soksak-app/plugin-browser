@@ -23,8 +23,7 @@ async function setup(t) {
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
-    icon: (name) => `<svg data-icon="${name}"></svg>`,
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
     tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
     surfaceId: "browser-address-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
@@ -122,8 +121,7 @@ test("the card footer shows the address of the link under the pointer", { timeou
     async load() {}, async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: () => ({ home: "" }), on: () => () => {} }, textSize: { read: () => 1, on: () => () => {} } },
-    icon: (name) => `<svg data-icon="${name}"></svg>`,
+    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
     tab: { title() {}, footer(text) { footers.push(text); }, state: { read: () => null, write() {} } },
     surfaceId: "browser-footer-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },

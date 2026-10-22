@@ -30,7 +30,7 @@ function checkViewPage(html) {
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const PAGE = new URL("../build/test/ui/index.html", import.meta.url);
-const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { root: "/project" }, declarations: manifest.exposes };
+const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: manifest.exposes };
 
 test("the view page carries the import map of the view and the page script", () => {
   const html = readFileSync(PAGE, "utf8");
@@ -51,7 +51,8 @@ for (const [label, change, reason] of [
   ["with declarations that are an array", { declarations: [] }, /declarations/],
   ["with an origin of an empty directory", { origin: { directory: "" } }, /origin/],
   ["with an origin that is text", { origin: "/work" }, /origin/],
-  ["with a project whose root is not text", { project: { root: 1 } }, /project/],
+  ["with a project whose root is not text", { project: { id: "prj-project", root: 1 } }, /project/],
+  ["with a project without an id", { project: { root: "/project" } }, /project/],
   ["without params", { params: undefined }, /params/],
 ]) {
   test(`the view page refuses start values ${label}`, async (t) => {

@@ -11,7 +11,7 @@ const isText = (value) => typeof value === "string" && value !== "";
 const START_FORM = {
   params: (value) => value !== undefined,
   origin: (value) => isRecord(value) && (value.directory === null || isText(value.directory)),
-  project: (value) => value === null || (isRecord(value) && isText(value.root)),
+  project: (value) => value === null || (isRecord(value) && isText(value.id) && isText(value.root)),
   declarations: isRecord,
 };
 

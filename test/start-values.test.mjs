@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { startValues } from "../build/test/ui/start-values.js";
 
-const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { root: "/project" }, declarations: {} };
+const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: {} };
 
 // The window of the page: the start values and the host of the view.
 const windowWith = (sokSurface) => ({ sokSurface, location: { host: "browser" } });
@@ -33,7 +33,8 @@ for (const [label, change, field] of [
   ["with an origin of an empty directory", { origin: { directory: "" } }, "origin"],
   ["with an origin that is text", { origin: "/work" }, "origin"],
   ["with an origin without a directory", { origin: {} }, "origin"],
-  ["with a project whose root is not text", { project: { root: 1 } }, "project"],
+  ["with a project whose root is not text", { project: { id: "prj-project", root: 1 } }, "project"],
+  ["with a project without an id", { project: { root: "/project" } }, "project"],
   ["without params", { params: undefined }, "params"],
 ]) {
   test(`the start values ${label} are refused and the refusal names ${field}`, () => {

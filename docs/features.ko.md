@@ -2,6 +2,7 @@
 
 [English](features.md)
 
+- [o] F238-b-10-1 — P1, core F238-b-10의 후속 항목: `test/fixtures/sdk-cases/view-bridge.json`를 origin/main의 core `packages/plugin-api/contract/view-bridge.json`으로 새로 고쳤다(sha256 `c4b5439c0cdd8156…`, 바이트 단위 동일). core 사례 `view.bridge.runtime-log-level-gate`는 이제 `view.bridge.runtime-log-without-level-query`다. view는 `runtime.log.levels`를 부르지 않고 level을 읽지 않는다. 이 저장소에서는 conformance test(`test/sdk-models/conformance.test.mjs`)가 사례를 제외 목록에 적는다. view bridge model에 `runtime.log`가 없기 때문이다. 완료: 사본은 core와 바이트 단위로 같고 `make test`가 통과한다.
 - [o] P1 — P1: 이 plugin을 자기 repository로 test하고 pack한다. 2026-10-02에 soksak core repository(그곳의 checklist 항목 R1-5-3)에서 옮겼으며, 이전 변경 이력은 core에 있다. `make test`와 `make pack`이 통과한다.
 - [o] P2 — P1: 주소 막대를 각 mode의 카드 색으로 칠한다. light mode에서 주소 막대가 어두웠다. 막대가 배경을 칠하지 않아 hybrid composition이 page 뒤의 어두운 색(16, 17, 23)을 보였고, 빈 화면은 `--card`를 칠했다. 2026-10-02 완료: 막대가 `var(--card)`를 칠한다. Red: core window check `the address bar paints the card colour in light and dark modes`가 두 host에서 막대를 흰 카드에 대해 (16, 17, 23)으로 쟀다. Green: core registry fixture로 이 repository를 설치한 두 host에서 통과하고 `make test`가 통과한다.
 - [o] P3 — P1: soksak core 0.0.2용 version 0.0.2를 release한다. 2026-10-02 완료: `package.json`이 0.0.2와 `engines.soksak` `^0.0.2`를 선언하고, test는 core tag `v0.0.2`의 `@soksak/plugin-api`를 쓴다. macOS arm64에서 `make test`가 통과한다.

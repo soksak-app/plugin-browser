@@ -184,7 +184,7 @@ test("the page pushes the declared UI value of each section status", async (t) =
   region.show("https://a.test/one", { title: "One" });
   await settle();
   const byStatus = Object.fromEntries(snapshots.map((snapshot) => [snapshot.status, snapshot]));
-  assert.deepEqual(Object.keys(byStatus).toSorted(), ["browser.elements", "browser.history", "browser.requests"]);
+  assert.deepEqual(Object.keys(byStatus).toSorted(), ["browser.elements", "browser.history", "browser.requests", "browser.tabs"]);
   assert.equal(byStatus["browser.history"].plugin, "browser");
   assert.deepEqual(byStatus["browser.history"].value.elements,
     [{ kind: "list", key: "history", empty: "기록 없음", items: [] }], "the first value is the whole value of the status");

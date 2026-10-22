@@ -19,8 +19,7 @@
     "ui/browser.js",
     "ui/events.js",
     "ui/index.html",
-    "ui/view.js",
-    "ui/sections"
+    "ui/view.js"
   ],
   "scripts": {
     "test": "node scripts/build-test.mjs && node --test test/"

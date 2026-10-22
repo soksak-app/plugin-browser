@@ -15,7 +15,7 @@ const TYPES = ["string", "number", "boolean", "array", "object", "null"];
 const recorder = () => {
   const events = [];
   const log = Object.fromEntries(LEVELS.map((level) => [level, (event, fields) => { events.push({ level, event, fields }); }]));
-  return { events, runtime: { log } };
+  return { events, runtime: { log, status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null } };
 };
 
 test("the emitter strips the plugin prefix and calls the level function of the runtime", () => {

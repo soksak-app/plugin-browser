@@ -19,7 +19,7 @@
     "plugin.browser.address.commit": {
       "layer": "plugin",
       "class": "input",
-      "level": "debug",
+      "level": "info",
       "fields": { "value": "string", "url": "string" },
       "description": "The person pressed Enter in the address bar; value is the text of the bar and url the address that was sent to the document region."
     },

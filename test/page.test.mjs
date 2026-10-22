@@ -23,8 +23,8 @@ test("the document region is a declared dom entry and the start address is the h
   assert.match(source, /browser.document/);
   assert.equal(manifest.home, undefined);
   assert.deepEqual(manifest.settings.home, { label: "홈 주소", description: manifest.settings.home.description, type: "address", default: "" });
-  assert.deepEqual(names("commands"), ["browser.history.go", "browser.address.select", "browser.navigate", "browser.back", "browser.forward", "browser.reload", "browser.stop"]);
-  assert.deepEqual(names("status"), ["browser.location", "browser.address.text", "browser.history", "browser.elements", "browser.requests"]);
+  assert.deepEqual(names("commands"), ["browser.history.go", "browser.address.select", "browser.navigate", "browser.back", "browser.forward", "browser.reload", "browser.stop", "browser.tab.select"]);
+  assert.deepEqual(names("status"), ["browser.location", "browser.address.text", "browser.history", "browser.elements", "browser.requests", "browser.tabs"]);
 });
 
 test("browser mount publishes document state, respects shadow focus, and disposes every port", async () => {
@@ -59,7 +59,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
     },
     declared: { push() {} },
     status: { report: (phase) => { exposed.phase = phase; } },
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: async () => 1.25,
+    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: async () => 1.25,
       on: async (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
   };
   const { mount } = await import("../build/test/ui/browser.js");
@@ -116,7 +116,7 @@ async function mountRestored({ stored, history }) {
     exposure: { status: async () => {}, command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
     declared: { push() {} },
     status: { report() {} },
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
+    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
       textSize: { read: async () => 1, on: async () => () => {} } },
   };
   const { mount } = await import("../build/test/ui/browser.js");

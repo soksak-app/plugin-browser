@@ -4,6 +4,9 @@
 
 ## 미배포
 
+- P28: 탭 section은 선언된 UI status다. `plugin.json`이 `browser.tabs`를 `status` section으로 선언하며, 어느 section도 `module`을 선언하지 않는다. `ui/sections/tabs.js`를 뺐다. page는 `runtime.status.watch`로 `core.grid`를 구독하고, 표면을 가진 카드의 브라우저 탭을 선언된 목록으로 올린다. 각 행은 `browser.tab.select`를 실행하며, 이 명령은 `core.tab.select`를 부른다. manifest test는 모든 section이 선언된 status임을 요구하고, `test/tabs.test.mjs`는 값과 선택을 요구한다. release는 P29를 기다린다.
+- P18.4-1: page의 작업은 식별자를 싣는다. 주소 commit은 `runtime.beginOperation`으로 작업을 시작하며, 기록 `address.commit`은 `info`로 식별자와 함께 저장된다. 중계된 명령은 요청의 식별자를 `command` 기록과 `core.tab.select`에 넘긴다. emitter는 `{operation: true}`로 작업을 시작한다. 문서 region의 상태 기록은 page의 요청을 잇지 않으므로 식별자를 싣지 않는다. `test/operations.test.mjs`가 두 가지를 요구하고, model은 `view-operations.json`과 `view-status.json`을 재생한다.
+
 - F252-contract-browser: 복사한 command 사례를 core origin/main에 맞췄다(`view-commands.json`이 바뀌었다). replay는 command handler에 요청의 cids를 context로 전달한다.
 - F252-browser: 사용자가 보아야 하는 page 오류는 tab 오류(`tab.error`)로 보낸다. 이전에는 `status.report("error")`가 아무것도 하지 않았다. Enter로 거부된 빈 주소는 표시되고 문서 영역에 닿지 않는다. 256자를 넘는 tab 제목은 자르지 않고 거부한다. 요청 목록은 region의 dropped 수를 표시하며, region이 세지 않은 항목 손실은 거부한다. 깊이가 한 단계 건너뛴 요소는 거부한다. 거부된 `runtime.log` 기록은 `runtime.error {where: "log"}`로 표시하고 콘솔에도 남긴다.
 - F238-b-10-2: test 명령이 `test/` 전체를 실행하므로 `test/sdk-models/`의 conformance test가 `make test`에서 실행된다(이전 69개, 이제 83개 중 83개 통과). `test/test-script.test.mjs`는 `test/` 아래의 test 파일이 test 명령에 선택되지 않으면 실패한다.

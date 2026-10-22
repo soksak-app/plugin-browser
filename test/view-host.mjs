@@ -105,12 +105,14 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     unobserve() {}
     disconnect() {}
   };
-  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [] };
+  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [], cids: [] };
   const logs = [];
   const snapshots = [];
   const calls = [];
   const pending = new Map();
   const subscribed = new Set();
+  // The statuses that the page watches; the host sends a value of a watched status with status(name, value).
+  const watched = new Set();
   const exposurePending = new Map();
   const nativeListeners = new Set();
   const post = (message) => window.dispatchEvent(new window.MessageEvent("message", { source: window, origin: "", data: message }));
@@ -140,6 +142,8 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     }
     if (message.cancel === true) return;
     if (Number.isInteger(message?.id) && typeof message?.command === "string") {
+      // The identifiers that the page sends with a call are recorded with the call.
+      if (message.cids !== undefined) reports.cids.push({ command: message.command, cids: message.cids });
       serve(message.id, message.command, message.params);
       return;
     }
@@ -163,6 +167,9 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
           logs.push(params);
           return null;
         case "runtime.error": reports.errorLines.push(params); return null;
+        case "runtime.status.watch": watched.add(params.name); return null;
+        case "runtime.status.unwatch": watched.delete(params.name); return null;
+        case "core.tab.select": calls.push([command, params]); return null;
         case "runtime.textSize.read": return textSize;
         case "runtime.textSize.on": return null;
         case "runtime.settings.read": return { home };
@@ -237,11 +244,17 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
   post({ sok: 1, event: "theme", data: { scheme: "dark", tokens: {} } });
 
   let nextId = 1000;
-  const run = (name, paramsOfRun = {}) => new Promise((resolve, reject) => {
+  // A command of the view: options.cids is the operation of the request, which the page passes to the command handler.
+  const run = (name, paramsOfRun = {}, options = {}) => new Promise((resolve, reject) => {
     const id = ++nextId;
     pending.set(id, { resolve, reject });
-    post({ sok: 1, id, command: name, params: paramsOfRun });
+    post(options.cids === undefined ? { sok: 1, id, command: name, params: paramsOfRun } : { sok: 1, id, command: name, params: paramsOfRun, cids: options.cids });
   });
+  // The host sends the value of a status that the page watches (core docs/spec/native-surfaces.md#view-events).
+  const status = (name, value) => {
+    if (!watched.has(name)) throw new Error(`the page does not watch status ${name}`);
+    post({ sok: 1, event: "status", data: { name, value } });
+  };
   let nextExposure = 0;
   const expose = (method, paramsOfRequest) => new Promise((resolve) => {
     if (!subscribed.has("exposure-request")) {
@@ -252,5 +265,5 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     exposurePending.set(id, resolve);
     post({ sok: 1, event: "exposure-request", data: { id, surface: "browser-1", method, params: paramsOfRequest } });
   });
-  return { window, region, reports, logs, calls, snapshots, subscribed, run, post, settle, expose };
+  return { window, region, reports, logs, calls, snapshots, subscribed, run, post, settle, expose, status };
 }

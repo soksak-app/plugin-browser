@@ -40,7 +40,7 @@
     {
       "id": "browser.tabs",
       "name": "탭",
-      "module": "ui/sections/tabs.js"
+      "status": "browser.tabs"
     },
     {
       "id": "browser.history",
@@ -145,6 +145,16 @@
             "elements": { "type": "array" }
           }
         }
+      },
+      {
+        "name": "browser.tabs",
+        "description": "The declared UI value of the 탭 section: one list of the browser tabs of the card that holds the surface, each with its title or label as its label and bound to browser.tab.select with its tab, the active tab selected, or the empty list without such a card. The page follows core.grid through runtime.status.watch.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "elements": { "type": "array" }
+          }
+        }
       }
     ],
     "commands": [
@@ -217,6 +227,19 @@
         },
         "result": {
           "type": "boolean"
+        }
+      },
+      {
+        "name": "browser.tab.select",
+        "description": "Selects a browser tab of the card that holds the 탭 section through core.tab.select, with the operation of the request.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "tab": { "type": "string" }
+          }
+        },
+        "result": {
+          "type": "null"
         }
       }
     ],

@@ -14,6 +14,8 @@ const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"];
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isText = (value) => typeof value === "string" && value !== "";
+// The identifiers of a record or a call: the {cids} argument, which a record without an operation does not carry.
+const cidsOf = (options) => (options?.cids === undefined ? {} : { cids: options.cids });
 
 // The form of each start value (core docs/spec/native-surfaces.md#view-surfaces, start values): params are the tab
 // parameters or null, origin is {directory} with a directory, project is {root} or null, and declarations
@@ -114,12 +116,16 @@ export function createViewContext({ bridge, start, report }) {
         },
       },
       runtime: {
-        command: (name, params) => calls.request(name, params),
+        // A command call takes {cids} as its third argument: the identifiers of the operation that the call carries out.
+        command: (name, params, options) => runtime.command(name, params, options),
         // The transport of the records: the emit sites of the plugin are the callers of ui/events.js. The fields are
         // built before the send, because a call carries values and not builders. Core applies the level gate at the
-        // delivery and gives the view no level query, so the fields are built while the level is off too.
+        // delivery and gives the view no level query, so the fields are built while the level is off too. A record that
+        // continues an operation takes {cids} as its third argument.
         log: Object.fromEntries(LOG_LEVELS.map((level) => [level,
-          (event, fields) => send("runtime.log", { level, event, fields: typeof fields === "function" ? fields() : fields })])),
+          (event, fields, options) => send("runtime.log", { level, event, fields: typeof fields === "function" ? fields() : fields, ...cidsOf(options) })])),
+        beginOperation: (event, fields) => runtime.beginOperation(event, fields),
+        status: { watch: (name, listener) => runtime.status.watch(name, listener) },
         theme: runtime.theme,
         settings: runtime.settings,
         textSize: runtime.textSize,

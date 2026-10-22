@@ -18,7 +18,7 @@ async function setup(t) {
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };
   const controller = await mount(root, {
-    runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
+    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
     surfaceId: "browser-history-test",
     tab: { title: (text) => titles.push(text), footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },

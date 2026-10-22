@@ -93,6 +93,20 @@ export const declaredRequests = (requests) => {
   return { elements };
 };
 
+// The declared UI value of the 탭 section (#P28): one list of the browser tabs of the card that holds the surface, each row
+// running browser.tab.select with its tab, and the active tab selected. Without such a card the list is empty.
+const declaredTabs = (grid, surface) => {
+  const card = grid?.cards.find((item) => item.tabs.some((tab) => tab.id === surface));
+  const tabs = card?.tabs.filter((tab) => tab.plugin === "browser") ?? [];
+  return { elements: [{
+    kind: "list",
+    key: "tabs",
+    empty: "브라우저 탭 없음",
+    // default: core.grid 의 label 은 문서가 알린 제목이며 알리기 전에는 null 이므로 탭 이름을 보인다.
+    items: tabs.map((tab) => ({ key: tab.id, label: tab.label ?? tab.title, command: "browser.tab.select", params: { tab: tab.id }, selected: tab.id === card.active })),
+  }] };
+};
+
 export async function mount(root, context) {
   root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
   const emitEvent = createEmitter(context.runtime, "browser");
@@ -137,15 +151,17 @@ export async function mount(root, context) {
   const left = () => { editing = false; notifyAddress(); };
   const navigated = (run) => (params) => { editing = false; return run(params); };
   // Every command states its result: ok and micros, and for a failure the code and the text (core docs/spec/logging.md#result-form).
-  const reported = (name, run) => async (params) => {
+  // The second argument of a relayed command is {cids}, the identifiers of the operation of its request (view-commands.json).
+  // The record of the command and the calls that the command makes carry them.
+  const reported = (name, run) => async (params, options = {}) => {
     const started = performance.now();
     const micros = () => Math.round((performance.now() - started) * 1000);
     try {
-      const result = await run(params);
-      emitEvent("debug", "plugin.browser.command", { name, micros: micros(), ok: true });
+      const result = await run(params, options);
+      emitEvent("debug", "plugin.browser.command", { name, micros: micros(), ok: true }, options);
       return result;
     } catch (error) {
-      emitEvent("warn", "plugin.browser.command", { name, micros: micros(), ok: false, error: `${error?.code ?? -32000}: ${error?.message ?? String(error)}` });
+      emitEvent("warn", "plugin.browser.command", { name, micros: micros(), ok: false, error: `${error?.code ?? -32000}: ${error?.message ?? String(error)}` }, options);
       throw error;
     }
   };
@@ -332,6 +348,9 @@ export async function mount(root, context) {
   // first message of a stream the value is the empty form of its section.
   context.declared.push("browser.elements", declaredElements(null));
   context.declared.push("browser.requests", declaredRequests(null));
+  // The 탭 section follows core.grid: each value of the grid replaces the list of the section (core docs/spec/plugin-processes.md).
+  context.declared.push("browser.tabs", declaredTabs(null, context.surfaceId));
+  const stopGrid = context.runtime.status.watch("core.grid", (grid) => context.declared.push("browser.tabs", declaredTabs(grid, context.surfaceId)));
   context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);
@@ -355,6 +374,11 @@ export async function mount(root, context) {
   context.exposure.command("browser.forward", reported("browser.forward", navigated(() => region.forward())));
   context.exposure.command("browser.reload", reported("browser.reload", navigated(() => region.reload())));
   context.exposure.command("browser.stop", reported("browser.stop", () => region.stop()));
+  // A row of the 탭 section selects its tab through core.tab.select, with the identifiers of its request.
+  context.exposure.command("browser.tab.select", reported("browser.tab.select", ({ tab }, options) => {
+    if (typeof tab !== "string" || tab === "") throw new Error(`browser.tab.select requires a tab, not ${JSON.stringify(tab)}`);
+    return context.runtime.command("core.tab.select", { tab }, { cids: options.cids });
+  }));
   context.exposure.dom("browser.address", address);
   context.exposure.dom("browser.document", area);
   context.exposure.dom("browser.empty", empty);
@@ -367,7 +391,8 @@ export async function mount(root, context) {
     const value = address.value.trim();
     // An empty address is passed on as empty, so that browser.navigate refuses it.
     const url = value === "" || /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
-    emitEvent("debug", "plugin.browser.address.commit", { value, url });
+    // The Enter of the address bar begins the operation of the commit; its first record carries the identifiers.
+    emitEvent("info", "plugin.browser.address.commit", { value, url }, { operation: true });
     return { url };
   }, { event: "keydown", when: (event) => event.key === "Enter", failed: (error) => reportError("browser.navigate", error) });
   // A region that restored the session history of an unloaded tab already shows its document, and a load would add an entry
@@ -390,6 +415,7 @@ export async function mount(root, context) {
     address.removeEventListener("blur", left);
     addressListeners.clear();
     stopState();
+    stopGrid();
     await stopTextSize.then((stop) => stop());
     locationListeners.clear();
     historyListeners.clear();

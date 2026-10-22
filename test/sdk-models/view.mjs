@@ -11,9 +11,13 @@ const DEFAULT_LIMIT = 10000;
  * Creates the bridge of one view page. The page posts through handler.postMessage and receives the host messages
  * through window.sokView.attach. report(event) receives the call-layer reports: timeout, late-reply and open-calls.
  */
-export function createViewBridge({ handler, report }) {
+export function createViewBridge({ handler, report, origin = globalThis.performance?.timeOrigin }) {
   if (typeof report !== "function") throw new TypeError("createViewBridge requires the report function");
   let sequence = 0;
+  // The operations that the page begins: each takes the next identifier p<origin>.<n> (view-operations.json).
+  let operations = 0;
+  // The listeners of each watched status: one request serves every listener of its name (view-status.json).
+  const statusListeners = new Map();
   const pending = new Map();
   const late = new Map();
   const commands = new Map();
@@ -37,7 +41,7 @@ export function createViewBridge({ handler, report }) {
   };
   // A request posts {sok, id, command, params} and resolves with the result of the reply with the same id. A reply that
   // arrives after the limit is reported as late and is not passed to the caller.
-  function request(command, params, timeout = DEFAULT_LIMIT) {
+  function request(command, params, timeout = DEFAULT_LIMIT, cids) {
     const id = ++sequence;
     const startedAt = Date.now();
     return new Promise((resolve, reject) => {
@@ -52,7 +56,7 @@ export function createViewBridge({ handler, report }) {
         reject(error);
       }, timeout);
       pending.set(id, entry);
-      post({ sok: 1, id, command, params });
+      post(cids === undefined ? { sok: 1, id, command, params } : { sok: 1, id, command, params, cids });
       openCalls();
     });
   }
@@ -132,6 +136,12 @@ export function createViewBridge({ handler, report }) {
       }
       return;
     }
+    // A value of a watched status reaches the listeners of its name with the value only (view-status.json).
+    if (message.event === "status") {
+      const listeners = statusListeners.get(message.data.name);
+      if (listeners) for (const listener of [...listeners.values()]) listener(message.data.value);
+      return;
+    }
     if (message.event === "theme") {
       for (const listener of themeListeners.values()) listener(message.data);
       return;
@@ -198,10 +208,53 @@ export function createViewBridge({ handler, report }) {
       themeListeners.set(listener, listener);
       return () => themeListeners.delete(listener);
     },
+    // An operation that starts in the page logs its first event with its identifier and returns the list of identifiers
+    // (core docs/spec/native-surfaces.md#view-operations, view-operations.json).
+    beginOperation(event, fields) {
+      operations += 1;
+      const cids = [`p${origin}.${operations}`];
+      request("runtime.log", { level: "info", event, fields, cids }).then(undefined, (error) => {
+        report({ kind: "operation", plugin: plugin(), status: "log refused", reason: failure(error).message });
+      });
+      return cids;
+    },
+    // A command of the host that the page calls, with the identifiers of the operation that causes it (view-operations.json).
+    command(name, params, options) {
+      return request(name, params, undefined, options?.cids);
+    },
+    // A watched status: the page sends runtime.status.watch once for each name, and each value arrives as the event status.
+    status: {
+      watch(name, listener) {
+        if (typeof name !== "string" || name === "") throw new Error("runtime.status.watch requires a non-empty name");
+        if (typeof listener !== "function") throw new Error("runtime.status.watch requires a listener");
+        if (!statusListeners.has(name)) {
+          statusListeners.set(name, new Map());
+          request("runtime.status.watch", { name }).then(undefined, (error) => {
+            // A refused watch removes its listener and writes its refusal to the application log (view-status.json).
+            statusListeners.get(name)?.delete(listener);
+            if (statusListeners.get(name)?.size === 0) statusListeners.delete(name);
+            request("runtime.error", { where: `status ${name}`, text: error.message }).then(undefined, (logError) => {
+              report({ kind: "status", plugin: plugin(), status: "error record refused", reason: failure(logError).message });
+            });
+          });
+        }
+        statusListeners.get(name).set(listener, listener);
+        return () => {
+          const listeners = statusListeners.get(name);
+          if (!listeners || !listeners.delete(listener)) return;
+          if (listeners.size === 0) {
+            statusListeners.delete(name);
+            request("runtime.status.unwatch", { name }).then(undefined, (error) => {
+              report({ kind: "status", plugin: plugin(), status: "unwatch refused", reason: failure(error).message });
+            });
+          }
+        };
+      },
+    },
     sidecar(name) {
       return {
-        send(id, body) {
-          return request("runtime.sidecar.send", { id, sidecar: name, body, cids: [] });
+        send(id, body, cids = []) {
+          return request("runtime.sidecar.send", { id, sidecar: name, body, cids });
         },
         on(id, fn) {
           const entry = { kind: "message", id, fn };

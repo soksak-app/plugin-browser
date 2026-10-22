@@ -632,6 +632,83 @@ test("view command cases replay against the bridge model", async () => {
   }
 });
 
+// The page origin of the operation cases: the identifiers of the cases are p$ORIGIN.<n>, and the model takes this origin.
+const ORIGIN = 1700000000000;
+
+test("view status cases replay against the bridge model", async () => {
+  for (const testCase of replayable("view-status")) {
+    const sokView = viewWindow();
+    const posted = [];
+    const delivered = [];
+    const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
+    const stops = new Map();
+    for (const [index, step] of testCase.steps.entries()) {
+      const label = `${testCase.id}#${index}`;
+      const before = posted.length;
+      const deliveredBefore = delivered.length;
+      let result = null;
+      let throws = null;
+      try {
+        if (step.watch) {
+          const listener = step.watch.listener === null ? null : (data) => delivered.push({ listener: step.watch.listener, data });
+          const stop = bridge.runtime.status.watch(step.watch.name, listener);
+          if (step.watch.listener !== null) stops.set(step.watch.listener, stop);
+          result = typeof stop === "function" ? "function" : stop;
+        } else if (step.stop) {
+          stops.get(step.stop)();
+        } else if (step.event) {
+          sokView.listener({ sok: 1, event: step.event.event, data: step.event.data });
+        } else throw new Error(`unknown status step in ${label}`);
+        for (const [id, reply] of Object.entries(step.replies ?? {})) {
+          await settle();
+          sokView.listener({ sok: 1, id: Number(id), ...reply });
+        }
+      } catch (failure) {
+        throws = errorText(failure);
+      }
+      await settle();
+      assert.deepEqual({ posted: posted.slice(before), delivered: delivered.slice(deliveredBefore), result, throws }, pick(step.output, ["posted", "delivered", "result", "throws"]), label);
+    }
+  }
+});
+
+test("view operation cases replay against the bridge model", async () => {
+  for (const testCase of replayable("view-operations")) {
+    const sokView = viewWindow();
+    const posted = [];
+    const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {}, origin: ORIGIN });
+    const named = new Map();
+    const resolve = (cids) => (typeof cids === "string" ? named.get(cids) : cids);
+    for (const [index, step] of testCase.steps.entries()) {
+      const label = `${testCase.id}#${index}`;
+      const before = posted.length;
+      let result = null;
+      let throws = null;
+      try {
+        let promise = null;
+        if (step.operation) {
+          result = bridge.runtime.beginOperation(step.operation.event, step.operation.fields);
+          named.set(step.operation.as, result);
+        } else if (step.sidecar) {
+          promise = bridge.runtime.sidecar(step.sidecar.name).send(step.sidecar.id, step.sidecar.body, resolve(step.sidecar.cids));
+        } else if (step.command) {
+          promise = bridge.runtime.command(step.command.name, step.command.params, { cids: resolve(step.command.cids) });
+        } else throw new Error(`unknown operation step in ${label}`);
+        if (step.answer) {
+          await settle();
+          sokView.listener({ sok: 1, id: posted.at(-1).id, ...step.answer });
+        }
+        if (promise !== null) result = await promise;
+      } catch (failure) {
+        throws = errorText(failure);
+      }
+      await settle();
+      const expected = JSON.parse(JSON.stringify(step.output).replaceAll("p$ORIGIN.", `p${ORIGIN}.`));
+      assert.deepEqual({ posted: posted.slice(before), result, throws }, pick(expected, ["posted", "result", "throws"]), label);
+    }
+  }
+});
+
 function pick(source, keys) {
   return Object.fromEntries(keys.filter((key) => key in source).map((key) => [key, source[key]]));
 }

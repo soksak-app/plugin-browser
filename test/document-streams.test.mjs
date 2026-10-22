@@ -47,6 +47,7 @@ async function mountBrowser() {
     declared: { push() {} },
     status: { report: (phase, error) => { reports.push([phase, error]); } },
     runtime: {
+      status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null,
       log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} },
       settings: { read: async () => ({ home: "" }), on: async () => () => {} },
       textSize: { read: async () => 1, on: async () => () => {} },

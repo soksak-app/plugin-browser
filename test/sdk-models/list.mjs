@@ -1,4 +1,4 @@
-// Model of drawList of @soksak/plugin-api for the section lists of the browser page. The behavior is the form of
+// Model of drawList of the plugin API for the section lists of the browser page. The behavior is the form of
 // test/fixtures/sdk-cases/draw-list.json: an entry keeps the node of its key, each draw updates every entry, nodes are
 // reordered to the entry order, and a node that no entry keeps is removed. A duplicate key removes every node of the
 // list and refuses the draw.

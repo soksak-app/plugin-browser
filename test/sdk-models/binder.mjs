@@ -1,4 +1,4 @@
-// Model of createBinder of @soksak/plugin-api and of the INTERACTIVE selector for the calls that the browser page and its
+// Model of createBinder of the plugin API and of the INTERACTIVE selector for the calls that the browser page and its
 // section tests make: bind, delegate, run and dispose, and the audit rows of the delegated root. The behavior is the form
 // of test/fixtures/sdk-cases/create-binder.json and interactive.json. A binding marks its element with data-command and
 // the params as JSON, and each event of the element or of a delegated control runs the declared command.

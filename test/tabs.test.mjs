@@ -63,3 +63,14 @@ test("a press on a tab row runs core.tab.select with the tab", async (t) => {
   await host.settle();
   assert.deepEqual(host.calls.filter(([name]) => name === "core.tab.select"), [["core.tab.select", { tab: "b2" }]]);
 });
+
+test("the tabs section has a registered status, which core reads for the section source", async (t) => {
+  const host = createViewPage(t, "tabs-registered");
+  await import("../build/test/ui/view.js?case=tabs-registered");
+  await host.settle();
+  const registered = host.reports.native.filter(([name]) => name === "registered").map(([, payload]) => payload);
+  assert.ok(
+    registered.some((payload) => payload.kind === "status" && payload.name === "browser.tabs"),
+    `the page registered ${JSON.stringify(registered)}, not the status browser.tabs`,
+  );
+});

@@ -349,8 +349,22 @@ export async function mount(root, context) {
   context.declared.push("browser.elements", declaredElements(null));
   context.declared.push("browser.requests", declaredRequests(null));
   // The 탭 section follows core.grid: each value of the grid replaces the list of the section (core docs/spec/plugin-processes.md).
-  context.declared.push("browser.tabs", declaredTabs(null, context.surfaceId));
-  const stopGrid = context.runtime.status.watch("core.grid", (grid) => context.declared.push("browser.tabs", declaredTabs(grid, context.surfaceId)));
+  // The status is registered, so the section has this page as its source (core docs/spec/declared-ui.md#status-mapping); its read
+  // returns the latest value, and each value is also pushed as the declared UI snapshot of the section.
+  let tabsValue = declaredTabs(null, context.surfaceId);
+  const tabsListeners = new Set();
+  const publishTabs = (value) => {
+    tabsValue = value;
+    context.declared.push("browser.tabs", value);
+    for (const listener of tabsListeners) listener(value);
+  };
+  context.exposure.status("browser.tabs", () => tabsValue, (fn) => {
+    tabsListeners.add(fn);
+    fn(tabsValue);
+    return () => tabsListeners.delete(fn);
+  });
+  publishTabs(tabsValue);
+  const stopGrid = context.runtime.status.watch("core.grid", (grid) => publishTabs(declaredTabs(grid, context.surfaceId)));
   context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);

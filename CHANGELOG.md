@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- F238-c-23-1: `make check` validates `plugin.json` with `validateManifest` of the plugin API (`scripts/check-manifest.mjs`), and reads that API and runs the SDK tools from `CORE_PLUGIN_API_DIR` when it is set. The `browser.tabs` status is registered by the page, so the section has its source. Red: the manifest test failed on the missing script, and the tabs test failed with the unregistered status. Green: `make test` passes 98 of 98, and `make check` exits 0 against the extract of core origin/main.
 - F238-c-14-1: The model comments of `test/sdk-models/` name the browser page, not the hwp page, and the conformance exclusion names the origin `sok://browser/`. No behavior changed, so no Red test applies. Green: `make test` passes 96 tests.
 - F238-c-14: No line of `test/` names the SDK package. `test/sdk-boundary.test.mjs` fails on any line of `test/` that contains the needle, which the test builds from parts. The model comments name the plugin API, and `test/view.test.mjs` builds its import-map names from parts. Red: the guard listed seven lines. Green: `make test` passes 96 tests.
 - F238-c-24: The CI workflow runs `make check` after `make test`, and the release workflow runs `make test`, `make check`, then `make pack`. `test/workflows.test.mjs` requires both orders. Red: the test failed on the previous workflows. Green: `make test` passes 95 tests. `make check` fails on the status-only sections of the pinned `@soksak/plugin-api` until a core release publishes the contract files, which is the expected result.

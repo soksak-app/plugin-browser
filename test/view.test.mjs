@@ -136,10 +136,45 @@ test("the page reports a failure of the view channel as the declared record of i
   await import("../build/test/ui/view.js?case=report");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
   await host.settle();
-  const report = host.logs.find((entry) => entry.event === "plugin.browser.report");
-  assert.ok(report, "the page stored no report record");
+  const report = host.logs.find((entry) => entry.event === "report");
+  assert.ok(report, `the page stored no report record; the records are ${JSON.stringify(host.logs.map((entry) => entry.event))}`);
   assert.equal(report.level, "error");
   assert.match(report.fields.text, /failed/);
+});
+
+// The page writes each trace event through runtime.log with the name of its catalog entry without the plugin prefix
+// (core docs/spec/plugins.md#logging); the page stores it as plugin.browser.<event>, which events.json must declare.
+test("the page records its trace as the declared events of its catalog", async (t) => {
+  const catalog = JSON.parse(readFileSync(new URL("../events.json", import.meta.url), "utf8")).events;
+  const host = createViewPage(t, "trace");
+  const { region, run, settle, logs, window } = host;
+  await import("../build/test/ui/view.js?case=trace");
+  await settle();
+  region.show("https://a.test/one", { loading: true });
+  await settle();
+  region.show("https://a.test/one", { title: "One" });
+  await settle();
+  await run("browser.navigate", { url: "https://b.test/" });
+  await settle();
+  region.show("https://c.test/", { error: "net::ERR_NAME_NOT_RESOLVED", history: { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://c.test/", title: "" }], index: 1 } });
+  await settle();
+  await run("browser.history.go", { index: 0 });
+  await settle();
+  const address = window.document.body.lastElementChild.shadowRoot.querySelector("#address");
+  address.value = "d.test";
+  address.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await settle();
+  window.dispatchEvent(new window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  await settle();
+  const recorded = logs.map((entry) => entry.event);
+  for (const event of ["start", "command", "navigation", "load", "region.failure", "history.move", "address.commit", "report"]) {
+    assert.ok(recorded.includes(event), `the page recorded ${event}; recorded ${recorded.join(", ")}`);
+  }
+  for (const entry of logs) {
+    const declared = catalog[`plugin.browser.${entry.event}`];
+    assert.ok(declared, `the page recorded ${entry.event}, which events.json does not declare as plugin.browser.${entry.event}`);
+    assert.ok([declared.level].flat().includes(entry.level), `${entry.event} is recorded at ${entry.level}, the catalog declares ${JSON.stringify(declared.level)}`);
+  }
 });
 
 test("the page pushes the declared UI value of each section status", async (t) => {

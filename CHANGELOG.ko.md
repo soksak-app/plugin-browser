@@ -4,6 +4,8 @@
 
 ## 미배포
 
+- P17: page는 오류를 `emitEvent`를 거쳐 `plugin.browser.report`의 emit으로 기록하며, 이 emit은 `runtime.log`에 `report` 이름을 보낸다(core docs/spec/plugins.md#logging). 변경 전에는 reporter가 접두사가 붙은 이름으로 `runtime.log`를 직접 불러 core가 접두사를 두 번 붙여 저장했고, `soksak-events`는 선언된 event의 emit site를 찾지 못했다. test `the page reports a failure of the view channel as the declared record of its catalog`는 접두사가 붙은 이름을 검사했고 이제 `report`를 검사한다. test `the page records its trace as the declared events of its catalog`는 page가 쓰는 trace event 각각이 `events.json`에 선언된 level로 선언되어 있음을 요구한다. 두 test 모두 변경 전에 실패했고 변경 후 통과한다.
+
 - P27.5-1: browser page test는 SDK 없이 실행한다. `scripts/build-test.mjs`는 각 `@soksak/plugin-api` import를 `test/sdk-models/`의 model로 바꾼 `build/test/ui`를 만들고, `test/sdk-models/conformance.test.mjs`는 core F246과 F248부터 F248-5까지의 복사된 case 파일을 재생한다. model은 영역 zoom, 기록 동작, stream 구독, binder의 함수 params, settings와 text size 읽기, 선언 UI snapshot sender를 추가한다. Red: `test/sdk-boundary.test.mjs`가 `address-input.test.mjs`의 SDK import에서 실패했다. Green: `make test`가 66개 중 66개 통과한다. `@soksak/plugin-api`는 release `v0.0.18`에 고정했으므로, core release가 case와 status만 가진 section을 받는 검사기를 담을 때까지 `make check`의 case 복사 검사와 exposure 검사가 실패한다.
 - P27.5: 생략해 둔 view 이동 case를 skip 없이 실행한다. `@soksak/plugin-api`는 view 영역에 `history`를 노출하는 core main의 commit에 고정했다(core F245). page는 복원된 영역이 구독 전에 보고한 state를 보인다. `make test`는 플러그인 test만 실행하고, `make check`는 SDK 검사를 실행한다.
 

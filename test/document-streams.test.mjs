@@ -18,7 +18,8 @@ function fakeRegion() {
       return Promise.resolve({ stream, close() { subscription.closed = true; return Promise.resolve(); } });
     },
     state: null,
-    onState: () => () => {},
+    stateListeners: new Set(),
+    onState(fn) { this.stateListeners.add(fn); return () => this.stateListeners.delete(fn); },
     zoom: async () => {}, load: async () => {}, back: async () => {}, forward: async () => {}, reload: async () => {}, stop: async () => {},
     entry: async () => {},
   };
@@ -31,9 +32,11 @@ async function mountBrowser() {
   const region = fakeRegion();
   const statuses = new Map();
   const reports = [];
+  const errors = [];
+  const titles = [];
   const composition = { region: () => region, dispose: async () => {} };
   const context = {
-    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
+    tab: { title: (text) => titles.push(text), footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
     surfaceId: "browser-streams-test",
     composition: { create: async () => composition },
     exposure: {
@@ -51,7 +54,7 @@ async function mountBrowser() {
   };
   const { mount } = await import("../build/test/ui/browser.js");
   const mounted = await mount(shadow, context);
-  return { dom, region, statuses, reports, mounted };
+  return { dom, region, statuses, reports, errors, titles, mounted };
 }
 
 const snapshot = (nodes, total = nodes.length, truncated = false) => ({ type: "snapshot", seq: 1, nodes, total, truncated });
@@ -202,5 +205,32 @@ test("disposing the browser closes the watched document streams", async () => {
   await flush();
   await mounted.dispose();
   assert.deepEqual(region.subscriptions.map((s) => s.closed), [true, true]);
+  dom.window.close();
+});
+
+test("browser.requests shows an error when its log sheds entries that the region does not count", async () => {
+  const { dom, region, statuses, errors, mounted } = await mountBrowser();
+  const values = [];
+  const stop = statuses.get("browser.requests").subscribe((value) => values.push(value));
+  await flush();
+  const batch = (count) => Array.from({ length: count }, (_, index) => request(`https://r${index}.test/`));
+  region.subscriptions[0].listener({ type: "entries", entries: batch(200), dropped: 0 });
+  region.subscriptions[0].listener({ type: "entries", entries: batch(5), dropped: 0 });
+  assert.equal(errors.length, 1, `the uncounted shed was not shown; errors ${JSON.stringify(errors)}`);
+  assert.match(errors[0], /requests/);
+  assert.equal(values.at(-1).elements[0].items.length, 200, "the refused batch changed the list");
+  stop();
+  await mounted.dispose();
+});
+
+test("a tab title longer than 256 characters is refused with an error, and the tab shows its name", async () => {
+  const { dom, region, errors, titles, mounted } = await mountBrowser();
+  const state = { url: "https://e.test/", title: "t".repeat(257), link: "", error: null, loading: false, history: { entries: [], index: -1 },
+    elements: { nodes: [], total: 0, truncated: false }, requests: { entries: [], dropped: 0 } };
+  for (const fn of region.stateListeners) fn(state);
+  assert.deepEqual(titles.at(-1), null, "the title was cut or kept");
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /title/);
+  await mounted.dispose();
   dom.window.close();
 });

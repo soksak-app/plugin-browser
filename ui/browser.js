@@ -1,4 +1,4 @@
-import { createEmitter } from "./events.js";
+import { createEmitter, errorText } from "./events.js";
 
 // 이동 단추의 아이콘은 core 아이콘 표(chevron-left, chevron-right, rotate-cw)의 경로다. 뷰 페이지에는 아직
 // icon(name) 경로가 없으므로(core docs/spec/plugins.md#view-surfaces) 모듈이 경로를 직접 그린다.
@@ -50,12 +50,15 @@ export const declaredElements = (elements) => {
   const stack = [];
   let count = 0;
   let below = 0;
-  // default: a node whose depth continues an earlier branch nests under it; a gap of depth nests at the root.
+  // A node whose depth continues an earlier branch nests under it; a depth that skips a level is refused by the check below.
   for (const node of elements?.nodes ?? []) {
     if (node.depth >= TREE_LEVELS) {
       below += 1;
       continue;
     }
+    // The walk lists each element after its parent, so an element is at most one level below the last open element; a deeper
+    // element has no parent in the list, and it is refused rather than placed at the root.
+    if (node.depth > stack.length) throw new Error(`element of depth ${node.depth} has no open parent: the open depth is ${stack.length}`);
     const item = { key: `n${count}`, label: elementLabel(node) };
     count += 1;
     const parent = stack[node.depth - 1];
@@ -156,10 +159,22 @@ export async function mount(root, context) {
   // 세션 기록은 문서 영역 상태의 history 다(docs/spec/native-surfaces.md#document-regions).
   let history = { entries: [], index: -1 };
   const historyListeners = new Set();
-  // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다. 제어 문자를 지우고 256자로 자른다.
+  // A failure that the person must see is shown as the tab error, which the error display writes to the application log.
+  // The text is cut with an ellipsis at 1024 characters, the limit of the tab error.
+  const reportError = (where, error) => {
+    const text = `${where} · ${errorText(error)}`;
+    context.tab.error(text.length > 1024 ? `${text.slice(0, 1023)}…` : text);
+  };
+  // The title is the document title, or the address when the title is empty; control characters are removed. A title of more
+  // than 256 characters is refused: the tab shows its name, and the refusal is shown as the tab error.
   const tabTitle = (state) => {
-    // default: 문서 제목이 비어 있으면 주소가 탭의 식별 텍스트다.
-    const text = (state.title || state.url).replace(/[\u0000-\u001f\u007f-\u009f]/g, "").slice(0, 256);
+    const text = (state.title || state.url).replace(/[\u0000-\u001f\u007f-\u009f]/g, "");
+    const length = [...text].length;
+    if (length > 256) {
+      context.tab.title(null);
+      reportError("document title", new Error(`the title has ${length} characters, more than the 256 that a tab title takes`));
+      return;
+    }
     context.tab.title(text === "" ? null : text);
   };
   // 카드 발은 포인터 아래 링크의 주소를 보인다. 1024자보다 긴 주소는 앞 1023자와 말줄임표로 보인다.
@@ -206,7 +221,7 @@ export async function mount(root, context) {
   const textSize = context.runtime.textSize;
   await region.zoom(await textSize.read());
   const stopTextSize = textSize.on((factor) => {
-    region.zoom(factor).catch((error) => context.status.report("error", error));
+    region.zoom(factor).catch((error) => reportError("page zoom", error));
   });
   context.exposure.status("browser.location", () => current, (fn) => {
     locationListeners.add(fn);
@@ -242,13 +257,13 @@ export async function mount(root, context) {
         if (message.type !== dataType) throw new Error(`document ${stream} stream sent ${message.type}, not ${dataType}`);
         deliver(next(latest, message));
       } catch (error) {
-        context.status.report("error", error);
+        reportError(`document ${stream} stream`, error);
       }
     };
     const open = () => {
       const opening = region.subscribe(stream, (message) => receive(opening, message)).catch((error) => {
         if (subscription === opening) subscription = null;
-        context.status.report("error", error);
+        reportError(`document ${stream} subscription`, error);
         return null;
       });
       subscription = opening;
@@ -259,7 +274,7 @@ export async function mount(root, context) {
       subscription = null;
       latest = null;
       if (closing === null) return Promise.resolve();
-      return closing.then((handle) => handle?.close()).catch((error) => { context.status.report("error", error); });
+      return closing.then((handle) => handle?.close()).catch((error) => { reportError(`document ${stream} close`, error); });
     };
     // Reads the first data message of a new subscription. The subscription ends with the read, and the read fails when no data message
     // arrives within STREAM_READ_LIMIT_MS.
@@ -301,10 +316,16 @@ export async function mount(root, context) {
     };
   };
   const elementStream = documentStream("browser.elements", "elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), declaredElements);
-  const requestStream = documentStream("browser.requests", "requests", "entries", (current, { entries, dropped }) => ({
-    entries: [...(current?.entries ?? []), ...entries].slice(-REQUEST_LOG_LIMIT),
-    dropped,
-  }), declaredRequests);
+  const requestStream = documentStream("browser.requests", "requests", "entries", (current, { entries, dropped }) => {
+    if (!Number.isInteger(dropped) || dropped < 0) throw new Error(`requests entries message has dropped ${JSON.stringify(dropped)}, not a count`);
+    const log = [...(current?.entries ?? []), ...entries];
+    // The region counts each entry it drops since its last reset, and this status keeps the same bound. An entry that the status
+    // sheds beyond the count of the region is lost without a record, so the message is refused.
+    const shed = Math.max(0, log.length - REQUEST_LOG_LIMIT);
+    const counted = dropped - (current?.dropped ?? 0);
+    if (shed > counted) throw new Error(`requests log sheds ${shed} entries, and the region counts ${counted} dropped since the last message`);
+    return { entries: log.slice(-REQUEST_LOG_LIMIT), dropped };
+  }, declaredRequests);
   context.exposure.status("browser.elements", elementStream.read, elementStream.subscribe);
   context.exposure.status("browser.requests", requestStream.read, requestStream.subscribe);
   // The first snapshot of each section status is its whole value (core docs/spec/plugin-processes.md, rule 2); before the
@@ -344,10 +365,11 @@ export async function mount(root, context) {
   await context.exposure.bind(address, "browser.address.select", {}, { event: "focus" });
   await context.exposure.bind(address, "browser.navigate", () => {
     const value = address.value.trim();
-    const url = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+    // An empty address is passed on as empty, so that browser.navigate refuses it.
+    const url = value === "" || /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
     emitEvent("debug", "plugin.browser.address.commit", { value, url });
     return { url };
-  }, { event: "keydown", when: (event) => event.key === "Enter" });
+  }, { event: "keydown", when: (event) => event.key === "Enter", failed: (error) => reportError("browser.navigate", error) });
   // A region that restored the session history of an unloaded tab already shows its document, and a load would add an entry
   // after it (core docs/spec/plugins.md#memory-saver). Otherwise the tab opens its stored address, and a new tab opens the
   // setting home; an empty home starts with the empty state.

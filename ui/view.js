@@ -8,7 +8,7 @@
 import { createExpose } from "@soksak/plugin-api";
 import { createViewBridge } from "@soksak/plugin-api/view";
 import { mount } from "./browser.js";
-import { createEmitter } from "./events.js";
+import { createEmitter, errorText } from "./events.js";
 
 const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"];
 
@@ -40,6 +40,17 @@ export function startValues(windowRef = window) {
 }
 
 /**
+ * A refused record is an error of the view: it is shown as the error line of the view (runtime.error), and the console of the
+ * page keeps the line too. A refusal of the error line itself has no other route left, so the console takes it.
+ */
+function refusedLog(calls, event, error) {
+  const text = `${event}: ${errorText(error)}`;
+  console.error(`runtime.log ${text}`);
+  calls.request("runtime.error", { where: "log", text })
+    .then(undefined, (refusal) => console.error(`runtime.error log: ${errorText(refusal)}`));
+}
+
+/**
  * The reporter of this page: each record is an emit of the catalog event plugin.browser.report, which the emitter stores
  * through the call runtime.log under the name without the plugin prefix (core docs/spec/logging.md). A refused call is
  * written to the console of the page.
@@ -47,7 +58,7 @@ export function startValues(windowRef = window) {
 function createReporter(calls) {
   const log = {
     error: (event, fields) => calls.request("runtime.log", { level: "error", event, fields })
-      .then(undefined, (error) => console.error(`runtime.log ${event}: ${error?.message ?? error}`)),
+      .then(undefined, (error) => refusedLog(calls, event, error)),
   };
   const emitEvent = createEmitter({ log }, "browser");
   return (text) => emitEvent("error", "plugin.browser.report", { text });

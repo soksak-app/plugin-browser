@@ -94,7 +94,7 @@ function fakeRegion(name, emit) {
  * document calls of the page; run(name, params) sends one command request of core to the page; expose(method, params)
  * forwards one exposure request of core; post(message) posts one host message to the page.
  */
-export function createViewPage(t, caseId, { stored = null, origin = { directory: "/work" }, start, textSize = 1, home = "https://home.test/" } = {}) {
+export function createViewPage(t, caseId, { stored = null, origin = { directory: "/work" }, start, textSize = 1, home = "https://home.test/", refuseLog = null } = {}) {
   const { window } = createWindow(`sok://browser/ui/index.html?case=${caseId}`);
   useWindow(window);
   // The composition controller measures the insets of the region element against the viewport of the view and observes
@@ -105,7 +105,7 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     unobserve() {}
     disconnect() {}
   };
-  const reports = { title: [], footer: [], modified: [], error: [], keep: [], state: [], registered: [], native: [] };
+  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [] };
   const logs = [];
   const snapshots = [];
   const calls = [];
@@ -158,8 +158,11 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
         case "runtime.log":
           if (params === null || typeof params !== "object" || Array.isArray(params)) throw new Error("runtime.log requires {level, event, fields}");
           if (!LEVELS.includes(params.level)) throw new Error(`runtime.log level ${params.level} is not a log level`);
+          // refuseLog makes the host refuse every record, as the application log route of a host can.
+          if (refuseLog !== null) throw new Error(refuseLog);
           logs.push(params);
           return null;
+        case "runtime.error": reports.errorLines.push(params); return null;
         case "runtime.textSize.read": return textSize;
         case "runtime.textSize.on": return null;
         case "runtime.settings.read": return { home };

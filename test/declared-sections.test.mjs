@@ -96,3 +96,10 @@ test("browser.requests is one static list with the duration as its detail and dr
     { elements: [{ kind: "list", key: "requests", empty: "요청 없음", items: [] }] });
   assert.deepEqual(declaredRequests({ entries: [], dropped: 0 }).elements.length, 1, "no dropped count is no status line");
 });
+
+test("an element whose depth skips a level is refused with an error", () => {
+  assert.throws(() => declaredElements({ nodes: [
+    { depth: 0, tag: "html", id: "", class: "" },
+    { depth: 2, tag: "span", id: "", class: "" },
+  ], total: 2, truncated: false }), /depth 2/);
+});

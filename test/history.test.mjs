@@ -10,7 +10,7 @@ const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.u
 async function setup(t) {
   const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
   const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
-  const statuses = new Map(), commands = new Map(), states = new Set(), entries = [], titles = [];
+  const statuses = new Map(), commands = new Map(), states = new Set(), entries = [], titles = [], errors = [];
   const region = {
     state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
@@ -20,7 +20,7 @@ async function setup(t) {
   const controller = await mount(root, {
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
     surfaceId: "browser-history-test",
-    tab: { title: (text) => titles.push(text), footer() {}, state: { read: () => null, write() {} } },
+    tab: { title: (text) => titles.push(text), footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
       status(name, read, subscribe) { statuses.set(name, { read, subscribe }); }, dom() {},
@@ -38,7 +38,7 @@ async function setup(t) {
   };
   const state = (url, title) => { for (const fn of states) fn({ url, title, history: { entries: [], index: -1 },
     elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); };
-  return { statuses, commands, entries, send, titles, state };
+  return { statuses, commands, entries, send, titles, errors, state };
 }
 
 test("the browser declares its session history status and the command that loads an entry", () => {
@@ -71,10 +71,13 @@ test("browser.history follows the region state and browser.history.go loads an e
 });
 
 test("the tab title is the document title, or the address without one, and is removed without both", { timeout: 10000 }, async (t) => {
-  const { titles, state } = await setup(t);
+  const { titles, errors, state } = await setup(t);
   state("https://a.test/one", "One");
   state("https://a.test/plain", "");
   state("https://a.test/long", `a\u0007b${"x".repeat(300)}`);
   state("", "");
-  assert.deepEqual(titles.slice(-4), ["One", "https://a.test/plain", `ab${"x".repeat(254)}`, null]);
+  // A title of more than 256 characters is refused, not cut: the tab shows its name and the refusal is the tab error.
+  assert.deepEqual(titles.slice(-4), ["One", "https://a.test/plain", null, null]);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /the title has 302 characters/);
 });

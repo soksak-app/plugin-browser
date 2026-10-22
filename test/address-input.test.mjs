@@ -17,6 +17,7 @@ async function setup(t) {
     return commands.get(name)(params);
   }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
   const navigations = [];
+  const errors = [];
   const region = {
     state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
@@ -25,7 +26,7 @@ async function setup(t) {
   };
   const controller = await mount(root, {
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
-    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
+    tab: { title() {}, footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
     surfaceId: "browser-address-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
@@ -43,7 +44,7 @@ async function setup(t) {
     address.dispatchEvent(event);
     return event;
   };
-  return { dom, root, address, requests, navigations, controller, dispatch, commands, states };
+  return { dom, root, address, requests, navigations, errors, controller, dispatch, commands, states };
 }
 
 test("initial address focus selects all and native replacement navigates without appending", { timeout: 10000 }, async (t) => {
@@ -141,3 +142,15 @@ test("the card footer shows the address of the link under the pointer", { timeou
   assert.deepEqual(footers, ["https://example.test/next", null, `${long.slice(0, 1023)}…`]);
 });
 
+
+test("an empty address refused by Enter is shown as the tab error and reaches no document", { timeout: 10000 }, async (t) => {
+  const { dom, address, navigations, errors, controller } = await setup(t);
+  t.after(() => controller.dispose());
+  const before = [...navigations];
+  address.value = "   ";
+  address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(navigations, before, "an empty address reached the document region");
+  assert.equal(errors.length, 1, `the refusal was not shown; errors ${JSON.stringify(errors)}`);
+  assert.match(errors[0], /browser\.navigate requires an address/);
+});

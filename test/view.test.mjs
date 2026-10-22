@@ -202,3 +202,14 @@ test("a browser.address.select run focuses the address field of the view", async
   assert.equal(window.document.activeElement, host, "the focus of the address is retargeted to the host of the shadow root");
   assert.equal(host.shadowRoot.activeElement, host.shadowRoot.querySelector("#address"));
 });
+
+test("a refused runtime.log is shown as an error line of the view and written to the console", async (t) => {
+  const consoleError = t.mock.method(console, "error", () => {});
+  const host = createViewPage(t, "log-refused", { refuseLog: "log route refused" });
+  await import("../build/test/ui/view.js?case=log-refused");
+  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  await host.settle();
+  assert.ok(consoleError.mock.callCount() > 0, "the refused record reached no console line");
+  assert.deepEqual(host.reports.errorLines.find((line) => line.text.startsWith("report:")),
+    { where: "log", text: "report: log route refused" });
+});

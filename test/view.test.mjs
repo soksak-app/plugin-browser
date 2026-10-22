@@ -119,6 +119,17 @@ test("a region that restored the session history of an unloaded tab loads nothin
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
 });
 
+test("the page reports a failure of the view channel as the declared record of its catalog", async (t) => {
+  const host = createViewPage(t, "report");
+  await import("../ui/view.js?case=report");
+  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  await host.settle();
+  const report = host.logs.find((entry) => entry.event === "plugin.browser.report");
+  assert.ok(report, "the page stored no report record");
+  assert.equal(report.level, "error");
+  assert.match(report.fields.text, /failed/);
+});
+
 test("the page pushes the declared UI value of each section status", async (t) => {
   const { region, snapshots, settle } = createViewPage(t, "declared");
   await import("../ui/view.js?case=declared");

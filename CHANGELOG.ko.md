@@ -4,6 +4,7 @@
 
 ## 미배포
 
+- F252-contract-browser: 복사한 command 사례를 core origin/main에 맞췄다(`view-commands.json`이 바뀌었다). replay는 command handler에 요청의 cids를 context로 전달한다.
 - F252-browser: 사용자가 보아야 하는 page 오류는 tab 오류(`tab.error`)로 보낸다. 이전에는 `status.report("error")`가 아무것도 하지 않았다. Enter로 거부된 빈 주소는 표시되고 문서 영역에 닿지 않는다. 256자를 넘는 tab 제목은 자르지 않고 거부한다. 요청 목록은 region의 dropped 수를 표시하며, region이 세지 않은 항목 손실은 거부한다. 깊이가 한 단계 건너뛴 요소는 거부한다. 거부된 `runtime.log` 기록은 `runtime.error {where: "log"}`로 표시하고 콘솔에도 남긴다.
 - F238-b-10-2: test 명령이 `test/` 전체를 실행하므로 `test/sdk-models/`의 conformance test가 `make test`에서 실행된다(이전 69개, 이제 83개 중 83개 통과). `test/test-script.test.mjs`는 `test/` 아래의 test 파일이 test 명령에 선택되지 않으면 실패한다.
 - F238-b-10-1: core view bridge 계약 사본을 현재 core 사례 집합으로 새로 고쳤다. `view.bridge.runtime-log-without-level-query`가 `view.bridge.runtime-log-level-gate`를 대신하며, view는 level 질의를 부르지 않는다. 이 저장소에서는 conformance test(`test/sdk-models/conformance.test.mjs`)가 사례를 제외 목록에 적는다. view bridge model에 `runtime.log`가 없기 때문이다.

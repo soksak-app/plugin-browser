@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- F252-contract-browser: The copied command cases follow core origin/main (`view-commands.json` changed). The replay gives command handlers the cids of their request as context.
 - F252-browser: Page errors that the person must see go to the tab error (`tab.error`), where `status.report("error")` was a no-op. An empty address refused by Enter is shown and reaches no document. A tab title over 256 characters is refused, not cut. The request list shows the dropped count of the region and refuses a shed that the region does not count. An element whose depth skips a level is refused. A refused `runtime.log` record is shown as `runtime.error {where: "log"}` and kept on the console.
 - F238-b-10-2: the test command runs the whole `test/` directory, so the conformance tests of `test/sdk-models/` run in `make test` (83 of 83 tests, 69 before). `test/test-script.test.mjs` fails when a test file under `test/` is not selected by the test command.
 - F238-b-10-1: the core view bridge contract copy is refreshed to the current core case set; `view.bridge.runtime-log-without-level-query` replaces `view.bridge.runtime-log-level-gate`, and the view calls no level query. In this repository the conformance test (`test/sdk-models/conformance.test.mjs`) lists the case as excluded, because the view bridge model has no `runtime.log`.

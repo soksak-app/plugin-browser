@@ -195,7 +195,7 @@ test("command registration cases replay against the exposure model", async () =>
       onRequest: (answer) => { handle = answer; },
       reply: (id, payload) => { replies.push({ id, payload }); },
     }, testCase.declarations);
-    const behaviors = { echo: (params) => params, fail: () => { throw new Error("save failed"); }, none: () => undefined };
+    const behaviors = { echo: (params) => params, fail: () => { throw new Error("save failed"); }, none: () => undefined, context: (params, context) => context };
     for (const [index, step] of testCase.steps.entries()) {
       const label = `${testCase.id}#${index}`;
       const before = { registered: registered.length, replies: replies.length };
@@ -605,7 +605,7 @@ test("view command cases replay against the bridge model", async () => {
     const sokView = viewWindow();
     const posted = [];
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
-    const behaviors = { echo: (params) => params, fail: () => { throw new Error("save failed"); }, none: () => undefined };
+    const behaviors = { echo: (params) => params, fail: () => { throw new Error("save failed"); }, none: () => undefined, context: (params, context) => context };
     for (const [index, step] of testCase.steps.entries()) {
       const label = `${testCase.id}#${index}`;
       const before = posted.length;

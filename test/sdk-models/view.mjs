@@ -66,7 +66,9 @@ export function createViewBridge({ handler, report }) {
       return;
     }
     try {
-      const result = await run(message.params);
+      // The handler receives the cids of the cause of the request, and an empty context when the request has none (core view.js).
+      const context = message.cids === undefined ? {} : { cids: message.cids };
+      const result = await run(message.params, context);
       post({ sok: 1, reply: message.id, result: result === undefined ? null : result });
     } catch (error) {
       post({ sok: 1, reply: message.id, error: failure(error) });

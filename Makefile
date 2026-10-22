@@ -1,5 +1,5 @@
 # browser plugin repository 의 test 와 pack(docs/features.md). pack 은 core 의 sok 를 쓴다.
-.PHONY: test pack hooks
+.PHONY: test check pack hooks
 
 SOK ?= sok
 # DIAGNOSTICS=1 이면 diagnostics.json 을 담은 진단 package 를 쓴다.
@@ -10,11 +10,15 @@ node_modules: package.json
 	pnpm install
 	touch node_modules
 
-# 페이지와 섹션 소스의 공개 이름은 core 의 soksak-exposure 로 plugin.json 과 core 의 선언에 대해 검사한다.
-# soksak-events 는 core 의 지침에 따라 소스의 기록 누락을 세고 events.json 을 소스의 emit 와 맞춘다.
-# engines.soksak 은 core 의 soksak-engines 로 그 @soksak/plugin-api 의 release 를 선언하는지 검사한다.
+# test runs only the tests of this plugin, over fakes of the core side.
 test: node_modules
 	pnpm test
+
+# check runs the SDK validators of the pinned @soksak/plugin-api: soksak-exposure checks the public names of the page and the
+# section sources against plugin.json and the core declarations, soksak-engines checks that engines.soksak admits the
+# release of that @soksak/plugin-api, soksak-events counts the records missing from the sources and matches events.json
+# with the emit sites, and soksak-records checks the records.
+check: node_modules
 	pnpm exec soksak-exposure
 	pnpm exec soksak-engines
 	pnpm exec soksak-events --census census.json --catalog events.json

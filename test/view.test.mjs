@@ -109,14 +109,26 @@ test("a tab with a tab state opens its stored address and writes no new tab stat
 });
 
 // The page reads region.history and loads nothing when the attach restored a session history
-// (core docs/spec/plugins.md#memory-saver). The composition controller of the pinned @soksak/plugin-api does not
-// expose the history of the attach reply on the region of the page, so the case is held until core exposes it.
-test("a region that restored the session history of an unloaded tab loads nothing", { skip: "core exposes no region history on the document region of a page (F198.19): the tracked case runs when core lands it" }, async (t) => {
+// (core docs/spec/plugins.md#memory-saver). The region handle reports history as a boolean after its attach
+// (core docs/spec/surface-composition.md); the fake attach reply carries it.
+test("a region that restored the session history of an unloaded tab loads nothing", async (t) => {
   const host = createViewPage(t, "history-restored", { stored: { url: "https://stored.test/" } });
   host.region.history = true;
   await import("../ui/view.js?case=history-restored");
   await host.settle();
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
+});
+
+// A restored session history reports its state before the page subscribes to the region state (the host sends it while the
+// composition is placed); the page shows that state, because the subscription does not replay it.
+test("a restored session history shows the state that the region reported before the page subscribed", async (t) => {
+  const host = createViewPage(t, "history-state", { stored: { url: "https://stored.test/" } });
+  host.region.history = true;
+  host.region.restoredState = host.region.stateOf("https://stored.test/", { title: "Stored" });
+  await import("../ui/view.js?case=history-state");
+  await host.settle();
+  assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
+  assert.ok(host.reports.title.includes("Stored"), `the restored state titles the tab, the titles are ${JSON.stringify(host.reports.title)}`);
 });
 
 test("the page reports a failure of the view channel as the declared record of its catalog", async (t) => {

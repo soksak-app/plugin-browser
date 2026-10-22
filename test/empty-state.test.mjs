@@ -17,6 +17,7 @@ async function setup(t) {
     return commands.get(name)(params);
   }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
   const region = {
+    state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
     async load(url) { for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},

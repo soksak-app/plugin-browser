@@ -59,6 +59,7 @@ async function setup(t, { home = "https://home.test/", failLoad } = {}) {
     history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" };
   const push = (change) => { Object.assign(page, change); for (const fn of states) fn({ ...page }); };
   const region = {
+    state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
     async load(url) { if (failLoad) throw Object.assign(new Error("refused"), { code: -32001 }); push({ url }); },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},

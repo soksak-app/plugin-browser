@@ -12,6 +12,7 @@ async function setup(t) {
   const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
   const statuses = new Map(), commands = new Map(), states = new Set(), entries = [], titles = [];
   const region = {
+    state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
     async load() {}, async entry(offset) { entries.push(offset); return true; },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},

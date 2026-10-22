@@ -199,6 +199,9 @@ export async function mount(root, context) {
     notifyAddress();
   };
   const stopState = region.onState(show);
+  // onState does not replay a state that the region reported before this subscription, and region.state keeps the last one: a
+  // restored session history reports its state while the composition is placed.
+  if (region.state !== null) show(region.state);
   // 문서의 페이지 확대는 이 표면의 실제 글자 배율이다(docs/spec/text-size.md). 읽기와 구독은 뷰 채널의 호출이다.
   const textSize = context.runtime.textSize;
   await region.zoom(await textSize.read());

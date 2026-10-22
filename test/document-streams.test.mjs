@@ -17,6 +17,7 @@ function fakeRegion() {
       subscriptions.push(subscription);
       return Promise.resolve({ stream, close() { subscription.closed = true; return Promise.resolve(); } });
     },
+    state: null,
     onState: () => () => {},
     zoom: async () => {}, load: async () => {}, back: async () => {}, forward: async () => {}, reload: async () => {}, stop: async () => {},
     entry: async () => {},

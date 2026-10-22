@@ -34,6 +34,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   const states = [];
   const exposed = { statuses: new Map(), commands: new Map(), doms: new Map(), disposed: false };
   const region = {
+    state: null,
     onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
     load: async (url) => { states.forEach((fn) => fn({ url, title: "loaded", history: { entries: [], index: -1 }, link: "" })); },
     back: async () => {}, forward: async () => {}, reload: async () => {}, stop: async () => {},
@@ -103,6 +104,7 @@ async function mountRestored({ stored, history }) {
   const writes = [];
   const region = {
     history,
+    state: null,
     onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
     load: async (url) => { loads.push(url); },
     zoom: async () => {},

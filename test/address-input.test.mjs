@@ -18,6 +18,7 @@ async function setup(t) {
   }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
   const navigations = [];
   const region = {
+    state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
     async load(url) { navigations.push(url); for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); },
     async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
@@ -119,6 +120,7 @@ test("the card footer shows the address of the link under the pointer", { timeou
   const states = new Set(), footers = [];
   const binder = createBinder(() => null, { check() {} });
   const region = {
+    state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
     async load() {}, async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
   };

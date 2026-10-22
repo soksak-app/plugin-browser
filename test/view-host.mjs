@@ -48,9 +48,10 @@ const settle = (rounds = 8) => {
  * records the load and reports it. subscribe(stream) opens a subscription and stream(stream, message) delivers it.
  */
 function fakeRegion(name, emit) {
-  const region = { name, streams: [], handles: 0, loads: [], history: false };
+  const region = { name, streams: [], handles: 0, loads: [], history: false, restoredState: null };
+  region.stateOf = (url, change = {}) => ({ url, title: "", loading: false, progress: 1, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 }, link: "", history: { entries: [], index: -1 }, ...change });
   region.show = (url, change = {}) => {
-    const state = { url, title: "", loading: false, progress: 1, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 }, link: "", history: { entries: [], index: -1 }, ...change };
+    const state = region.stateOf(url, change);
     setTimeout(() => emit("document-state", { document: name, state }), 0);
     return state;
   };
@@ -176,6 +177,13 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
           return JSON.parse(JSON.stringify(MANIFEST.surface.composition));
         case "composition.place":
           calls.push(["composition.place", params]);
+          // A restored session history reports its state while the composition is placed, before the create of the page
+          // returns and the page subscribes to the state of the region; the host sends it at once, as it does for a restore.
+          if (region.restoredState !== null) {
+            const state = region.restoredState;
+            region.restoredState = null;
+            emitNative("document-state", { document: region.name, state });
+          }
           return null;
         case "composition.report":
           calls.push(["composition.report", params]);

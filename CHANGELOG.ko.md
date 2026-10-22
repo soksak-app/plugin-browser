@@ -4,6 +4,7 @@
 
 ## 미배포
 
+- P27.5-1: browser page test는 SDK 없이 실행한다. `scripts/build-test.mjs`는 각 `@soksak/plugin-api` import를 `test/sdk-models/`의 model로 바꾼 `build/test/ui`를 만들고, `test/sdk-models/conformance.test.mjs`는 core F246과 F248부터 F248-5까지의 복사된 case 파일을 재생한다. model은 영역 zoom, 기록 동작, stream 구독, binder의 함수 params, settings와 text size 읽기, 선언 UI snapshot sender를 추가한다. Red: `test/sdk-boundary.test.mjs`가 `address-input.test.mjs`의 SDK import에서 실패했다. Green: `make test`가 66개 중 66개 통과한다. `@soksak/plugin-api`는 release `v0.0.18`에 고정했으므로, core release가 case와 status만 가진 section을 받는 검사기를 담을 때까지 `make check`의 case 복사 검사와 exposure 검사가 실패한다.
 - P27.5: 생략해 둔 view 이동 case를 skip 없이 실행한다. `@soksak/plugin-api`는 view 영역에 `history`를 노출하는 core main의 commit에 고정했다(core F245). page는 복원된 영역이 구독 전에 보고한 state를 보인다. `make test`는 플러그인 test만 실행하고, `make check`는 SDK 검사를 실행한다.
 
 - P27.2: 히스토리, 네트워크, DOM 섹션이 declared UI `status` 섹션이 되었다. page가 섹션마다 declared UI 값을 만들어 workbench에 민다. `browser.history`는 항목이 `browser.history.go`를 실행하고 현재 항목을 고른 하나의 list다. `browser.requests`는 duration을 detail로 둔 정적 list이고 dropped 수를 status line으로 밝힌다. `browser.elements`는 깊이로 중첩된 tree이며 snapshot 잘림과 16 단계 아래 요소를 status line으로 밝힌다. 섹션 모듈 `ui/sections/history.js`, `network.js`, `dom.js`는 지워졌다. 탭 섹션은 module 섹션으로 남는다.

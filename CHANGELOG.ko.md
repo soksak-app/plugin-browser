@@ -4,6 +4,7 @@
 
 ## 미배포
 
+- P30: pre-push 훅이 `make push-check`를 실행한다. 이것은 ci workflow와 같이 `make test`, `make check`, push 범위의 commit message 검사를 실행한다. Red: `.githooks/pre-push`가 없었고 `git push --dry-run`은 검사를 실행하지 않았다. Green: 훅이 검사를 실행한다. `make test`는 98개 중 98개를 통과하고, `make check`는 고정 SDK에서 실패하며 이것은 P31이 기록한다.
 - F238-c-23-1: `make check`는 plugin API의 `validateManifest`로 `plugin.json`을 검사하며(`scripts/check-manifest.mjs`), `CORE_PLUGIN_API_DIR`가 설정되면 그 API를 읽고 SDK 도구를 그 폴더에서 실행한다. `browser.tabs` status를 page가 등록하므로 이 section은 source를 가진다. Red: manifest test는 검사 파일이 없어서, tabs test는 등록되지 않은 status로 실패했다. Green: `make test`가 98개 중 98개를 통과하며, `make check`는 core origin/main 추출본에 대해 0으로 종료된다.
 - F238-c-14-1: `test/sdk-models/` model 주석은 hwp page가 아니라 browser page를 가리키며, 적합성 제외 사유는 origin `sok://browser/`를 적는다. 동작은 바뀌지 않아 이 주석에는 Red test가 해당하지 않는다. Green: `make test`가 test 96개를 통과한다.
 - F238-c-14: `test/`의 어느 줄도 SDK 패키지 이름을 싣지 않는다. `test/sdk-boundary.test.mjs`는 needle을 포함한 `test/`의 줄마다 실패하며, needle은 부분 문자열에서 조립한다. model 주석은 plugin API로 적고, `test/view.test.mjs`는 import map 이름을 부분 문자열에서 조립한다. Red: guard가 일곱 줄을 나열했다. Green: `make test`가 test 96개를 통과한다.

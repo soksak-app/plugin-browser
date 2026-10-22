@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- F238-c-24: The CI workflow runs `make check` after `make test`, and the release workflow runs `make test`, `make check`, then `make pack`. `test/workflows.test.mjs` requires both orders. Red: the test failed on the previous workflows. Green: `make test` passes 95 tests. `make check` fails on the status-only sections of the pinned `@soksak/plugin-api` until a core release publishes the contract files, which is the expected result.
 - P28: The 탭 section is a declared UI status. `plugin.json` declares `browser.tabs` as a `status` section, and no section declares `module`; `ui/sections/tabs.js` is removed. The page watches `core.grid` through `runtime.status.watch` and pushes the browser tabs of the card that holds its surface as a declared list, and each row runs `browser.tab.select`, which calls `core.tab.select`. The manifest test requires every section to be a declared status, and `test/tabs.test.mjs` requires the value and the selection. The release waits for P29.
 - P18.4-1: The page's operations carry identifiers. An address commit begins an operation with `runtime.beginOperation`, and its record `address.commit` is stored at `info` with the identifiers; a relayed command passes the identifiers of its request to its `command` record and to `core.tab.select`. The emitter takes `{operation: true}` to begin an operation. The region's state records carry no identifiers, because they continue no request of the page. The test `test/operations.test.mjs` requires both, and the model replays `view-operations.json` and `view-status.json`.
 

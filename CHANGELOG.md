@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
 - P30: The pre-push hook runs `make push-check`, which runs `make test`, `make check` and the commit message check of the pushed range, as the ci workflow does. Red: `.githooks/pre-push` did not exist and `git push --dry-run` ran no check. Green: the hook runs the checks; `make test` passes 98 of 98, and `make check` fails at the pinned SDK, which P31 records.

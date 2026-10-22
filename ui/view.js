@@ -9,37 +9,12 @@ import { createExpose } from "@soksak/plugin-api";
 import { createViewBridge } from "@soksak/plugin-api/view";
 import { mount } from "./browser.js";
 import { createEmitter, errorText } from "./events.js";
+import { startValues } from "./start-values.js";
 
 const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"];
 
-const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-const isText = (value) => typeof value === "string" && value !== "";
 // The identifiers of a record or a call: the {cids} argument, which a record without an operation does not carry.
 const cidsOf = (options) => (options?.cids === undefined ? {} : { cids: options.cids });
-
-// The form of each start value (core docs/spec/native-surfaces.md#view-surfaces, start values): params are the tab
-// parameters or null, origin is {directory} with a directory, project is {root} or null, and declarations
-// are the exposes of the plugin.
-const START_FORM = {
-  params: (value) => value !== undefined,
-  origin: (value) => isRecord(value) && isText(value.directory),
-  project: (value) => value === null || (isRecord(value) && isText(value.root)),
-  declarations: isRecord,
-};
-
-/** The frozen start values of the surface, which the host of the view injects before the page runs (#P27.3). */
-export function startValues(windowRef = window) {
-  const start = windowRef.sokSurface;
-  if (start === null || typeof start !== "object" || !isText(start.surface)) {
-    throw new Error(`the view of ${windowRef.location.host} has no start values: the host provides window.sokSurface {surface, params, origin, project, declarations} before the page runs`);
-  }
-  for (const [name, valid] of Object.entries(START_FORM)) {
-    if (!valid(start[name])) {
-      throw new Error(`the start values of the view of ${windowRef.location.host} are not {surface, params, origin, project, declarations}: ${name} is ${JSON.stringify(start[name]) ?? "undefined"}`);
-    }
-  }
-  return start;
-}
 
 /**
  * A refused record is an error of the view: it is shown as the error line of the view (runtime.error), and the console of the

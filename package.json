@@ -19,6 +19,7 @@
     "ui/browser.js",
     "ui/events.js",
     "ui/index.html",
+    "ui/start-values.js",
     "ui/view.js"
   ],
   "scripts": {

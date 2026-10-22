@@ -16,13 +16,13 @@ const testSources = walk(testRoot).filter((file) => /\.mjs$/.test(file) && !file
 test("no test file imports an SDK package", () => {
   for (const file of testSources) {
     const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /(?:from|import\()\s*["']@soksak\//, path.relative(testRoot, file));
+    assert.doesNotMatch(source, /(?:from|import\()\s*["'`]@soksak\//, path.relative(testRoot, file));
   }
 });
 
 test("no test file imports the UI source instead of the test tree", () => {
   for (const file of testSources) {
     const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /(?:from|import\()\s*["']\.\.\/ui\//, path.relative(testRoot, file));
+    assert.doesNotMatch(source, /(?:from|import\()\s*["'`]\.\.\/ui\//, path.relative(testRoot, file));
   }
 });

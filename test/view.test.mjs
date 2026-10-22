@@ -54,7 +54,7 @@ for (const [label, change, reason] of [
   test(`the view page refuses start values ${label}`, async (t) => {
     const caseId = `start-${label.replaceAll(" ", "-")}`;
     const host = createViewPage(t, caseId, { start: { ...START, ...change } });
-    await assert.rejects(import(`../ui/view.js?case=${caseId}`), reason);
+    await assert.rejects(import(`../build/test/ui/view.js?case=${caseId}`), reason);
     assert.deepEqual(host.reports.registered, []);
   });
 }

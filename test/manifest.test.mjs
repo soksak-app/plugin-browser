@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { validateManifest } from "@soksak/plugin-api";
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-test("plugin.json satisfies the manifest format", () => {
-  assert.equal(validateManifest(manifest), manifest);
+// The manifest fields that this plugin and its page rely on; the SDK validator of the manifest runs in make check.
+test("plugin.json declares the fields that the plugin relies on", () => {
+  assert.equal(typeof manifest.id, "string");
+  assert.equal(typeof manifest.name, "string");
+  assert.equal(typeof manifest.description, "string");
+  assert.ok(Array.isArray(manifest.sections));
+  assert.ok(Array.isArray(manifest.exposes.status));
+  assert.ok(Array.isArray(manifest.exposes.commands));
 });
 
 test("the package publishes the manifest and surface module", () => {

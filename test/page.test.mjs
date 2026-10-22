@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { INTERACTIVE } from "@soksak/plugin-api";
+import { INTERACTIVE } from "./sdk-models/binder.mjs";
 
-const source = readFileSync(new URL("../ui/browser.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../build/test/ui/browser.js", import.meta.url), "utf8");
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const { document } = new JSDOM("<div></div>").window;
 const names = (kind) => manifest.exposes[kind].map((entry) => entry.name);
@@ -62,7 +62,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: async () => 1.25,
       on: async (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
   };
-  const { mount } = await import("../ui/browser.js");
+  const { mount } = await import("../build/test/ui/browser.js");
   const mounted = await mount(shadow, context);
   // 문서의 페이지 확대는 표면의 글자 배율을 따른다(docs/spec/text-size.md).
   assert.deepEqual(zooms, [1.25], "the document starts at the surface text size");
@@ -119,7 +119,7 @@ async function mountRestored({ stored, history }) {
     runtime: { log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
       textSize: { read: async () => 1, on: async () => () => {} } },
   };
-  const { mount } = await import("../ui/browser.js");
+  const { mount } = await import("../build/test/ui/browser.js");
   const mounted = await mount(shadow, context);
   return { dom, states, loads, writes, mounted };
 }

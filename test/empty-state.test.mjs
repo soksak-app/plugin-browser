@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { createBinder } from "@soksak/plugin-api";
-import { mount } from "../ui/browser.js";
+import { createBinder } from "./sdk-models/binder.mjs";
+import { mount } from "../build/test/ui/browser.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 

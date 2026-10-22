@@ -20,7 +20,7 @@ function setup(surface) {
 
 test("the tabs section keeps the controls of its tabs when the grid changes", async () => {
   const { dom, root, context, send } = setup("tab-a");
-  const { mount } = await import("../ui/sections/tabs.js");
+  const { mount } = await import("../build/test/ui/sections/tabs.js");
   const section = mount(root, context);
   const grid = (active, label) => ({ cards: [{ id: "c", active, tabs: [
     { id: "tab-a", plugin: "browser", title: "브라우저", label },

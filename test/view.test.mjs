@@ -26,7 +26,7 @@ function checkViewPage(html) {
 }
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
-const PAGE = new URL("../ui/index.html", import.meta.url);
+const PAGE = new URL("../build/test/ui/index.html", import.meta.url);
 const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { root: "/project" }, declarations: manifest.exposes };
 
 test("the view page carries the import map of the view and the page script", () => {
@@ -38,7 +38,7 @@ test("the view page carries the import map of the view and the page script", () 
 test("the view page refuses to mount without the start values of the surface", async (t) => {
   const host = createViewPage(t, "no-start");
   host.window.sokSurface = null;
-  await assert.rejects(import("../ui/view.js?case=no-start"),
+  await assert.rejects(import("../build/test/ui/view.js?case=no-start"),
     /the view of browser has no start values: the host provides window\.sokSurface/);
 });
 
@@ -61,13 +61,13 @@ for (const [label, change, reason] of [
 
 test("the view page mounts the surface over the view channel and registers every declared name", async (t) => {
   const { settle } = createViewPage(t, "mount");
-  await import("../ui/view.js?case=mount");
+  await import("../build/test/ui/view.js?case=mount");
   await settle();
 });
 
 test("the view page attaches the document region, places it, and opens the home setting in it", async (t) => {
   const { region, calls, settle } = createViewPage(t, "region");
-  await import("../ui/view.js?case=region");
+  await import("../build/test/ui/view.js?case=region");
   await settle();
   assert.deepEqual(calls.find(([name]) => name === "document.attach")?.[1], { name: "page" }, "the view attaches the declared region page");
   assert.ok(calls.some(([name, params]) => name === "composition.place" && params.regions.length === 1
@@ -79,7 +79,7 @@ test("the view page attaches the document region, places it, and opens the home 
 
 test("a browser.navigate run through the channel loads the document region", async (t) => {
   const { region, run, settle } = createViewPage(t, "navigate");
-  await import("../ui/view.js?case=navigate");
+  await import("../build/test/ui/view.js?case=navigate");
   await settle();
   assert.equal(await run("browser.navigate", { url: "https://example.test/" }), null);
   await settle();
@@ -88,7 +88,7 @@ test("a browser.navigate run through the channel loads the document region", asy
 
 test("a document state updates the tab reports and the address field", async (t) => {
   const { window, region, reports, expose, settle } = createViewPage(t, "state");
-  await import("../ui/view.js?case=state");
+  await import("../build/test/ui/view.js?case=state");
   await settle();
   region.show("https://a.test/one", { title: "One", link: "https://a.test/two", canGoBack: true });
   await settle();
@@ -102,7 +102,7 @@ test("a document state updates the tab reports and the address field", async (t)
 
 test("a tab with a tab state opens its stored address and writes no new tab state", async (t) => {
   const host = createViewPage(t, "restored", { stored: { url: "https://stored.test/" } });
-  await import("../ui/view.js?case=restored");
+  await import("../build/test/ui/view.js?case=restored");
   await host.settle();
   assert.deepEqual(host.region.loads, ["https://stored.test/"]);
   assert.deepEqual(host.reports.state, [], "the address of the tab state writes no new tab state");
@@ -114,7 +114,7 @@ test("a tab with a tab state opens its stored address and writes no new tab stat
 test("a region that restored the session history of an unloaded tab loads nothing", async (t) => {
   const host = createViewPage(t, "history-restored", { stored: { url: "https://stored.test/" } });
   host.region.history = true;
-  await import("../ui/view.js?case=history-restored");
+  await import("../build/test/ui/view.js?case=history-restored");
   await host.settle();
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
 });
@@ -125,7 +125,7 @@ test("a restored session history shows the state that the region reported before
   const host = createViewPage(t, "history-state", { stored: { url: "https://stored.test/" } });
   host.region.history = true;
   host.region.restoredState = host.region.stateOf("https://stored.test/", { title: "Stored" });
-  await import("../ui/view.js?case=history-state");
+  await import("../build/test/ui/view.js?case=history-state");
   await host.settle();
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
   assert.ok(host.reports.title.includes("Stored"), `the restored state titles the tab, the titles are ${JSON.stringify(host.reports.title)}`);
@@ -133,7 +133,7 @@ test("a restored session history shows the state that the region reported before
 
 test("the page reports a failure of the view channel as the declared record of its catalog", async (t) => {
   const host = createViewPage(t, "report");
-  await import("../ui/view.js?case=report");
+  await import("../build/test/ui/view.js?case=report");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
   await host.settle();
   const report = host.logs.find((entry) => entry.event === "plugin.browser.report");
@@ -144,7 +144,7 @@ test("the page reports a failure of the view channel as the declared record of i
 
 test("the page pushes the declared UI value of each section status", async (t) => {
   const { region, snapshots, settle } = createViewPage(t, "declared");
-  await import("../ui/view.js?case=declared");
+  await import("../build/test/ui/view.js?case=declared");
   await settle();
   region.show("https://a.test/one", { title: "One" });
   await settle();
@@ -160,7 +160,7 @@ test("the page pushes the declared UI value of each section status", async (t) =
 
 test("a browser.address.select run focuses the address field of the view", async (t) => {
   const { window, run, settle } = createViewPage(t, "select");
-  await import("../ui/view.js?case=select");
+  await import("../build/test/ui/view.js?case=select");
   await settle();
   assert.equal(await run("browser.address.select", {}), null);
   const host = window.document.body.lastElementChild;

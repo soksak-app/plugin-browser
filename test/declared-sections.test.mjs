@@ -2,7 +2,7 @@
 // forms that the page pushes for its section statuses, and the limits that the receiver applies.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { declaredElements, declaredHistory, declaredRequests } from "../ui/browser.js";
+import { declaredElements, declaredHistory, declaredRequests } from "../build/test/ui/browser.js";
 
 test("browser.history is one list whose items run browser.history.go and select the current entry", () => {
   const { elements } = declaredHistory({

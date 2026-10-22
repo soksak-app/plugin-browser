@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { declaredElements, declaredRequests } from "../ui/browser.js";
+import { declaredElements, declaredRequests } from "../build/test/ui/browser.js";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -49,7 +49,7 @@ async function mountBrowser() {
       textSize: { read: async () => 1, on: async () => () => {} },
     },
   };
-  const { mount } = await import("../ui/browser.js");
+  const { mount } = await import("../build/test/ui/browser.js");
   const mounted = await mount(shadow, context);
   return { dom, region, statuses, reports, mounted };
 }

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { createEmitter } from "../ui/events.js";
-import { mount } from "../ui/browser.js";
+import { createEmitter } from "../build/test/ui/events.js";
+import { mount } from "../build/test/ui/browser.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));

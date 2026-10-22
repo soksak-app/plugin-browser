@@ -14,6 +14,7 @@ const VIEW_IMPORTS = Object.freeze({
   "soksak": "sok://core/modules/soksak/dist/index.js",
   [PLUGIN_API]: `sok://core/modules/${PLUGIN_API}/index.js`,
   [`${PLUGIN_API}/view`]: `sok://core/modules/${PLUGIN_API}/view.js`,
+  [`${PLUGIN_API}/screen-hash`]: `sok://core/modules/${PLUGIN_API}/screen-hash.js`,
   "@soksak/shared/": "sok://core/shared/",
 });
 

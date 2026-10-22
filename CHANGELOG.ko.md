@@ -4,6 +4,7 @@
 
 ## 미배포
 
+- F238-c-14-1: `test/sdk-models/` model 주석은 hwp page가 아니라 browser page를 가리키며, 적합성 제외 사유는 origin `sok://browser/`를 적는다. 동작은 바뀌지 않아 이 주석에는 Red test가 해당하지 않는다. Green: `make test`가 test 96개를 통과한다.
 - F238-c-14: `test/`의 어느 줄도 SDK 패키지 이름을 싣지 않는다. `test/sdk-boundary.test.mjs`는 needle을 포함한 `test/`의 줄마다 실패하며, needle은 부분 문자열에서 조립한다. model 주석은 plugin API로 적고, `test/view.test.mjs`는 import map 이름을 부분 문자열에서 조립한다. Red: guard가 일곱 줄을 나열했다. Green: `make test`가 test 96개를 통과한다.
 - F238-c-24: CI workflow는 `make test` 다음에 `make check`를 실행하고, release workflow는 `make test`, `make check`, `make pack` 순서로 실행한다. `test/workflows.test.mjs`가 두 순서를 요구한다. Red: 이전 workflow에서 test가 실패했다. Green: `make test`가 95개 test를 통과한다. 고정된 `@soksak/plugin-api`의 status-only section 때문에 `make check`는 core release가 계약 파일을 게시할 때까지 실패하며, 이것이 예상된 결과다.
 - P28: 탭 section은 선언된 UI status다. `plugin.json`이 `browser.tabs`를 `status` section으로 선언하며, 어느 section도 `module`을 선언하지 않는다. `ui/sections/tabs.js`를 뺐다. page는 `runtime.status.watch`로 `core.grid`를 구독하고, 표면을 가진 카드의 브라우저 탭을 선언된 목록으로 올린다. 각 행은 `browser.tab.select`를 실행하며, 이 명령은 `core.tab.select`를 부른다. manifest test는 모든 section이 선언된 status임을 요구하고, `test/tabs.test.mjs`는 값과 선택을 요구한다. release는 P29를 기다린다.

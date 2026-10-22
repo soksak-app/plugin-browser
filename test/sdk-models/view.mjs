@@ -1,4 +1,4 @@
-// Model of createViewBridge of the plugin API view entry for the calls that the hwp view page makes: calls.request with the
+// Model of createViewBridge of the plugin API view entry for the calls that the browser view page makes: calls.request with the
 // call limit, commands.register, runtime.native.on, runtime.theme, runtime.sidecar and composition.create. The wire form
 // of each call is the form that the published view and calls cases (test/fixtures/sdk-cases) record. A call outside this
 // surface throws an error that names the call. The conformance test is test/sdk-models/conformance.test.mjs.

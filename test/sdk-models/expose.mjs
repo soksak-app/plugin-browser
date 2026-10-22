@@ -1,6 +1,6 @@
 import { createBinder } from "./binder.mjs";
 
-// Model of createExpose of the plugin API for the calls that the hwp view page makes: status, command and dom
+// Model of createExpose of the plugin API for the calls that the browser view page makes: status, command and dom
 // registration and the exposure requests status.get, status.watch, status.next, status.unwatch, command.run, dom.act and
 // dom.rect. The wire form and the refusals are the forms of test/fixtures/sdk-cases/expose.json and
 // command-registration.json, and the binder of bind in create-binder.json. A call outside this surface throws an error

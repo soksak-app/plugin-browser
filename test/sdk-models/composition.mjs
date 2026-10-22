@@ -1,4 +1,4 @@
-// Model of the composition of a view page for the calls that the hwp page makes: composition.create over its document
+// Model of the composition of a view page for the calls that the browser page makes: composition.create over its document
 // regions, region(name), region.load, region.post, region.onState, region.onMessage, region.state, region.history and
 // dispose. The wire form is the form of test/fixtures/sdk-cases/view-composition.json. The trace names the regions and
 // the elements in separate fields; the page passes an element per region name, and the conformance test adapts the

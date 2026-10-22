@@ -23,7 +23,7 @@
     "ui/sections"
   ],
   "scripts": {
-    "test": "node scripts/build-test.mjs && node --test test/*.test.mjs"
+    "test": "node scripts/build-test.mjs && node --test test/"
   },
   "devDependencies": {
     "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.18&path:/packages/plugin-api",

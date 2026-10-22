@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- F238-b-10-2: the test command runs the whole `test/` directory, so the conformance tests of `test/sdk-models/` run in `make test` (83 of 83 tests, 69 before). `test/test-script.test.mjs` fails when a test file under `test/` is not selected by the test command.
 - F238-b-10-1: the core view bridge contract copy is refreshed to the current core case set; `view.bridge.runtime-log-without-level-query` replaces `view.bridge.runtime-log-level-gate`, and the view calls no level query. In this repository the conformance test (`test/sdk-models/conformance.test.mjs`) lists the case as excluded, because the view bridge model has no `runtime.log`.
 - P17: The page reports its errors as the emit of `plugin.browser.report` through `emitEvent`, which sends the name `report` to `runtime.log` (core docs/spec/plugins.md#logging). Before, the reporter called `runtime.log` with the prefixed name, which core stores with the prefix twice, and `soksak-events` found no emit site of the declared event. The test `the page reports a failure of the view channel as the declared record of its catalog` asserted the prefixed name and now asserts `report`; the test `the page records its trace as the declared events of its catalog` requires each trace event of the page to be declared in `events.json` at its declared level. Both failed before the change and pass after it.
 

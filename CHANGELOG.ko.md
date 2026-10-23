@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P39: Browser `0.0.7`은 `engines.soksak` `^0.0.21`을 선언한다. 공개 core `v0.0.20`은 `surface.module`을 요구하므로 현재 view manifest를 거부한다. Red: `test/core-version.test.mjs`가 `">=0.0.18" !== "^0.0.21"`로 실패한다. Green: 같은 test가 1/1 통과하고, 현재 core source를 `CORE_PLUGIN_API_DIR`로 지정한 candidate `make check`가 manifest, exposure, engines, events, records와 case copy 14개를 통과한다. SDK pin, plugin version, archive, registry는 바꾸지 않았으며 P29는 public release gate로 남는다.
+
 - P37: 복사한 view case를 현재 plugin API source origin인 soksak://에 맞췄다. 변경 전 source check는 view-bridge.json과 다른 case description 여섯 개의 sok:// 때문에 실패했고 view source comment와 conformance exclusion도 오래된 scheme을 썼다. 일곱 view case 파일이 현재 source와 일치하고 활성 P27 origin이 soksak://를 사용한다. Package test의 sok:// view-host URL은 P29가 SDK release pin을 바꿀 때까지 유지한다. make test는 111개 중 111개, CORE_PLUGIN_API_DIR을 지정한 make check는 validator와 case copy 14개가 통과한다. 이는 current-source validation이며 공개 v0.0.20 호환성을 뜻하지 않는다.
 
 - P36: 현재 source를 변경할 수 없는 공개 0.0.6 버전으로 package하지 않도록 browser package 버전을 0.0.7로 올렸다. Browser test는 111개 중 111개가 통과하고, make pack은 browser-0.0.7.tgz를 만들며, make registry는 0.0.7만 등록하고 archive digest를 확인한다. 이는 local release 준비이며 P29가 public release gate로 남는다.

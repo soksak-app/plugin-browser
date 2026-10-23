@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P36: 현재 source를 변경할 수 없는 공개 0.0.6 버전으로 package하지 않도록 browser package 버전을 0.0.7로 올렸다. Browser test는 111개 중 111개가 통과하고, make pack은 browser-0.0.7.tgz를 만들며, make registry는 0.0.7만 등록하고 archive digest를 확인한다. 이는 local release 준비이며 P29가 public release gate로 남는다.
+
 - P35: view 페이지는 doctype으로 시작하고 import map을 갖지 않는다. host가 doctype 뒤에 view import map을 넣으므로(core F212.12-1-10-6), 페이지의 복사본을 뺐다. Red: view 시험이 map을 가진 page에서 `the view page holds no import map of its own`으로 실패했다. Green: `make test`가 111개 중 111개를 통과하고, core의 `checkViewPage`가 page를 받아들인다.
 - P33: view 페이지 map이 core view import map의 screen-hash 항목을 가진다. `checkViewPage`가 이 항목을 요구한다. 시험의 map 복사본은 `VIEW_IMPORTS`의 다섯 항목을 가진다. Red: `the view page carries the import map of the view and the page script` 시험이 page map에 screen-hash 항목이 없어 deep-equal 차이로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 - P30: pre-push 훅이 `make push-check`를 실행한다. 이것은 ci workflow와 같이 `make test`, `make check`, push 범위의 commit message 검사를 실행한다. Red: `.githooks/pre-push`가 없었고 `git push --dry-run`은 검사를 실행하지 않았다. Green: 훅이 검사를 실행한다. `make test`는 98개 중 98개를 통과하고, `make check`는 고정 SDK에서 실패하며 이것은 P31이 기록한다.

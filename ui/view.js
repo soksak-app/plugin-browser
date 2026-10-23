@@ -1,4 +1,4 @@
-// The browser view page (core docs/spec/plugins.md#view-surfaces): the host serves it at sok://browser/ui/index.html in
+// The browser view page (core docs/spec/plugins.md#view-surfaces): the host serves it at soksak://browser/ui/index.html in
 // the web view of the surface, and injects the view channel script and the theme script before this page runs. The page
 // builds the surface context of its view over the view channel (@soksak/plugin-api/view) and mounts the browser module
 // into a shadow root of the page. Every entry of the context runs through the call route of a view (core

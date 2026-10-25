@@ -1,61 +1,193 @@
 {
-  "schema": 2,
-  "layers": ["plugin"],
+  "schema": 3,
+  "layers": [
+    "plugin"
+  ],
   "events": {
     "plugin.browser.start": {
       "layer": "plugin",
       "class": "lifecycle",
       "level": "info",
-      "fields": { "url": "string", "source": "string" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "source"
+        ]
+      },
       "description": "A browser surface mounted; url is the address it opens (empty when none) and source is restored for the address of the tab state, home for the home setting, or history for a region that restored the session history of an unloaded tab, which loads nothing."
     },
     "plugin.browser.command": {
       "layer": "plugin",
       "class": "call",
-      "level": ["debug", "warn"],
-      "fields": { "name": "string", "micros": "number", "ok": "boolean", "error?": "string" },
+      "level": [
+        "debug",
+        "warn"
+      ],
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "micros": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "micros",
+          "ok"
+        ]
+      },
       "description": "A command of the surface ran; error is <code>: <text> when ok is false, and the level is warn for a failure."
     },
     "plugin.browser.address.commit": {
       "layer": "plugin",
       "class": "input",
       "level": "info",
-      "fields": { "value": "string", "url": "string" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "url"
+        ]
+      },
       "description": "The person pressed Enter in the address bar; value is the text of the bar and url the address that was sent to the document region."
     },
     "plugin.browser.history.move": {
       "layer": "plugin",
       "class": "call",
       "level": "debug",
-      "fields": { "from": "number", "to": "number" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "number"
+          },
+          "to": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
       "description": "A move to another entry of the session history, by index."
     },
     "plugin.browser.navigation": {
       "layer": "plugin",
       "class": "call",
       "level": "info",
-      "fields": { "from": "string", "to": "string" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
       "description": "The address of the document changed."
     },
     "plugin.browser.load": {
       "layer": "plugin",
       "class": "call",
       "level": "info",
-      "fields": { "url": "string", "micros": "number", "ok": "boolean" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "micros": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "url",
+          "micros",
+          "ok"
+        ]
+      },
       "description": "The document finished loading; micros is the time since the state reported loading."
     },
     "plugin.browser.region.failure": {
       "layer": "plugin",
       "class": "call",
       "level": "error",
-      "fields": { "url": "string", "reason": "string" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "reason"
+        ]
+      },
       "description": "The document region reported an error in its state; reason is the text of the error."
     },
     "plugin.browser.report": {
       "layer": "plugin",
       "class": "call",
       "level": "error",
-      "fields": { "text": "string" },
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
       "description": "The page of the view failed: an error or a rejection of the page, a refused call of the view channel, or a loss of the view calls; text states the error."
     }
   }

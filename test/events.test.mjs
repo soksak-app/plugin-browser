@@ -36,7 +36,7 @@ test("the manifest names the catalog, the catalog is declared for release, and e
   assert.equal(manifest.events, "events.json");
   assert.ok(pkg.files.includes("events.json"));
   assert.ok(pkg.files.includes("ui/events.js"));
-  assert.equal(catalog.schema, 2);
+  assert.equal(catalog.schema, 3);
   assert.deepEqual(catalog.layers, ["plugin"]);
   assert.ok(Object.keys(catalog.events).length > 0);
   for (const [name, entry] of Object.entries(catalog.events)) {
@@ -45,7 +45,13 @@ test("the manifest names the catalog, the catalog is declared for release, and e
     assert.ok(CLASSES.includes(entry.class), name);
     for (const level of [entry.level].flat()) assert.ok(LEVELS.includes(level), name);
     assert.ok(entry.description.length > 0, name);
-    for (const type of Object.values(entry.fields)) for (const part of type.split("|")) assert.ok(TYPES.includes(part), name);
+    assert.equal(entry.fields.$schema, "https://json-schema.org/draft/2020-12/schema", name);
+    assert.equal(entry.fields.type, "object", name);
+    assert.ok(Array.isArray(entry.fields.required), name);
+    for (const field of entry.fields.required) assert.ok(Object.hasOwn(entry.fields.properties, field), `${name}.${field}`);
+    for (const [field, schema] of Object.entries(entry.fields.properties)) {
+      for (const type of [schema.type].flat()) assert.ok(TYPES.includes(type), `${name}.${field}`);
+    }
   }
 });
 

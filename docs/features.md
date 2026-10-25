@@ -1,5 +1,7 @@
 # Features
 
+- [~] F239-77-browser — P1, linked to core F239-77: Convert the Browser event catalog to schema 3 JSON Schema so current core catalog readers can install and validate the package. Preserve every event name, class, level and required/optional field. Runtime acceptance requires a fresh install with the schema-3 core and matching plugin cohort.
+
 [한국어](features.ko.md)
 
 - [o] P39 — P0: Browser `0.0.7` declares `engines.soksak: ">=0.0.18"`, which includes published core `v0.0.20`. Its manifest uses `surface.composition.kind: "view"` without the `surface.module` required by that reader, so the range promises an installation that fails. Expected: declare `^0.0.21`, the core candidate that accepts this manifest, and keep the public release gate P29 pending until a matching core release is published. Red: `test/core-version.test.mjs` fails with `">=0.0.18" !== "^0.0.21"`. Green: `node --test test/core-version.test.mjs` passes 1/1, and candidate `make check` with `CORE_PLUGIN_API_DIR` set to current core source passes the manifest, exposure, engines, events, records and 14 copied cases. This item changes no SDK pin, plugin version, archive or registry.

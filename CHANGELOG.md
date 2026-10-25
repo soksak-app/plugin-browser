@@ -5,6 +5,8 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- F239-77-browser: Complete local schema-3 catalog acceptance with the matching installed diagnostic cohort. The current SDK checks 4 sources with zero pending rules and 8 events; both host installations contain the exact source catalog and pass application log audits. Public publication remains separate.
+
 - F239-77-browser: Convert the Browser event catalog to schema 3 JSON Schema
   without changing its declared events or field requirements. Red: current
   core `make check` rejected the schema-2 catalog and treated its field maps as

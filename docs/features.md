@@ -1,6 +1,6 @@
 # Features
 
-- [~] F239-77-browser — P1, linked to core F239-77: Convert the Browser event catalog to schema 3 JSON Schema so current core catalog readers can install and validate the package. Preserve every event name, class, level and required/optional field. Runtime acceptance requires a fresh install with the schema-3 core and matching plugin cohort.
+- [o] F239-77-browser — P1, linked to core F239-77: Convert the event catalog to schema 3 JSON Schema while preserving event names, classes, levels and required/optional field semantics. Current public SDK census and catalog commands pass: 4 implementation sources, zero pending rules and 8 declared events. The source catalog is byte-identical to both freshly installed diagnostic host configurations. Normal CLI installation and application log audits accept the matching core/plugin/sidecar cohort. This closes the catalog migration unit only; public publication and unrelated historical behavior findings remain separate. The older installed SDK command rejects schema 3 and is not recorded as passing.
 
 [한국어](features.ko.md)
 

@@ -17,6 +17,7 @@ const outputModels = path.join(outputRoot, "sdk-models");
 const MODELS = {
   "@soksak/plugin-api": { file: "index.mjs", names: ["createExpose", "drawList"] },
   "@soksak/plugin-api/view": { file: "view.mjs", names: ["createViewBridge"] },
+  "@soksak/plugin-api/diagnostic-view-frames": { file: "diagnostic-view-frames.mjs", names: ["observeViewDocumentFrames"] },
 };
 
 const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

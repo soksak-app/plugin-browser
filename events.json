@@ -189,6 +189,25 @@
         ]
       },
       "description": "The page of the view failed: an error or a rejection of the page, a refused call of the view channel, or a loss of the view calls; text states the error."
+    },
+    "plugin.browser.view.content_frame": {
+      "layer": "plugin",
+      "class": "frame",
+      "level": "trace",
+      "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "sequence": { "type": "integer" },
+          "documentTimeOriginMs": { "type": "number" },
+          "resizeAtMs": { "type": "number" },
+          "frameTimeMs": { "type": "number" },
+          "width": { "type": "number" },
+          "height": { "type": "number" }
+        },
+        "required": ["sequence", "documentTimeOriginMs", "resizeAtMs", "frameTimeMs", "width", "height"]
+      },
+      "description": "A diagnostic-only view document root size was read at the next animation frame after ResizeObserver; the fields retain the source document and frame clocks with the size."
     }
   }
 }

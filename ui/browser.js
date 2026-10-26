@@ -140,6 +140,7 @@ export async function mount(root, context) {
   showEmpty(restored ?? "");
   const composition = await context.composition.create({ regions: { page: area }, overlays: {} });
   const region = composition.region("page");
+  let disposeDiagnostics = async () => {};
   const locationListeners = new Set();
   const addressListeners = new Set();
   const addressText = () => ({ value: address.value, focused: root.activeElement === address });
@@ -233,6 +234,14 @@ export async function mount(root, context) {
   // onState does not replay a state that the region reported before this subscription, and region.state keeps the last one: a
   // restored session history reports its state while the composition is placed.
   if (region.state !== null) show(region.state);
+  if (context.diagnostics != null) {
+    disposeDiagnostics = await context.diagnostics.attach({
+      expose: context.exposure,
+      root: root.ownerDocument.documentElement,
+      readRegionHistoryEntries: () => history.entries.length,
+      log: (_event, fields) => context.runtime.log.trace("view.content_frame", fields),
+    });
+  }
   // 문서의 페이지 확대는 이 표면의 실제 글자 배율이다(docs/spec/text-size.md). 읽기와 구독은 뷰 채널의 호출이다.
   const textSize = context.runtime.textSize;
   await region.zoom(await textSize.read());
@@ -422,6 +431,7 @@ export async function mount(root, context) {
   }
   context.status.report("ready");
   return { async dispose() {
+    await disposeDiagnostics();
     address.removeEventListener("pointerdown", beginSelection);
     address.removeEventListener("mouseup", retainSelection);
     address.removeEventListener("input", typed);

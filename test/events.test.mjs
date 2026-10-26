@@ -10,7 +10,7 @@ const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url),
 const catalog = JSON.parse(readFileSync(new URL("../events.json", import.meta.url), "utf8"));
 const LEVELS = ["error", "warn", "info", "debug", "trace"];
 const CLASSES = ["lifecycle", "input", "call", "io", "frame"];
-const TYPES = ["string", "number", "boolean", "array", "object", "null"];
+const TYPES = ["string", "number", "integer", "boolean", "array", "object", "null"];
 
 const recorder = () => {
   const events = [];

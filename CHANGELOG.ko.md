@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P27.4-1: browser view document root에 명시적으로 제어하는 진단 observer를 추가한다. command는 root와 document-region history 길이 및 root 크기를 반환하고, 활성 실행은 shared ResizeObserver-to-animation-frame sample과 source clock을 event log에 기록한다. Red: `node --test test/browser-diagnostics.test.mjs`가 `ui/browser-diagnostics.js`가 없어서 실패했다. Green: `node scripts/build-test.mjs`와 `node --test test/browser-diagnostics.test.mjs test/view.test.mjs test/events.test.mjs`가 통과했으며 33/33개가 통과한다.
+
 - F239-77-browser: 일치하는 설치 diagnostic cohort로 로컬 schema-3 catalog acceptance를 완료한다. 현재 SDK가 source 4개와 pending rule 0개, event 8개를 검사하며 양쪽 host 설치본의 catalog가 source와 정확히 일치하고 application log audit을 통과한다. Public publication은 별도다.
 
 - F239-77-browser: Browser event catalog를 선언된 event와 field requirement를

@@ -10,6 +10,7 @@ import { createViewBridge } from "@soksak/plugin-api/view";
 import { mount } from "./browser.js";
 import { createEmitter, errorText } from "./events.js";
 import { startValues } from "./start-values.js";
+import { loadDiagnostics } from "./view-diagnostics.js";
 
 const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"];
 
@@ -51,7 +52,7 @@ function createReporter(calls) {
  *
  * Returns {context}.
  */
-export function createViewContext({ bridge, start, report }) {
+export function createViewContext({ bridge, start, report, diagnostics = null }) {
   if (typeof report !== "function") throw new TypeError("createViewContext requires the report function");
   const { calls, commands, runtime } = bridge;
   // The fire-and-forget calls of the context: a refusal of the route is a record, not a lost report.
@@ -75,6 +76,7 @@ export function createViewContext({ bridge, start, report }) {
   return {
     context: {
       surfaceId: start.surface,
+      diagnostics,
       project: start.project,
       origin: start.origin,
       tab: {
@@ -160,6 +162,7 @@ function installPageErrors(report) {
 // The page: the start values, the bridge over the injected channel, the theme of the document, and the mount into the
 // shadow root of the page body.
 const start = startValues();
+const diagnostics = await loadDiagnostics();
 const losses = [];
 const bridge = createViewBridge({ handler: window.webkit.messageHandlers["sok-view"], report: (event) => losses.push(event) });
 const report = createReporter(bridge.calls);
@@ -169,7 +172,7 @@ for (const event of losses.splice(0)) {
 installPageErrors(report);
 if (window.sokTheme) applyTheme(window.sokTheme);
 bridge.runtime.theme(applyTheme);
-const { context } = createViewContext({ bridge, start, report });
+const { context } = createViewContext({ bridge, start, report, diagnostics });
 const host = document.body.appendChild(document.createElement("div"));
 host.style.cssText = "height:100%";
 try {

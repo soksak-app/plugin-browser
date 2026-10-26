@@ -1,0 +1,28 @@
+{
+  "module": "ui/browser-diagnostics.js",
+  "exposes": {
+    "commands": [
+      {
+        "name": "browser.view.measure",
+        "description": "Starts, stops or reads the diagnostic ResizeObserver-to-animation-frame size measurement of the browser view document root.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "action": { "type": "string", "enum": ["start", "stop", "read"] }
+          }
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "sequence": { "type": "integer" },
+            "historyEntries": { "type": "integer" },
+            "regionHistoryEntries": { "type": "integer" },
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
+        }
+      }
+    ]
+  }
+}

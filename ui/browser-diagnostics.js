@@ -1,6 +1,10 @@
 // The browser document-size measurement is available only when diagnostics.json is staged.
 import { observeViewDocumentFrames } from "@soksak/plugin-api/diagnostic-view-frames";
 
+const FRAME_FIELDS = Object.freeze([
+  "sequence", "width", "height", "documentTimeOriginMs", "firstResizeAtMs", "resizeAtMs", "resizeCount", "frameTimeMs",
+]);
+
 function dimension(root) {
   const rect = root.getBoundingClientRect();
   if (!Number.isFinite(rect.width) || rect.width < 0 || !Number.isFinite(rect.height) || rect.height < 0) {
@@ -53,9 +57,15 @@ export function createBrowserViewMeasurement({ root, readRegionHistoryEntries, l
           if (event !== "view.content_frame" || fields === null || typeof fields !== "object" || Array.isArray(fields)) {
             throw new TypeError("shared view-frame observer returned invalid event data");
           }
+          if (Object.keys(fields).length !== FRAME_FIELDS.length || FRAME_FIELDS.some((name) => !Object.hasOwn(fields, name))) {
+            throw new TypeError("shared view-frame observer returned unexpected event fields");
+          }
           if (!Number.isSafeInteger(fields.sequence) || fields.sequence !== sequence ||
               !Number.isFinite(fields.documentTimeOriginMs) || fields.documentTimeOriginMs < 0 ||
-              !Number.isFinite(fields.resizeAtMs) || fields.resizeAtMs < 0 ||
+              !Number.isFinite(fields.firstResizeAtMs) || fields.firstResizeAtMs < 0 ||
+              !Number.isFinite(fields.resizeAtMs) || fields.resizeAtMs < fields.firstResizeAtMs ||
+              !Number.isSafeInteger(fields.resizeCount) || fields.resizeCount < 1 ||
+              (fields.resizeCount === 1 && fields.firstResizeAtMs !== fields.resizeAtMs) ||
               !Number.isFinite(fields.frameTimeMs) || fields.frameTimeMs < fields.resizeAtMs ||
               !Number.isFinite(fields.width) || fields.width < 0 ||
               !Number.isFinite(fields.height) || fields.height < 0) {

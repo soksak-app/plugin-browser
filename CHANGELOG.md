@@ -5,6 +5,14 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- P40: Consume the current shared view-frame event contract. Require the
+  first and latest ResizeObserver timestamps, a positive resize count, equal
+  timestamps for count one, and a frame timestamp no earlier than the latest
+  resize. Red: the current event reached the consumer but the catalog did not
+  require `firstResizeAtMs`; the adapter also accepted a mismatched count-one
+  interval. Green: the browser diagnostics owner passes 5/5, and current-core
+  `make check` passes the catalog and package checks.
+
 - P27.4-1: Add an explicitly controlled diagnostic observer for the browser view document root. Its command reports root and document-region history lengths and root dimensions; enabled runs record the shared ResizeObserver-to-animation-frame samples with source clocks in the event log. Red: `node --test test/browser-diagnostics.test.mjs` failed because `ui/browser-diagnostics.js` did not exist. Green: `node scripts/build-test.mjs` and `node --test test/browser-diagnostics.test.mjs test/view.test.mjs test/events.test.mjs` pass 33/33.
 
 - F239-77-browser: Complete local schema-3 catalog acceptance with the matching installed diagnostic cohort. The current SDK checks 4 sources with zero pending rules and 8 events; both host installations contain the exact source catalog and pass application log audits. Public publication remains separate.

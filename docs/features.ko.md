@@ -2,6 +2,8 @@
 
 [English](features.md)
 
+- [o] P40 — P1, core F212.14-5-23 연결: 현재 공유 view-frame event contract를 소비한다. 첫·최신 ResizeObserver 시각, 양수 resize count와 최신 resize 이후인 frame 시각을 요구하며 count가 1이면 첫 시각과 최신 시각이 같아야 한다. `plugin.browser.view.content_frame`의 모든 field를 보존하고 누락·잘못된 값·추가 field를 거부한다. Red: 현재 event는 전달됐지만 catalog가 `firstResizeAtMs`를 요구하지 않았고, adapter도 count가 1인 서로 다른 첫/최신 시각을 받았다. Green: 정확한 전달과 잘못된 시각·count·field 검사를 포함해 Browser diagnostics owner 5/5 통과한다. `make check CORE_PLUGIN_API_DIR=<core>/packages/plugin-api`가 event catalog 및 package 검사를 통과한다.
+
 - [o] F239-77-browser — P1, core F239-77 연결: Event 이름, class, level 및 required/optional field 의미를 보존하며 event catalog를 schema 3 JSON Schema로 전환한다. 현재 공개 SDK census 및 catalog 명령이 implementation source 4개, pending rule 0개, 선언 event 8개로 통과한다. Source catalog는 새로 설치한 양쪽 diagnostic host configuration과 byte 단위로 일치한다. 일반 CLI 설치와 application log audit이 일치하는 core/plugin/sidecar cohort를 받아들인다. Catalog migration 단위만 완료하며 public publication과 관련 없는 과거 동작 추적은 별도다. 예전 설치 SDK 명령은 schema 3을 거절하며 통과로 기록하지 않는다.
 
 - [o] P39 — P0: Browser `0.0.7`은 공개 core `v0.0.20`을 포함하는 `engines.soksak: ">=0.0.18"`을 선언한다. Manifest는 해당 reader가 요구하는 `surface.module` 없이 `surface.composition.kind: "view"`를 사용하므로, 이 범위는 실패하는 설치까지 지원한다고 주장한다. 기대 동작: 이 manifest를 받는 core candidate만 선언하는 `^0.0.21`을 사용하고, 해당 contract를 담은 core release가 게시될 때까지 public release gate P29를 대기 상태로 둔다. Red: `test/core-version.test.mjs`가 `">=0.0.18" !== "^0.0.21"`로 실패한다. Green: `node --test test/core-version.test.mjs`가 1/1 통과하고, 현재 core source의 `CORE_PLUGIN_API_DIR`를 사용한 candidate `make check`가 manifest, exposure, engines, events, records와 복사 case 14개를 통과한다. 이 항목은 SDK pin, plugin version, archive 또는 registry를 바꾸지 않는다.

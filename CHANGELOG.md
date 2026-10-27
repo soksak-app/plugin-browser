@@ -5,6 +5,13 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- P41: Add the view document's time origin, an immediate performance clock
+  reading and the fixed 1 ms resolution bound to the successful diagnostic
+  measurement start reply. Red: the owner found no source clock in the reply.
+  Green: the same diagnostics owner passes 5/5 with existing fields preserved;
+  current-core `make check` passes. Application integration remains under
+  core F239-221.
+
 - P40: Consume the current shared view-frame event contract. Require the
   first and latest ResizeObserver timestamps, a positive resize count, equal
   timestamps for count one, and a frame timestamp no earlier than the latest

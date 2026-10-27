@@ -86,7 +86,15 @@ export function createBrowserViewMeasurement({ root, readRegionHistoryEntries, l
       stopFrames = null;
       throw error;
     }
-    return read();
+    const sourceNowMs = view.performance.now();
+    return {
+      ...read(),
+      sourceClock: {
+        documentTimeOriginMs: view.performance.timeOrigin,
+        sourceNowMs,
+        sourceResolutionMs: 1,
+      },
+    };
   };
 
   const stop = () => {

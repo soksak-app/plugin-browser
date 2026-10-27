@@ -46,7 +46,22 @@ test("diagnostic observer records only explicit ResizeObserver-to-animation-fram
   });
   assert.deepEqual(f.records, []);
 
-  await command({ action: "start" });
+  const startReply = await command({ action: "start" });
+  assert.deepEqual(startReply.sourceClock, {
+    documentTimeOriginMs: 1_700_000_000_000,
+    sourceNowMs: 42,
+    sourceResolutionMs: 1,
+  }, "the successful start reply must anchor frame times to the view document clock");
+  assert.deepEqual({
+    enabled: startReply.enabled,
+    sequence: startReply.sequence,
+    historyEntries: startReply.historyEntries,
+    regionHistoryEntries: startReply.regionHistoryEntries,
+    width: startReply.width,
+    height: startReply.height,
+  }, {
+    enabled: true, sequence: 0, historyEntries: 2, regionHistoryEntries: 3, width: 640, height: 480,
+  }, "the source clock must be additive to the existing start reply");
   assert.strictEqual(f.getObservation().document, f.root.ownerDocument);
   assert.strictEqual(f.getObservation().ResizeObserver, f.root.ownerDocument.defaultView.ResizeObserver);
   assert.equal(f.getObservation().timeOriginMs, 1_700_000_000_000);

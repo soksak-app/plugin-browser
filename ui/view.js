@@ -12,33 +12,13 @@ import { createEmitter, errorText } from "./events.js";
 import { startValues } from "./start-values.js";
 import { loadDiagnostics } from "./view-diagnostics.js";
 
-const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"];
-
-// The identifiers of a record or a call: the {cids} argument, which a record without an operation does not carry.
-const cidsOf = (options) => (options?.cids === undefined ? {} : { cids: options.cids });
-
-/**
- * A refused record is an error of the view: it is shown as the error line of the view (runtime.error), and the console of the
- * page keeps the line too. A refusal of the error line itself has no other route left, so the console takes it.
- */
-function refusedLog(calls, event, error) {
-  const text = `${event}: ${errorText(error)}`;
-  console.error(`runtime.log ${text}`);
-  calls.request("runtime.error", { where: "log", text })
-    .then(undefined, (refusal) => console.error(`runtime.error log: ${errorText(refusal)}`));
-}
-
 /**
  * The reporter of this page: each record is an emit of the catalog event plugin.browser.report, which the emitter stores
- * through the call runtime.log under the name without the plugin prefix (core docs/spec/logging.md). A refused call is
- * written to the console of the page.
+ * through the bridge logger under the name without the plugin prefix (core docs/spec/logging.md). The bridge logger reports a
+ * refused record through runtime.error.
  */
-function createReporter(calls) {
-  const log = {
-    error: (event, fields) => calls.request("runtime.log", { level: "error", event, fields })
-      .then(undefined, (error) => refusedLog(calls, event, error)),
-  };
-  const emitEvent = createEmitter({ log }, "browser");
+function createReporter(runtime) {
+  const emitEvent = createEmitter(runtime, "browser");
   return (text) => emitEvent("error", "plugin.browser.report", { text });
 }
 
@@ -95,12 +75,8 @@ export function createViewContext({ bridge, start, report, diagnostics = null })
       runtime: {
         // A command call takes {cids} as its third argument: the identifiers of the operation that the call carries out.
         command: (name, params, options) => runtime.command(name, params, options),
-        // The transport of the records: the emit sites of the plugin are the callers of ui/events.js. The fields are
-        // built before the send, because a call carries values and not builders. Core applies the level gate at the
-        // delivery and gives the view no level query, so the fields are built while the level is off too. A record that
-        // continues an operation takes {cids} as its third argument.
-        log: Object.fromEntries(LOG_LEVELS.map((level) => [level,
-          (event, fields, options) => send("runtime.log", { level, event, fields: typeof fields === "function" ? fields() : fields, ...cidsOf(options) })])),
+        // The SDK logger owns batching, level handling and refused-record reporting.
+        log: runtime.log,
         beginOperation: (event, fields) => runtime.beginOperation(event, fields),
         status: { watch: (name, listener) => runtime.status.watch(name, listener) },
         theme: runtime.theme,
@@ -163,12 +139,15 @@ function installPageErrors(report) {
 // shadow root of the page body.
 const start = startValues();
 const diagnostics = await loadDiagnostics();
-const losses = [];
-const bridge = createViewBridge({ handler: window.webkit.messageHandlers["sok-view"], report: (event) => losses.push(event) });
-const report = createReporter(bridge.calls);
-for (const event of losses.splice(0)) {
-  report(`view calls of browser: ${event.kind} ${event.status}${event.reason === undefined ? "" : `: ${event.reason}`}`);
-}
+const bridge = createViewBridge({
+  handler: window.webkit.messageHandlers["sok-view"],
+  report: (event) => {
+    const text = `view bridge: ${JSON.stringify(event)}`;
+    if (event?.kind === "open-calls") console.debug(text);
+    else console.error(text);
+  },
+});
+const report = createReporter(bridge.runtime);
 installPageErrors(report);
 if (window.sokTheme) applyTheme(window.sokTheme);
 bridge.runtime.theme(applyTheme);

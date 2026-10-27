@@ -5,6 +5,8 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- P96-browser: Use the view bridge logger directly for browser view records and page error reports instead of constructing `runtime.log` requests in the consumer. The logger reports refused records through `runtime.error`; bridge callback failures use a non-recursive console path. Red: the unchanged page ignored a void-returning consumer logger while a raw log route recorded the report. Green: the focused page and SDK-model conformance tests pass 37/37, including exact report fields and refused-log handling.
+
 - P41: Add the view document's time origin, an immediate performance clock
   reading and the fixed 1 ms resolution bound to the successful diagnostic
   measurement start reply. Red: the owner found no source clock in the reply.

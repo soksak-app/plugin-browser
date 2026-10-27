@@ -182,6 +182,18 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
   }
 
   const runtime = {
+    log: globalThis.window?.__sokViewRuntimeLog ?? Object.fromEntries(["error", "warn", "info", "debug", "trace"].map((level) => [level,
+      (event, fields, options) => {
+        const params = { level, event, fields: typeof fields === "function" ? fields() : fields,
+          ...(options?.cids === undefined ? {} : { cids: options.cids }) };
+        request("runtime.log", params).then(undefined, (error) => {
+          const text = String(error?.message ?? error);
+          runtime.error("log", text).catch((failure) => report({ where: "log", text, error: failure }));
+        });
+      }])),
+    error(where, text) {
+      return request("runtime.error", { where, text }).then(() => undefined);
+    },
     native: {
       on(name, listener) {
         if (typeof name !== "string" || name === "") return Promise.reject(new Error("runtime.native.on requires a non-empty name"));

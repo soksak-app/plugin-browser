@@ -132,6 +132,20 @@ test("the page reports a failure of the view channel as the declared record of i
   assert.match(report.fields.text, /failed/);
 });
 
+test("the page report uses the bridge logger without a runtime.log request", async (t) => {
+  const host = createViewPage(t, "bridge-logger");
+  const records = [];
+  host.window.__sokViewRuntimeLog = Object.fromEntries(["error", "warn", "info", "debug", "trace"].map((level) => [level,
+    (event, fields, options) => records.push({ level, event, fields, options })]));
+  await import("../build/test/ui/view.js?case=bridge-logger");
+  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("bridge logger probe"), message: "bridge logger probe" }));
+  await host.settle();
+  assert.deepEqual(records.filter(({ event }) => event === "report"), [
+    { level: "error", event: "report", fields: { text: "view browser: bridge logger probe" }, options: undefined },
+  ]);
+  assert.equal(host.logs.some((entry) => entry.event === "report"), false, "the consumer sent a raw runtime.log request");
+});
+
 // The page writes each trace event through runtime.log with the name of its catalog entry without the plugin prefix
 // (core docs/spec/plugins.md#logging); the page stores it as plugin.browser.<event>, which events.json must declare.
 test("the page records its trace as the declared events of its catalog", async (t) => {
@@ -193,13 +207,13 @@ test("a browser.address.select run focuses the address field of the view", async
   assert.equal(host.shadowRoot.activeElement, host.shadowRoot.querySelector("#address"));
 });
 
-test("a refused runtime.log is shown as an error line of the view and written to the console", async (t) => {
+test("a refused runtime.log is reported through runtime.error", async (t) => {
   const consoleError = t.mock.method(console, "error", () => {});
   const host = createViewPage(t, "log-refused", { refuseLog: "log route refused" });
   await import("../build/test/ui/view.js?case=log-refused");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
   await host.settle();
-  assert.ok(consoleError.mock.callCount() > 0, "the refused record reached no console line");
-  assert.deepEqual(host.reports.errorLines.find((line) => line.text.startsWith("report:")),
-    { where: "log", text: "report: log route refused" });
+  assert.equal(consoleError.mock.callCount(), 0, "a successful runtime.error route does not fall through to the console");
+  assert.deepEqual(host.reports.errorLines.find((line) => line.where === "log"),
+    { where: "log", text: "log route refused" });
 });

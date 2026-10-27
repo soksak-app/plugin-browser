@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P96-browser: consumer가 `runtime.log` request를 직접 만들지 않고 view bridge logger를 사용해 browser view record와 page 오류 보고를 전달한다. 거부된 기록은 logger가 `runtime.error`로 보고하며 bridge callback 오류는 재귀 호출하지 않는 console 경로로 남긴다. Red: 변경 전 page는 void 반환 consumer logger를 무시하고 raw log route로 report를 기록했다. Green: 정확한 report fields와 거부된 log 처리를 포함한 집중 page 및 SDK model conformance test가 37/37 통과한다.
+
 - P41: 성공한 진단 측정 시작 응답에 view document의 time origin, 즉시
   performance clock 값, 고정된 1 ms 정밀도 상한을 추가한다. Red: owner가
   응답에 source clock이 없음을 확인한다. Green: 기존 field를 보존한 채 같은

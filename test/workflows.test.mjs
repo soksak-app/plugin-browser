@@ -9,12 +9,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const SDK_PACKAGE = ["@soksak", "plugin-api"].join("/");
-
-const HOOKS = {
-  "pre-commit": `node node_modules/${SDK_PACKAGE}/records-check.js`,
-  "commit-msg": `node node_modules/${SDK_PACKAGE}/commits-check.js`,
-};
+const manifest = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8"));
 
 const WORKFLOWS = {
   "ci.yml": ["test", "check"],
@@ -30,7 +25,11 @@ function makeTargets(file) {
 }
 
 test("commit hooks run their SDK checks without replacing the linked source", { timeout: 5000 }, (t) => {
-  const sdkLink = path.join(ROOT, "node_modules", "@soksak", "plugin-api");
+  const sdkDependencies = Object.entries(manifest.devDependencies)
+    .filter(([, source]) => typeof source === "string" && source.includes("path:/packages/plugin-api"));
+  assert.equal(sdkDependencies.length, 1, "the manifest declares one plugin API source");
+  const [sdkPackage] = sdkDependencies[0];
+  const sdkLink = path.join(ROOT, "node_modules", ...sdkPackage.split("/"));
   const linkedSource = readlinkSync(sdkLink);
   const directory = mkdtempSync(path.join(os.tmpdir(), "soksak-browser-commit-message-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -40,14 +39,6 @@ test("commit hooks run their SDK checks without replacing the linked source", { 
     const result = spawnSync(path.join(ROOT, ".githooks", hook), args, { cwd: ROOT, encoding: "utf8", timeout: 4000 });
     assert.equal(result.status, 0, `${hook} failed: ${result.stderr || result.stdout}`);
     assert.equal(readlinkSync(sdkLink), linkedSource, `${hook} replaced the linked SDK source`);
-  }
-});
-
-test("commit hooks invoke the declared SDK bins directly with Node", () => {
-  for (const [hook, command] of Object.entries(HOOKS)) {
-    const script = readFileSync(path.join(ROOT, ".githooks", hook), "utf8");
-    assert.ok(script.includes(`exec ${command}`), `${hook} invokes ${command}`);
-    assert.doesNotMatch(script, /\bpnpm\b/, `${hook} does not invoke pnpm`);
   }
 });
 

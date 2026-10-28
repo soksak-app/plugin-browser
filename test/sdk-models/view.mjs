@@ -21,6 +21,7 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
   const pending = new Map();
   const late = new Map();
   const commands = new Map();
+  const logWrites = new Set();
   const nativeSubscriptions = new Map();
   const themeListeners = new Map();
   const sidecarListeners = [];
@@ -61,6 +62,25 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
     });
   }
   const failure = (error) => ({ code: -32000, message: error instanceof Error ? error.message : String(error) });
+
+  // The surface writer uses clock and batch calls. This model needs only one anchor and one event per write; clock sampling,
+  // lifecycle records and timestamp accuracy belong to the logging writer owners, not this operation replay.
+  const writeLog = (level, event, fields, options) => {
+    const cids = options?.cids;
+    const task = request("runtime.log", { action: "clock" }).then((clock) => request("runtime.log", {
+      action: "batch",
+      events: [{ ts_us: clock.ts_us, mono_ns: clock.mono_ns, page: String(origin), level,
+        event: `plugin.${plugin()}.${event}`, fields, ...(cids === undefined ? {} : { cids }) }],
+    }));
+    let handled;
+    handled = task.catch((error) => {
+      report({ kind: "log batch", plugin: plugin(), status: "refused", reason: failure(error).message });
+    }).finally(() => logWrites.delete(handled));
+    logWrites.add(handled);
+  };
+  const runtimeLog = globalThis.window?.__sokViewRuntimeLog ?? Object.fromEntries(
+    ["error", "warn", "info", "debug", "trace"].map((level) => [level, (event, fields = {}, options) => writeLog(level, event, fields, options)]),
+  );
 
   // A host request for a command of the view is answered by its registered run function.
   async function runCommand(message) {
@@ -182,15 +202,7 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
   }
 
   const runtime = {
-    log: globalThis.window?.__sokViewRuntimeLog ?? Object.fromEntries(["error", "warn", "info", "debug", "trace"].map((level) => [level,
-      (event, fields, options) => {
-        const params = { level, event, fields: typeof fields === "function" ? fields() : fields,
-          ...(options?.cids === undefined ? {} : { cids: options.cids }) };
-        request("runtime.log", params).then(undefined, (error) => {
-          const text = String(error?.message ?? error);
-          runtime.error("log", text).catch((failure) => report({ where: "log", text, error: failure }));
-        });
-      }])),
+    log: runtimeLog,
     error(where, text) {
       return request("runtime.error", { where, text }).then(() => undefined);
     },
@@ -225,9 +237,7 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
     beginOperation(event, fields) {
       operations += 1;
       const cids = [`p${origin}.${operations}`];
-      request("runtime.log", { level: "info", event, fields, cids }).then(undefined, (error) => {
-        report({ kind: "operation", plugin: plugin(), status: "log refused", reason: failure(error).message });
-      });
+      runtime.log.info(event, fields, { cids });
       return cids;
     },
     // A command of the host that the page calls, with the identifiers of the operation that causes it (view-operations.json).
@@ -280,6 +290,8 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
   };
 
   const bridge = {
+    // Test-model drain for fire-and-forget log writes; the public bridge does not expose this method.
+    async flushLogs() { await Promise.all([...logWrites]); },
     snapshots,
     calls: {
       request(command, params, timeout) {

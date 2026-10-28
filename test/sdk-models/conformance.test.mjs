@@ -671,16 +671,43 @@ test("view status cases replay against the bridge model", async () => {
   }
 });
 
-test("view operation cases replay against the bridge model", async () => {
+test("view operation cases replay against the bridge model", { timeout: 3000 }, async () => {
   for (const testCase of replayable("view-operations")) {
     const sokView = viewWindow();
     const posted = [];
-    const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {}, origin: ORIGIN });
+    globalThis.window.location = { host: "probe", href: "soksak://probe/" };
+    const logs = [];
+    const requests = [];
+    const reports = [];
+    const unknownLogActions = [];
+    const bridge = createViewBridge({ handler: { postMessage: (message) => {
+      posted.push(JSON.parse(JSON.stringify(message)));
+      if (message.command === "runtime.log") {
+        if (message.params.action === "clock") {
+          sokView.listener({ sok: 1, id: message.id, result: { ts_us: 1700000000000000, mono_ns: 1700000000000000000 } });
+        } else if (message.params.action === "batch") {
+          for (const event of message.params.events) {
+            if (event.event.startsWith("plugin.probe.")) {
+              const { level, event: name, fields, cids } = event;
+              logs.push({ level, event: name, fields, ...(cids === undefined ? {} : { cids }) });
+            }
+          }
+          sokView.listener({ sok: 1, id: message.id, result: null });
+        } else {
+          unknownLogActions.push(message.params.action);
+          sokView.listener({ sok: 1, id: message.id, error: { message: `unknown runtime.log action ${message.params.action}` } });
+        }
+        return;
+      }
+      requests.push({ command: message.command, params: message.params, ...(message.cids === undefined ? {} : { cids: message.cids }) });
+      sokView.listener({ sok: 1, id: message.id, result: null });
+    } }, report: (entry) => reports.push(entry), origin: ORIGIN });
     const named = new Map();
     const resolve = (cids) => (typeof cids === "string" ? named.get(cids) : cids);
     for (const [index, step] of testCase.steps.entries()) {
       const label = `${testCase.id}#${index}`;
-      const before = posted.length;
+      const logsBefore = logs.length;
+      const requestsBefore = requests.length;
       let result = null;
       let throws = null;
       try {
@@ -693,18 +720,27 @@ test("view operation cases replay against the bridge model", async () => {
         } else if (step.command) {
           promise = bridge.runtime.command(step.command.name, step.command.params, { cids: resolve(step.command.cids) });
         } else throw new Error(`unknown operation step in ${label}`);
-        if (step.answer) {
-          await settle();
-          sokView.listener({ sok: 1, id: posted.at(-1).id, ...step.answer });
-        }
         if (promise !== null) result = await promise;
+        await bridge.flushLogs();
       } catch (failure) {
         throws = errorText(failure);
       }
-      await settle();
       const expected = JSON.parse(JSON.stringify(step.output).replaceAll("p$ORIGIN.", `p${ORIGIN}.`));
-      assert.deepEqual({ posted: posted.slice(before), result, throws }, pick(expected, ["posted", "result", "throws"]), label);
+      const actual = {
+        ...(expected.log === undefined ? {} : { log: logs.at(-1) }),
+        ...(expected.request === undefined ? {} : { request: requests.at(-1) }),
+        result,
+        throws,
+      };
+      assert.equal(logs.length - logsBefore, expected.log === undefined ? 0 : 1, `${label} records only its declared plugin log`);
+      assert.equal(requests.length - requestsBefore, expected.request === undefined ? 0 : 1, `${label} sends only its declared business request`);
+      assert.deepEqual(actual, pick(expected, ["log", "request", "result", "throws"]), label);
+      assert.equal(reports.filter((entry) => entry.kind === "open-calls").at(-1)?.count ?? 0, 0, `${label} leaves no open calls`);
+      assert.deepEqual(reports.filter((entry) => entry.kind !== "open-calls"), [], `${label} has no unrecognized reports`);
     }
+    assert.deepEqual(unknownLogActions, [], `${testCase.id} uses only clock and batch log calls`);
+    assert.equal(posted.some((message) => message.command === "runtime.log" && message.params.action === undefined), false,
+      `${testCase.id} does not use the single-record log wire`);
   }
 });
 

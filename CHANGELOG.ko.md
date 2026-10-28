@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P97-browser: 복사한 operation case를 갱신하고 현재 API 관찰 형태로 재생한다. view model은 최소 `runtime.log` clock과 batch request를 보내고, replay는 첫 plugin event와 transport ID를 뺀 non-log request를 관찰한다. host는 각 request를 즉시 acknowledge하며 test는 operation 및 business request의 cids, 각 단계의 open call 0개, 인식 불가 report 없음을 요구한다. Red: 기존 replay가 옛 단일 기록 wire를 보내 `view.operation.begin-logs-first-event-and-carries-cids#0`에서 실패했다. Green: operation replay 집중 검사가 1/1 통과하고 `test/view.test.mjs`가 22/22 통과하며, 복사한 operation case는 설치된 current API contract와 일치한다.
+
 - P96-browser: consumer가 `runtime.log` request를 직접 만들지 않고 view bridge logger를 사용해 browser view record와 page 오류 보고를 전달한다. 거부된 기록은 logger가 `runtime.error`로 보고하며 bridge callback 오류는 재귀 호출하지 않는 console 경로로 남긴다. Red: 변경 전 page는 void 반환 consumer logger를 무시하고 raw log route로 report를 기록했다. Green: 정확한 report fields와 거부된 log 처리를 포함한 집중 page 및 SDK model conformance test가 37/37 통과한다.
 
 - P41: 성공한 진단 측정 시작 응답에 view document의 time origin, 즉시

@@ -93,8 +93,8 @@ function fakeRegion(name, emit) {
  * window.
  *
  * Returns { window, region, reports, logs, calls, run, post, settle, expose }. reports holds the tab reports, the state
- * writes and the registrations that the page sent; logs holds the runtime.log records; calls holds the composition and
- * document calls of the page; run(name, params) sends one command request of core to the page; expose(method, params)
+ * writes and the registrations that the page sent; logs holds the plugin events from the view log batches; calls holds the
+ * composition and document calls of the page; run(name, params) sends one command request of core to the page; expose(method, params)
  * forwards one exposure request of core; post(message) posts one host message to the page.
  */
 export function createViewPage(t, caseId, { stored = null, origin = { directory: "/work" }, start, textSize = 1, home = "https://home.test/", refuseLog = null } = {}) {
@@ -110,6 +110,8 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
   };
   const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [], cids: [] };
   const logs = [];
+  let clockUs = 0;
+  let monoNs = 0;
   const snapshots = [];
   const calls = [];
   const pending = new Map();
@@ -123,7 +125,6 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     if (nativeListeners.has(name)) post({ sok: 1, event: name, data });
   };
   const region = fakeRegion("page", emitNative);
-  const LEVELS = ["error", "warn", "info", "debug", "trace"];
   const handler = { postMessage: (sent) => { const message = JSON.parse(JSON.stringify(sent)); deliver(message); } };
   window.webkit = { messageHandlers: { "sok-view": handler } };
 
@@ -163,12 +164,22 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
         case "tab.error": reports.error.push(params); return null;
         case "tab.notify": case "tab.keep": case "tab.directory": return null;
         case "runtime.log":
-          if (params === null || typeof params !== "object" || Array.isArray(params)) throw new Error("runtime.log requires {level, event, fields}");
-          if (!LEVELS.includes(params.level)) throw new Error(`runtime.log level ${params.level} is not a log level`);
-          // refuseLog makes the host refuse every record, as the application log route of a host can.
-          if (refuseLog !== null) throw new Error(refuseLog);
-          logs.push(params);
-          return null;
+          if (params?.action === "clock") {
+            clockUs += 1;
+            monoNs += 1;
+            return { ts_us: clockUs, mono_ns: monoNs };
+          }
+          if (params?.action === "batch" && Array.isArray(params.events)) {
+            // The consumer observes declared plugin events; page clock and writer lifecycle events are outside its catalog.
+            const records = params.events.filter((entry) => entry.event.startsWith("plugin.browser."));
+            // refuseLog makes the host refuse a batch that carries a plugin event.
+            if (refuseLog !== null && records.length > 0) throw new Error(refuseLog);
+            for (const { level, event, fields, cids } of records) {
+              logs.push({ level, event: event.slice("plugin.browser.".length), fields, ...(cids === undefined ? {} : { cids }) });
+            }
+            return null;
+          }
+          throw new Error("runtime.log requires a clock or batch action");
         case "runtime.error": reports.errorLines.push(params); return null;
         case "runtime.status.watch": watched.add(params.name); return null;
         case "runtime.status.unwatch": watched.delete(params.name); return null;

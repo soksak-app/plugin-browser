@@ -5,6 +5,8 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P100-browser: Browser 테스트 host와 bridge model을 현재 view log contract에 맞춘다. Host fake는 clock 요청에 응답하고 batch에서 선언된 plugin event를 기록하며, 거부된 batch를 error route로 전달하고 그 route도 실패할 때만 보고한다. 집중 view owner 22/22, operation owner 2/2, operation conformance 1/1, boundary 및 workflow owner 7/7 통과한다. 집중 needle Red는 workflow test의 hook command 두 줄을 찾았으며 이제 전체 package 이름을 검사 대상 한 줄에 쓰지 않고 선언된 실행 경로를 구성한다. package 전체 suite는 재실행하지 않았다.
+
 - P99-browser: Commit-time SDK 검사를 선언된 Node bin 파일로 직접 실행한다. Record와 commit message 검사는 hook에서 pnpm을 실행하지 않는다. 기존 `pnpm exec` hook은 lockfile SDK를 설치하고 연결된 source를 교체했다. 두 hook을 실행하는 owner는 2/2 통과하며 pre-commit은 record 69개, commit-msg는 message 하나를 통과시키고 연결된 SDK source를 유지한다.
 
 - P98-browser: API version 0.0.21을 사용하는 같은 core source revision으로 Browser SDK dependency와 release workflow를 고정한다. Lockfile이 해당 source를 해석하고 frozen lockfile-only 검사를 통과한다. Browser consumer fake가 view call에 쓰는 page identity를 제공하며 기존 view owner는 22/22, copied contract 검사는 14개 파일을 통과한다. Browser package version 0.0.7은 공개되지 않았고 최신 remote release는 0.0.6이다.

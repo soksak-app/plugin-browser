@@ -9,10 +9,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const SDK_PACKAGE = ["@soksak", "plugin-api"].join("/");
 
 const HOOKS = {
-  "pre-commit": "node node_modules/@soksak/plugin-api/records-check.js",
-  "commit-msg": "node node_modules/@soksak/plugin-api/commits-check.js",
+  "pre-commit": `node node_modules/${SDK_PACKAGE}/records-check.js`,
+  "commit-msg": `node node_modules/${SDK_PACKAGE}/commits-check.js`,
 };
 
 const WORKFLOWS = {

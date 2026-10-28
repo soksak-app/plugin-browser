@@ -74,7 +74,8 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
     }));
     let handled;
     handled = task.catch((error) => {
-      report({ kind: "log batch", plugin: plugin(), status: "refused", reason: failure(error).message });
+      request("runtime.error", { where: "log batch", text: failure(error).message })
+        .catch((logError) => report({ kind: "log batch", plugin: plugin(), status: "error record refused", reason: failure(logError).message }));
     }).finally(() => logWrites.delete(handled));
     logWrites.add(handled);
   };

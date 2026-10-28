@@ -1,6 +1,6 @@
 {
   "name": "@soksak/plugin-browser",
-  "version": "0.0.8",
+  "version": "0.0.7",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.24.0",
@@ -27,7 +27,7 @@
     "test": "node scripts/build-test.mjs && node --test test/"
   },
   "devDependencies": {
-    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#v0.0.18&path:/packages/plugin-api",
+    "@soksak/plugin-api": "git+https://github.com/soksak-app/core.git#4f82fb9c3307e3f4e6e834c3d336629275e45cac&path:/packages/plugin-api",
     "jsdom": "^30.0.1"
   }
 }

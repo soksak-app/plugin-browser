@@ -7,6 +7,8 @@
 
 - P99-browser: Commit-time SDK 검사를 선언된 Node bin 파일로 직접 실행한다. Record와 commit message 검사는 hook에서 pnpm을 실행하지 않는다. 기존 `pnpm exec` hook은 lockfile SDK를 설치하고 연결된 source를 교체했다. 두 hook을 실행하는 owner는 2/2 통과하며 pre-commit은 record 69개, commit-msg는 message 하나를 통과시키고 연결된 SDK source를 유지한다.
 
+- P98-browser: API version 0.0.21을 사용하는 같은 core source revision으로 Browser SDK dependency와 release workflow를 고정한다. Lockfile이 해당 source를 해석하고 frozen lockfile-only 검사를 통과한다. Browser consumer fake가 view call에 쓰는 page identity를 제공하며 기존 view owner는 22/22, copied contract 검사는 14개 파일을 통과한다. Browser package version 0.0.7은 공개되지 않았고 최신 remote release는 0.0.6이다.
+
 
 - P97-browser: 복사한 operation case를 갱신하고 현재 API 관찰 형태로 재생한다. view model은 최소 `runtime.log` clock과 batch request를 보내고, replay는 첫 plugin event와 transport ID를 뺀 non-log request를 관찰한다. host는 각 request를 즉시 acknowledge하며 test는 operation 및 business request의 cids, 각 단계의 open call 0개, 인식 불가 report 없음을 요구한다. Red: 기존 replay가 옛 단일 기록 wire를 보내 `view.operation.begin-logs-first-event-and-carries-cids#0`에서 실패했다. Green: operation replay 집중 검사가 1/1 통과하고 `test/view.test.mjs`가 22/22 통과하며, 복사한 operation case는 설치된 current API contract와 일치한다.
 

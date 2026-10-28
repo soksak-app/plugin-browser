@@ -22,8 +22,11 @@ function installViewChannel(window, handler) {
     if (listener) listener(event.data);
     else queue.push(event.data);
   });
-  handler.postMessage({ event: "view.ready", plugin, document: "document-1" });
+  const page = String(window.performance.timeOrigin);
+  const ready = { event: "view.ready", plugin, document: "document-1", page };
+  handler.postMessage(ready);
   window.sokView = Object.freeze({
+    page,
     attach(next) {
       if (listener) throw new Error(`view channel for ${plugin} already has a message listener`);
       listener = next;

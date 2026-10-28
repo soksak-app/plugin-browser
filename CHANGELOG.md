@@ -7,6 +7,8 @@
 
 - P99-browser: Run the commit-time SDK checks through their declared Node bin files. The record and commit-message checks no longer invoke pnpm from the hooks. The previous `pnpm exec` hook installed the locked SDK and replaced the linked source. The hook owner now executes both hooks and passes 2/2; pre-commit passes 69 record files, commit-msg accepts one message, and the linked SDK source remains unchanged.
 
+- P98-browser: Pin the Browser SDK dependency and release workflow to the same core source revision with API version 0.0.21. The lockfile resolves that source and passes frozen lockfile-only validation. The Browser consumer fake carries the page identity used by view calls; the existing view owner passes 22/22 and the copied contract checker confirms 14 files. Browser package version 0.0.7 is unpublished; the latest remote release is 0.0.6.
+
 
 - P97-browser: Refresh the copied operation cases and replay them as current API observations. The view model sends the minimal `runtime.log` clock and batch calls, while the replay observes the first plugin event and non-log requests without transport IDs. The host acknowledges each request synchronously, and the test requires operation and business-request cids, zero open calls at every step, and no unrecognized reports. Red: the unchanged replay failed at `view.operation.begin-logs-first-event-and-carries-cids#0`, because it posted the old single-record log wire. Green: the focused operation replay passes 1/1, `test/view.test.mjs` passes 22/22, and the copied operation cases match the installed current API contract.
 

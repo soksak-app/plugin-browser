@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F274-browser: The pre-push hook checks only the commit messages that a push publishes; CI runs the tests and checks.
 - P102: The view test models follow the UUID page identity of core: the bridge model reads `window.sokView.page`, the view channel fake posts a UUID document with `time_origin`, and the copied `view-operations.json` matches core.
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased

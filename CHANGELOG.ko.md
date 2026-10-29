@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F274-browser: pre-push hook은 push가 게시하는 commit message만 검사한다. 시험과 검사는 CI가 실행한다.
 - P102: view 시험 model이 core의 UUID page 식별자를 따른다. bridge model은 `window.sokView.page`를 읽고, view channel fake는 `time_origin`과 함께 UUID document를 보내며, 복사한 `view-operations.json`은 core와 같다.
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포

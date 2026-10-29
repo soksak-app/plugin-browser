@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { createWindow, useWindow } from "./dom.mjs";
 
 /**
- * Installs the view channel of the contract in window: the ready message {event: "view.ready", plugin, document} through
+ * Installs the view channel of the contract in window: the ready message {event: "view.ready", plugin, document, time_origin} through
  * the sok-view handler, and window.sokView.attach(listener), which delivers the host messages with sok: 1 that arrived
  * before the attach in order and every later one. A message without the marker is reported as view.error.
  */
@@ -22,11 +22,13 @@ function installViewChannel(window, handler) {
     if (listener) listener(event.data);
     else queue.push(event.data);
   });
-  const page = String(window.performance.timeOrigin);
-  const ready = { event: "view.ready", plugin, document: "document-1", page };
-  handler.postMessage(ready);
+  // The page identity is a UUID of the document, and the time origin is a separate field (core view-wire.json).
+  const page = window.crypto.randomUUID();
+  const timeOrigin = window.performance.timeOrigin;
+  handler.postMessage({ event: "view.ready", plugin, document: page, time_origin: timeOrigin });
   window.sokView = Object.freeze({
     page,
+    timeOrigin,
     attach(next) {
       if (listener) throw new Error(`view channel for ${plugin} already has a message listener`);
       listener = next;

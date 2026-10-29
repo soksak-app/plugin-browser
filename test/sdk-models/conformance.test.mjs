@@ -631,8 +631,8 @@ test("view command cases replay against the bridge model", async () => {
   }
 });
 
-// The page origin of the operation cases: the identifiers of the cases are p$ORIGIN.<n>, and the model takes this origin.
-const ORIGIN = 1700000000000;
+// The page identity of the operation cases: the identifiers of the cases are p$PAGE.<n>, and the view window gives this identity.
+const PAGE = "6f1d2a3e-1111-4a2b-8c3d-00000000000a";
 
 test("view status cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-status")) {
@@ -674,6 +674,7 @@ test("view status cases replay against the bridge model", async () => {
 test("view operation cases replay against the bridge model", { timeout: 3000 }, async () => {
   for (const testCase of replayable("view-operations")) {
     const sokView = viewWindow();
+    sokView.page = PAGE;
     const posted = [];
     globalThis.window.location = { host: "probe", href: "soksak://probe/" };
     const logs = [];
@@ -701,7 +702,7 @@ test("view operation cases replay against the bridge model", { timeout: 3000 }, 
       }
       requests.push({ command: message.command, params: message.params, ...(message.cids === undefined ? {} : { cids: message.cids }) });
       sokView.listener({ sok: 1, id: message.id, result: null });
-    } }, report: (entry) => reports.push(entry), origin: ORIGIN });
+    } }, report: (entry) => reports.push(entry) });
     const named = new Map();
     const resolve = (cids) => (typeof cids === "string" ? named.get(cids) : cids);
     for (const [index, step] of testCase.steps.entries()) {
@@ -725,7 +726,7 @@ test("view operation cases replay against the bridge model", { timeout: 3000 }, 
       } catch (failure) {
         throws = errorText(failure);
       }
-      const expected = JSON.parse(JSON.stringify(step.output).replaceAll("p$ORIGIN.", `p${ORIGIN}.`));
+      const expected = JSON.parse(JSON.stringify(step.output).replaceAll("p$PAGE.", `p${PAGE}.`));
       const actual = {
         ...(expected.log === undefined ? {} : { log: logs.at(-1) }),
         ...(expected.request === undefined ? {} : { request: requests.at(-1) }),

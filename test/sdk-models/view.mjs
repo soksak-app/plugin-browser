@@ -11,10 +11,12 @@ const DEFAULT_LIMIT = 10000;
  * Creates the bridge of one view page. The page posts through handler.postMessage and receives the host messages
  * through window.sokView.attach. report(event) receives the call-layer reports: timeout, late-reply and open-calls.
  */
-export function createViewBridge({ handler, report, origin = globalThis.performance?.timeOrigin }) {
+export function createViewBridge({ handler, report }) {
   if (typeof report !== "function") throw new TypeError("createViewBridge requires the report function");
   let sequence = 0;
-  // The operations that the page begins: each takes the next identifier p<origin>.<n> (view-operations.json).
+  // The page identity that the view script of the host gives in window.sokView.page (view-wire.json).
+  const page = globalThis.window?.sokView?.page;
+  // The operations that the page begins: each takes the next identifier p<page>.<n> (view-operations.json).
   let operations = 0;
   // The listeners of each watched status: one request serves every listener of its name (view-status.json).
   const statusListeners = new Map();
@@ -69,7 +71,7 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
     const cids = options?.cids;
     const task = request("runtime.log", { action: "clock" }).then((clock) => request("runtime.log", {
       action: "batch",
-      events: [{ ts_us: clock.ts_us, mono_ns: clock.mono_ns, page: String(origin), level,
+      events: [{ ts_us: clock.ts_us, mono_ns: clock.mono_ns, page, level,
         event: `plugin.${plugin()}.${event}`, fields, ...(cids === undefined ? {} : { cids }) }],
     }));
     let handled;
@@ -237,7 +239,7 @@ export function createViewBridge({ handler, report, origin = globalThis.performa
     // (core docs/spec/native-surfaces.md#view-operations, view-operations.json).
     beginOperation(event, fields) {
       operations += 1;
-      const cids = [`p${origin}.${operations}`];
+      const cids = [`p${page}.${operations}`];
       runtime.log.info(event, fields, { cids });
       return cids;
     },

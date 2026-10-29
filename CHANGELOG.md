@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F275-browser: `make install` installs the locked dependencies; the tests, checks and builds no longer install.
 - P103: `@soksak/plugin-api` and `CORE_RELEASE` are pinned to the core commit that publishes every copied contract case.
 - F274-browser: The pre-push hook checks only the commit messages that a push publishes; CI runs the tests and checks.
 - P102: The view test models follow the UUID page identity of core: the bridge model reads `window.sokView.page`, the view channel fake posts a UUID document with `time_origin`, and the copied `view-operations.json` matches core.

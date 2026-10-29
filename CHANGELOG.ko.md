@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F275-browser: `make install`이 고정된 의존성을 설치한다. 시험, 검사, build는 더 이상 설치하지 않는다.
 - P103: `@soksak/plugin-api`와 `CORE_RELEASE`를 복사한 모든 계약 case를 공개하는 core commit에 pin한다.
 - F274-browser: pre-push hook은 push가 게시하는 commit message만 검사한다. 시험과 검사는 CI가 실행한다.
 - P102: view 시험 model이 core의 UUID page 식별자를 따른다. bridge model은 `window.sokView.page`를 읽고, view channel fake는 `time_origin`과 함께 UUID document를 보내며, 복사한 `view-operations.json`은 core와 같다.

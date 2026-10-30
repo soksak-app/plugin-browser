@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P9: The CI and release workflows are complete: `release.yml` published the release on the tags `v0.0.3` to `v0.0.6`, and `ci.yml` runs the tests on a macOS runner with the Node.js and pnpm versions that `.node-version` and `packageManager` declare.
 - P108: The DOM section gives each element that has children `expanded: true`, so it shows every element of the snapshot; core draws only the root of a branch without that field. Validation: `test/declared-sections.test.mjs` read branches without `expanded` before the change and passes after it.
 - P107: A read of `browser.elements` or `browser.requests` while a watch holds the stream subscription is the value of the watch; it opened a second subscription and waited up to 10000 ms, which delayed each status watch during a load.
 - P106: The view pushes the empty history as the first snapshot of the 히스토리 section when the region has reported no state, so the section mounts for a tab without a document.

@@ -10,7 +10,7 @@ const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.u
 async function setup(t) {
   const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
   const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
-  const statuses = new Map(), commands = new Map(), states = new Set(), entries = [], titles = [], errors = [];
+  const statuses = new Map(), commands = new Map(), states = new Set(), entries = [], titles = [], errors = [], pushed = [];
   const region = {
     state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
@@ -27,7 +27,7 @@ async function setup(t) {
       command(name, run) { commands.set(name, run); },
       async bind() {}, async delegate() {}, async dispose() {},
     },
-    declared: { push() {} },
+    declared: { push: (status, value) => pushed.push([status, value]) },
     status: { report() {} },
   });
   t.after(async () => { await controller.dispose(); dom.window.close(); });
@@ -38,7 +38,7 @@ async function setup(t) {
   };
   const state = (url, title) => { for (const fn of states) fn({ url, title, history: { entries: [], index: -1 },
     elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); };
-  return { statuses, commands, entries, send, titles, errors, state };
+  return { statuses, commands, entries, send, titles, errors, state, pushed };
 }
 
 test("the browser declares its session history status and the command that loads an entry", () => {
@@ -68,6 +68,13 @@ test("browser.history follows the region state and browser.history.go loads an e
   assert.equal(await commands.get("browser.history.go")({ index: 1 }), true);
   assert.deepEqual(entries, [-1, 1]);
   assert.deepEqual(seen, [-1, 1, 0]);
+});
+
+// The first snapshot of each section status is its whole value (core docs/spec/plugin-processes.md, rule 2), so the 히스토리 section
+// mounts with the empty history before the region reports a state.
+test("the browser pushes the empty history as the first snapshot of the history section before the region reports a state", { timeout: 10000 }, async (t) => {
+  const { statuses, pushed } = await setup(t);
+  assert.deepEqual(pushed.filter(([status]) => status === "history").map(([, value]) => value), [statuses.get("browser.history").read()]);
 });
 
 test("the tab title is the document title, or the address without one, and is removed without both", { timeout: 10000 }, async (t) => {

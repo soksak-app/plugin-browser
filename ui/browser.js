@@ -360,6 +360,8 @@ export async function mount(root, context) {
   // first message of a stream the value is the empty form of its section.
   context.declared.push("elements", declaredElements(null));
   context.declared.push("requests", declaredRequests(null));
+  // A region that reported a state before the mount pushed its history in show above; otherwise the history is empty.
+  if (region.state === null) context.declared.push("history", declaredHistory(history));
   // The 탭 section follows core.grid: each value of the grid replaces the list of the section (core docs/spec/plugin-processes.md).
   // The status is registered, so the section has this page as its source (core docs/spec/declared-ui.md#status-mapping); its read
   // returns the latest value, and each value is also pushed as the declared UI snapshot of the section.

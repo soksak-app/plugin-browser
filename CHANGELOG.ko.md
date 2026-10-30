@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P104: view가 각 선언 UI snapshot을 plugin 안의 status 이름(`history`, `elements`, `requests`, `tabs`)으로 push한다. core는 이것을 snapshot의 status로 읽는다. qualified 이름은 sidebar section을 빈 채로 두었다.
 - F275-browser: `make install`이 고정된 의존성을 설치한다. 시험, 검사, build는 더 이상 설치하지 않는다.
 - P103: `@soksak/plugin-api`와 `CORE_RELEASE`를 복사한 모든 계약 case를 공개하는 core commit에 pin한다.
 - F274-browser: pre-push hook은 push가 게시하는 commit message만 검사한다. 시험과 검사는 CI가 실행한다.

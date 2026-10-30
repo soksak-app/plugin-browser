@@ -181,19 +181,20 @@ test("the page records its trace as the declared events of its catalog", async (
   }
 });
 
-test("the page pushes the declared UI value of each section status", async (t) => {
+// The status of a snapshot is the name within the plugin (core docs/spec/declared-ui.md#status-mapping).
+test("the page pushes the declared UI value of each section status under its name within the plugin", async (t) => {
   const { region, snapshots, settle } = createViewPage(t, "declared");
   await import("../build/test/ui/view.js?case=declared");
   await settle();
   region.show("https://a.test/one", { title: "One" });
   await settle();
   const byStatus = Object.fromEntries(snapshots.map((snapshot) => [snapshot.status, snapshot]));
-  assert.deepEqual(Object.keys(byStatus).toSorted(), ["browser.elements", "browser.history", "browser.requests", "browser.tabs"]);
-  assert.equal(byStatus["browser.history"].plugin, "browser");
-  assert.deepEqual(byStatus["browser.history"].value.elements,
+  assert.deepEqual(Object.keys(byStatus).toSorted(), ["elements", "history", "requests", "tabs"]);
+  assert.equal(byStatus.history.plugin, "browser");
+  assert.deepEqual(byStatus.history.value.elements,
     [{ kind: "list", key: "history", empty: "기록 없음", items: [] }], "the first value is the whole value of the status");
-  assert.ok(Number.isInteger(byStatus["browser.history"].seq) && byStatus["browser.history"].seq > 0);
-  assert.deepEqual(byStatus["browser.requests"].value,
+  assert.ok(Number.isInteger(byStatus.history.seq) && byStatus.history.seq > 0);
+  assert.deepEqual(byStatus.requests.value,
     { elements: [{ kind: "list", key: "requests", empty: "요청 없음", items: [] }] });
 });
 

@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P104: The view pushes each declared UI snapshot under the name of its status within the plugin (`history`, `elements`, `requests`, `tabs`), which core reads as the status of a snapshot; the qualified names left the sidebar sections empty.
 - F275-browser: `make install` installs the locked dependencies; the tests, checks and builds no longer install.
 - P103: `@soksak/plugin-api` and `CORE_RELEASE` are pinned to the core commit that publishes every copied contract case.
 - F274-browser: The pre-push hook checks only the commit messages that a push publishes; CI runs the tests and checks.

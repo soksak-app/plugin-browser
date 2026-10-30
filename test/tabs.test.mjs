@@ -19,7 +19,7 @@ const grid = {
   ],
 };
 
-const tabsValues = (host) => host.snapshots.filter((snapshot) => snapshot.status === "browser.tabs");
+const tabsValues = (host) => host.snapshots.filter((snapshot) => snapshot.status === "tabs");
 
 test("the tabs status lists the browser tabs of the card that holds the surface", async (t) => {
   const host = createViewPage(t, "tabs-value");

@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P31: `make push-check`가 통과한다. push 범위의 commit message만 검사하고(F274-browser), `make check`는 P103이 고정한 core commit에서 통과하므로, pre-push 훅이 더 이상 이 저장소의 push를 막지 않는다.
 - P9: CI와 release workflow가 완료되었다. `release.yml`이 tag `v0.0.3`부터 `v0.0.6`까지 release를 게시했고, `ci.yml`은 `.node-version`과 `packageManager`가 선언한 Node.js와 pnpm 버전으로 macOS runner에서 테스트를 실행한다.
 - P108: DOM section이 자식이 있는 요소마다 `expanded: true`를 주므로 snapshot의 모든 요소를 보인다. core는 이 field가 없는 branch의 root만 그린다. 검증: `test/declared-sections.test.mjs`가 변경 전에는 `expanded`가 없는 branch를 읽었고 변경 후 통과한다.
 - P107: watch가 stream 구독을 잡고 있는 동안의 `browser.elements`나 `browser.requests` 읽기는 watch의 값이다. 전에는 두 번째 구독을 열고 10000 ms까지 기다려서, load 중의 각 status watch가 늦었다.

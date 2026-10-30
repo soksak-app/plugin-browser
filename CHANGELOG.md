@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P107: A read of `browser.elements` or `browser.requests` while a watch holds the stream subscription is the value of the watch; it opened a second subscription and waited up to 10000 ms, which delayed each status watch during a load.
 - P106: The view pushes the empty history as the first snapshot of the 히스토리 section when the region has reported no state, so the section mounts for a tab without a document.
 - P105: A read of `browser.elements` or `browser.requests` of a region without a document is the empty value at once; it waited 10000 ms for a stream message that such a region does not send.
 - P104: The view pushes each declared UI snapshot under the name of its status within the plugin (`history`, `elements`, `requests`, `tabs`), which core reads as the status of a snapshot; the qualified names left the sidebar sections empty.

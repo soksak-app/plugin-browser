@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P107: watch가 stream 구독을 잡고 있는 동안의 `browser.elements`나 `browser.requests` 읽기는 watch의 값이다. 전에는 두 번째 구독을 열고 10000 ms까지 기다려서, load 중의 각 status watch가 늦었다.
 - P106: region이 state를 보고하지 않았으면 view가 빈 history를 히스토리 section의 첫 snapshot으로 push해서, 문서가 없는 tab에서도 section이 mount된다.
 - P105: 문서가 없는 region의 `browser.elements`나 `browser.requests` 읽기는 곧바로 빈 값이다. 전에는 그런 region이 보내지 않는 stream message를 10000 ms 기다렸다.
 - P104: view가 각 선언 UI snapshot을 plugin 안의 status 이름(`history`, `elements`, `requests`, `tabs`)으로 push한다. core는 이것을 snapshot의 status로 읽는다. qualified 이름은 sidebar section을 빈 채로 두었다.

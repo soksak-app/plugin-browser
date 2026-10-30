@@ -105,6 +105,22 @@ test("a read of each stream status of a region without a document is the empty v
   dom.window.close();
 });
 
+// A status watch of the exposure subscribes and then reads the status (createExpose of core), so a read while a watch holds the
+// subscription is the value of the watch and does not wait for a message of a second subscription.
+test("a read of browser.elements while a watch holds its subscription is the watched value at once", async () => {
+  const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
+  const stop = statuses.get("browser.elements").subscribe(() => {});
+  await flush();
+  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
+  assert.deepEqual(region.subscriptions.map((s) => s.stream), ["elements"], "the read opened a second subscription");
+  region.subscriptions[0].listener(snapshot([element], 1));
+  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements({ nodes: [element], total: 1, truncated: false }));
+  stop();
+  await mounted.dispose();
+  dom.window.close();
+});
+
 test("a read of browser.elements fails with an explicit error when no snapshot arrives within 10 seconds", async (t) => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };

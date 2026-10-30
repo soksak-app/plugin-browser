@@ -329,7 +329,9 @@ export async function mount(root, context) {
     };
     return {
       close,
-      read: () => (latest !== null ? declared(latest) : readFirst().then(declared)),
+      // A region without a document has no elements and no requests, and its stream sends no message, so the read is the empty value.
+      read: () => ((region.state?.url ?? "") === "" ? Promise.resolve(declared(null))
+        : latest !== null ? declared(latest) : readFirst().then(declared)),
       subscribe(fn) {
         watchers.add(fn);
         fn(declared(latest));

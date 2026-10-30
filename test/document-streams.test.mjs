@@ -7,6 +7,8 @@ import { JSDOM } from "jsdom";
 import { declaredElements, declaredRequests } from "../build/test/ui/browser.js";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+// The address of the document that a region shows when a test reads its streams.
+const DOCUMENT = "https://example.test/page";
 
 function fakeRegion() {
   const subscriptions = [];
@@ -80,6 +82,7 @@ test("browser.elements subscribes to the elements stream while watched and close
 
 test("a read of browser.elements without a watch takes one snapshot and closes its subscription", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
   const read = statuses.get("browser.elements").read();
   await flush();
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["elements", false]]);
@@ -90,8 +93,21 @@ test("a read of browser.elements without a watch takes one snapshot and closes i
   dom.window.close();
 });
 
+test("a read of each stream status of a region without a document is the empty value at once and opens no subscription", async () => {
+  const { dom, region, statuses, mounted } = await mountBrowser();
+  assert.equal(region.state, null, "the fake region has no document");
+  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
+  assert.deepEqual(await statuses.get("browser.requests").read(), declaredRequests(null));
+  region.state = { url: "" };
+  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
+  assert.deepEqual(region.subscriptions, [], "a read without a document opened a stream subscription");
+  await mounted.dispose();
+  dom.window.close();
+});
+
 test("a read of browser.elements fails with an explicit error when no snapshot arrives within 10 seconds", async (t) => {
   const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const read = statuses.get("browser.elements").read();
   t.mock.timers.tick(9999);
@@ -106,6 +122,7 @@ test("a read of browser.elements fails with an explicit error when no snapshot a
 
 test("a message that arrives after the watch stops does not set the value that a later read returns", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
   const stop = statuses.get("browser.elements").subscribe(() => {});
   await flush();
   const late = region.subscriptions[0].listener;
@@ -177,6 +194,7 @@ test("browser.requests keeps the newest 200 entries of its log", async () => {
 
 test("a read of browser.requests returns the request log of its first entries message", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
   const read = statuses.get("browser.requests").read();
   await flush();
   region.subscriptions[0].listener({ type: "entries", entries: [request("https://log.test/")], dropped: 3 });
@@ -188,6 +206,7 @@ test("a read of browser.requests returns the request log of its first entries me
 
 test("a read of browser.requests fails with an explicit error when no entries arrive within 10 seconds", async (t) => {
   const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = { url: DOCUMENT };
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const read = statuses.get("browser.requests").read();
   t.mock.timers.tick(10000);

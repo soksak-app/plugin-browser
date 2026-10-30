@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P105: A read of `browser.elements` or `browser.requests` of a region without a document is the empty value at once; it waited 10000 ms for a stream message that such a region does not send.
 - P104: The view pushes each declared UI snapshot under the name of its status within the plugin (`history`, `elements`, `requests`, `tabs`), which core reads as the status of a snapshot; the qualified names left the sidebar sections empty.
 - F275-browser: `make install` installs the locked dependencies; the tests, checks and builds no longer install.
 - P103: `@soksak/plugin-api` and `CORE_RELEASE` are pinned to the core commit that publishes every copied contract case.

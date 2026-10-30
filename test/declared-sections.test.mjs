@@ -35,10 +35,11 @@ test("browser.elements is one tree nested by depth whose cut is stated in status
   });
   const [tree, cut] = elements;
   assert.equal(tree.kind, "tree");
+  // Core draws the children of a branch only when its expanded field is true (core docs/spec/declared-ui.md#status-mapping).
   assert.deepEqual(tree.nodes, [{
-    key: "n0", label: "html",
+    key: "n0", label: "html", expanded: true,
     children: [
-      { key: "n1", label: "div#box.a.b", children: [{ key: "n2", label: "span" }] },
+      { key: "n1", label: "div#box.a.b", expanded: true, children: [{ key: "n2", label: "span" }] },
       { key: "n3", label: "p" },
     ],
   }]);

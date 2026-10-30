@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P108: DOM section이 자식이 있는 요소마다 `expanded: true`를 주므로 snapshot의 모든 요소를 보인다. core는 이 field가 없는 branch의 root만 그린다. 검증: `test/declared-sections.test.mjs`가 변경 전에는 `expanded`가 없는 branch를 읽었고 변경 후 통과한다.
 - P107: watch가 stream 구독을 잡고 있는 동안의 `browser.elements`나 `browser.requests` 읽기는 watch의 값이다. 전에는 두 번째 구독을 열고 10000 ms까지 기다려서, load 중의 각 status watch가 늦었다.
 - P106: region이 state를 보고하지 않았으면 view가 빈 history를 히스토리 section의 첫 snapshot으로 push해서, 문서가 없는 tab에서도 section이 mount된다.
 - P105: 문서가 없는 region의 `browser.elements`나 `browser.requests` 읽기는 곧바로 빈 값이다. 전에는 그런 region이 보내지 않는 stream message를 10000 ms 기다렸다.

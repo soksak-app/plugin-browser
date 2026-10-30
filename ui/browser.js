@@ -63,6 +63,9 @@ export const declaredElements = (elements) => {
     count += 1;
     const parent = stack[node.depth - 1];
     if (parent) {
+      // Core draws the children of a branch only when its expanded field is true (core docs/spec/declared-ui.md#status-mapping),
+      // and the section shows every element of the snapshot.
+      parent.expanded = true;
       parent.children ??= [];
       parent.children.push(item);
     } else {

@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P108: The DOM section gives each element that has children `expanded: true`, so it shows every element of the snapshot; core draws only the root of a branch without that field. Validation: `test/declared-sections.test.mjs` read branches without `expanded` before the change and passes after it.
 - P107: A read of `browser.elements` or `browser.requests` while a watch holds the stream subscription is the value of the watch; it opened a second subscription and waited up to 10000 ms, which delayed each status watch during a load.
 - P106: The view pushes the empty history as the first snapshot of the 히스토리 section when the region has reported no state, so the section mounts for a tab without a document.
 - P105: A read of `browser.elements` or `browser.requests` of a region without a document is the empty value at once; it waited 10000 ms for a stream message that such a region does not send.

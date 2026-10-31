@@ -4,7 +4,10 @@
 // surface belongs to this plugin. It draws the value as DOM, and runs the command of an item that the person clicks on the
 // followed surface. The statuses are the statuses of the tab surface (plugin.json exposes.status).
 
-import { createBinder } from "@soksak/plugin-api";
+import { createBinder, drawList } from "@soksak/plugin-api";
+
+// The slots of a row of a list or a tree in document order: its label, its detail and its nested children.
+const ROW_SLOTS = ["label", "detail", "children"];
 
 // The status that each section draws.
 const STATUS_OF_SECTION = new Map([
@@ -93,41 +96,76 @@ export function createSectionView({ runtime, expose, declarations, root, section
       .catch((error) => report(`dom ${name}: ${error?.message ?? error}`));
   }
 
-  // An item of a list or a node of a tree: its label is a button when it has a command, and its children nest under it.
-  const drawItem = (item) => {
-    const row = element("li", undefined, undefined, "browser.section.row");
-    if (item.command === undefined) {
-      row.append(element("span", undefined, item.label));
-    } else {
-      const button = element("button", undefined, item.label, "browser.section.item");
-      button.type = "button";
-      binder.mark(button, item.command, item.params);
-      row.append(button);
+  // The slot of a row with the name, created at its place in document order when it is missing. A slot keeps its element while
+  // its tag and class stay; a slot whose tag or class changes is replaced, and the other slots are not touched.
+  const slotOf = (row, name) => [...row.children].find((child) => child.dataset.slot === name);
+  const keepSlot = (row, name, tag, className, exposeName) => {
+    let node = slotOf(row, name);
+    if (node !== undefined && (node.localName !== tag || node.className !== (className ?? ""))) {
+      node.remove();
+      node = undefined;
     }
-    if (item.detail !== undefined) row.append(element("span", "detail", item.detail));
+    if (node === undefined) {
+      node = element(tag, className, undefined, exposeName);
+      node.dataset.slot = name;
+      const later = ROW_SLOTS.slice(ROW_SLOTS.indexOf(name) + 1).map((other) => slotOf(row, other)).find((child) => child !== undefined);
+      row.insertBefore(node, later ?? null);
+    }
+    return node;
+  };
+  const dropSlot = (row, name) => slotOf(row, name)?.remove();
+
+  // Edits a row to match its item: its label is a button when it has a command, and its children nest under it. A label whose command
+  // appears or disappears changes its tag, so that label is replaced; the row and a label with the same tag keep their elements.
+  const updateRow = (row, item) => {
     if (item.selected === true) {
       row.classList.add("selected");
       row.setAttribute("aria-current", "true");
+    } else {
+      row.classList.remove("selected");
+      row.removeAttribute("aria-current");
     }
-    if (item.children !== undefined) row.append(drawNodes("tree", item.children));
-    return row;
+    if (item.command === undefined) {
+      keepSlot(row, "label", "span").textContent = item.label;
+    } else {
+      const button = keepSlot(row, "label", "button", undefined, "browser.section.item");
+      button.type = "button";
+      button.textContent = item.label;
+      binder.mark(button, item.command, item.params);
+    }
+    if (item.detail === undefined) dropSlot(row, "detail");
+    else keepSlot(row, "detail", "span", "detail").textContent = item.detail;
+    if (item.children === undefined) dropSlot(row, "children");
+    else drawRows(keepSlot(row, "children", "ul", "tree"), item.children);
   };
 
-  const drawNodes = (className, items) => {
-    const list = element("ul", className);
-    for (const item of items) list.append(drawItem(item));
-    return list;
-  };
+  // The keyed reconcile of the rows of a list or a tree is drawList of @soksak/plugin-api, which this plugin already depends on: it keeps
+  // the row of a key that stays, creates a row only for a new key, and removes the row of a key that left. A key is the key of the item.
+  const drawRows = (list, items) => drawList(list, items, {
+    key: (item) => item.key,
+    create: () => element("li", undefined, undefined, "browser.section.row"),
+    update: updateRow,
+  });
 
-  const drawElement = (value) => {
-    if (value.kind === "list") {
-      return value.items.length === 0 ? element("p", "empty", value.empty, "browser.section.empty") : drawNodes("list", value.items);
-    }
-    if (value.kind === "tree") {
-      return value.nodes.length === 0 ? element("p", "empty", value.empty, "browser.section.empty") : drawNodes("tree", value.nodes);
-    }
-    if (value.kind === "status-line") return element("p", "status", value.text, "browser.section.status");
+  // The shape of an element of a value. A list or a tree without entries is the empty text, so the shape is part of the key of the
+  // element: an element whose entries change between empty and not empty is another element, and each element keeps its tag.
+  const shapeOf = (value) => {
+    if (value.kind === "list") return value.items.length === 0 ? "empty" : "list";
+    if (value.kind === "tree") return value.nodes.length === 0 ? "empty" : "tree";
+    if (value.kind === "status-line") return "status-line";
     throw new Error(`section ${section.id} draws no element of kind ${JSON.stringify(value.kind)}`);
+  };
+  const createElement = (value) => {
+    const shape = shapeOf(value);
+    if (shape === "empty") return element("p", "empty", undefined, "browser.section.empty");
+    if (shape === "status-line") return element("p", "status", undefined, "browser.section.status");
+    return element("ul", shape);
+  };
+  const updateElement = (node, value) => {
+    const shape = shapeOf(value);
+    if (shape === "empty") node.textContent = value.empty;
+    else if (shape === "status-line") node.textContent = value.text;
+    else drawRows(node, value.kind === "list" ? value.items : value.nodes);
   };
 
   const drawText = (text) => {
@@ -139,7 +177,11 @@ export function createSectionView({ runtime, expose, declarations, root, section
       report(`section ${section.id} has no elements in the value of ${status}`);
       return;
     }
-    root.replaceChildren(...value.elements.map(drawElement));
+    drawList(root, value.elements, {
+      key: (entry) => `${shapeOf(entry)}:${entry.key}`,
+      create: createElement,
+      update: updateElement,
+    });
   };
 
   const follow = (surface) => {

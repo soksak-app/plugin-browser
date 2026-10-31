@@ -334,6 +334,41 @@ test("a section id that the plugin does not declare is refused", () => {
     /section browser\.other is not a section of the browser plugin/);
 });
 
+// A press on an item, a redraw with the same keys between the press and the release, and the release: WebKit sends no click when the
+// pressed element was removed, so the element must stay connected and the release must run the command (core docs/spec/exposure.md).
+test("a redraw with the same keys between a press and its release keeps the pressed element, and the release runs its command", { timeout: 5000 }, () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
+  const pressed = root.querySelector("button");
+  pressed.dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", true], ["t2", "Mail", false]]));
+  assert.equal(pressed.isConnected, true, "the pressed element is still in the document after the redraw");
+  assert.equal(root.querySelector("button"), pressed, "the key t1 keeps its element");
+  pressed.dispatchEvent(new window.Event("pointerup", { bubbles: true }));
+  pressed.click();
+  assert.deepEqual(fake.commands.map(({ name, params, options }) => ({ name, params, options })),
+    [{ name: "browser.tab.select", params: { tab: "t1" }, options: { surface: "tab-2" } }]);
+});
+
+// A redraw creates an element only for a key that is new and removes an element only for a key that left; a kept key keeps its element.
+test("a redraw creates an element only for a new key and removes the element of a key that left", { timeout: 5000 }, () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
+  const [first, second] = root.querySelectorAll("button");
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t2", "Mail", false], ["t3", "News", true]]));
+  assert.equal(first.isConnected, false, "the element of t1, which left, is removed");
+  assert.equal(second.isConnected, true, "the element of t2, which stayed, is kept");
+  assert.deepEqual(labelsOf(namedIn(root, "browser.section.item")), ["Mail", "News"]);
+  assert.equal(root.querySelectorAll("button")[0], second);
+  assert.equal(root.querySelectorAll("button")[1].dataset.params, JSON.stringify({ tab: "t3" }));
+});
+
 test("the section page begins with its doctype, holds no import map, and carries the page script", () => {
   const html = readFileSync(new URL("../build/test/ui/section.html", import.meta.url), "utf8");
   assert.match(html, /^<!doctype html>/i, "the view page begins with its doctype");

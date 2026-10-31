@@ -14,8 +14,8 @@ test("browser.history is one list whose items run browser.history.go and select 
     key: "history",
     empty: "기록 없음",
     items: [
-      { key: "h0", label: "One", command: "browser.history.go", params: { index: 0 }, selected: false },
-      { key: "h1", label: "https://b.test/two", command: "browser.history.go", params: { index: 1 }, selected: true },
+      { key: "h0:https:__a.test_one", label: "One", command: "browser.history.go", params: { index: 0 }, selected: false },
+      { key: "h1:https:__b.test_two", label: "https://b.test/two", command: "browser.history.go", params: { index: 1 }, selected: true },
     ],
   }]);
   const empty = declaredHistory({ entries: [], index: -1 });
@@ -87,8 +87,8 @@ test("browser.requests is one static list with the duration as its detail and dr
       key: "requests",
       empty: "요청 없음",
       items: [
-        { key: "r0", label: "navigation https://a.test/", detail: "120ms" },
-        { key: "r1", label: "script https://a.test/app.js", detail: "13ms" },
+        { key: "r3", label: "navigation https://a.test/", detail: "120ms" },
+        { key: "r4", label: "script https://a.test/app.js", detail: "13ms" },
       ],
     },
     { kind: "status-line", key: "requests.dropped", text: "3 dropped" },
@@ -96,6 +96,40 @@ test("browser.requests is one static list with the duration as its detail and dr
   assert.deepEqual(declaredRequests(null),
     { elements: [{ kind: "list", key: "requests", empty: "요청 없음", items: [] }] });
   assert.deepEqual(declaredRequests({ entries: [], dropped: 0 }).elements.length, 1, "no dropped count is no status line");
+});
+
+// A key that two draws both list names the same row in both draws. A redraw keeps the element of a kept key, so a key that names
+// another row in a later draw makes the kept element show that row.
+const assertKeysKeepRows = (before, after) => {
+  const labels = new Map(before.map((item) => [item.key, item.label]));
+  for (const item of after) {
+    if (labels.has(item.key)) assert.equal(item.label, labels.get(item.key), `key ${item.key} names another row in the later draw`);
+  }
+};
+
+test("a browser.requests key names its request, so a request keeps its key when the log drops the entries before it", () => {
+  const request = (name) => ({ url: `https://a.test/${name}`, type: "script", start: 0, duration: 1 });
+  const before = declaredRequests({ entries: [request("a"), request("b"), request("c")], dropped: 0 }).elements[0].items;
+  // The region drops the oldest entry and appends one: the keys of b and c stay, and the key of a is no longer listed.
+  const after = declaredRequests({ entries: [request("b"), request("c"), request("d")], dropped: 1 }).elements[0].items;
+  assertKeysKeepRows(before, after);
+  const keyOf = (items, name) => items.find((item) => item.label === `script https://a.test/${name}`).key;
+  assert.equal(keyOf(after, "b"), keyOf(before, "b"), "the request b keeps its key");
+  assert.equal(keyOf(after, "d"), "r3", "the key of a request is its position in the request sequence since the last reset");
+});
+
+test("a browser.history key names its entry by index and URL, and a history key names one row in each draw", () => {
+  const entry = (name) => ({ url: `https://a.test/${name}?q=1&r=2`, title: "" });
+  const before = declaredHistory({ entries: [entry("a"), entry("b"), entry("c")], index: 2 }).elements[0].items;
+  // The back-forward list drops its oldest entry: each remaining entry moves to a lower index.
+  const after = declaredHistory({ entries: [entry("b"), entry("c"), entry("d")], index: 1 }).elements[0].items;
+  assertKeysKeepRows(before, after);
+  for (const item of [...before, ...after]) {
+    assert.match(item.key, /^[A-Za-z0-9._:-]{1,128}$/, `history key ${item.key} is outside the declared key form`);
+  }
+  const longUrl = `https://a.test/${"x".repeat(2000)}`;
+  const [long] = declaredHistory({ entries: [{ url: longUrl, title: "" }], index: 0 }).elements[0].items;
+  assert.match(long.key, /^[A-Za-z0-9._:-]{1,128}$/, "a long URL is cut to the key limit");
 });
 
 test("an element whose depth skips a level is refused with an error", () => {

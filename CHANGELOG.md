@@ -16,6 +16,7 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- F326-browser: Version 0.0.9 requires core `^0.0.24` and uses the plugin API release file and the `sok` of core `v0.0.24`.
 - F324-browser: Version 0.0.8 requires core `^0.0.23`, uses the plugin API release file of core `v0.0.23`, and packs its release with the `sok` inside the core `v0.0.23` application zip of the Tauri host.
 - F272-browser: A push to `main` releases the declared version through `soksak-release-gate` when its tag is absent, with the `sok` of the core release `v0.0.21`, and the dependency on `@soksak/plugin-api` is the packed release file of that release; no workflow checks out core.
 - P101-browser: Keep hook verification behavioral. The hook owner derives the linked package path from this manifest's declared plugin API source and executes both hooks while checking that the development link stays unchanged; the static hook command mirror has been removed. Boundary and workflow owners pass 6/6, and the record checker passes 69 files. View consumers were not rerun.

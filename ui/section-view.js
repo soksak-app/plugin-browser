@@ -1,7 +1,8 @@
 // The view of one section of the browser plugin (core docs/spec/plugins.md#sections). One page serves the four sections, and the
 // section id of its start values selects the status that the page draws. The page watches core.sidebars for the surface that
-// its section follows, watches the status on that surface, draws the value as DOM, and runs the command of an item that the
-// person clicks. The statuses are the statuses of the tab surface (plugin.json exposes.status).
+// its section follows, and core.surfaces for the plugin of that surface; it watches the status on the surface only when the
+// surface belongs to this plugin. It draws the value as DOM, and runs the command of an item that the person clicks on the
+// followed surface. The statuses are the statuses of the tab surface (plugin.json exposes.status).
 
 // The status that each section draws.
 const STATUS_OF_SECTION = new Map([
@@ -10,6 +11,9 @@ const STATUS_OF_SECTION = new Map([
   ["browser.tabs", "browser.tabs"],
   ["browser.history", "browser.history"],
 ]);
+
+// The plugin of the view: a section follows only the surfaces of this plugin.
+const PLUGIN = "browser";
 
 // The text that the section shows when it follows no surface.
 const EMPTY_TEXT = "연결된 탭 없음";
@@ -31,7 +35,10 @@ export function createSectionView({ runtime, root, section, report }) {
   if (typeof section.sidebar !== "string" || section.sidebar === "") throw new Error(`section ${section.id} has no sidebar`);
   const doc = root.ownerDocument;
 
-  // The surface that the section follows: undefined before the first core.sidebars value, then a surface id or null.
+  // The surface that core.sidebars reports for the section (undefined before its first value, then a surface id or null), the
+  // entries of core.surfaces, and the surface whose status is watched (undefined before the first decision, then a surface id or null).
+  let reported;
+  let surfaces = [];
   let followed;
   let stopValue = null;
 
@@ -42,8 +49,9 @@ export function createSectionView({ runtime, root, section, report }) {
     return node;
   };
 
+  // A command of the plugin runs on the surface that the section follows (docs/spec/native-surfaces.md#view-surfaces, view calls).
   const run = (name, params) => {
-    runtime.command(name, params).catch((error) => report(`command ${name}: ${error?.message ?? error}`));
+    runtime.command(name, params, { surface: followed }).catch((error) => report(`command ${name}: ${error?.message ?? error}`));
   };
 
   // An item of a list or a node of a tree: its label is a button when it has a command, and its children nest under it.
@@ -106,18 +114,29 @@ export function createSectionView({ runtime, root, section, report }) {
     stopValue = runtime.status.watch(status, draw, { surface });
   };
 
+  // The surface is watched only when core.surfaces lists it as a surface of this plugin; otherwise the section shows the empty state.
+  const decide = () => {
+    if (reported === undefined) return;
+    const entry = reported === null ? undefined : surfaces.find((item) => item.surface === reported);
+    follow(entry?.plugin === PLUGIN ? reported : null);
+  };
+
   runtime.status.watch("core.sidebars", (sidebars) => {
     const own = sidebars.find((bar) => bar.sidebar === section.sidebar)?.sections.find((entry) => entry.id === section.id);
     if (own === undefined) {
       report(`section ${section.id} is not drawn in sidebar ${section.sidebar} of core.sidebars`);
-      follow(null);
-      return;
-    }
-    if (own.surface !== null && typeof own.surface !== "string") {
+      reported = null;
+    } else if (own.surface !== null && typeof own.surface !== "string") {
       report(`section ${section.id} follows ${JSON.stringify(own.surface)} in core.sidebars, which is not a surface`);
-      follow(null);
-      return;
+      reported = null;
+    } else {
+      reported = own.surface;
     }
-    follow(own.surface);
+    decide();
+  });
+
+  runtime.status.watch("core.surfaces", (value) => {
+    surfaces = value;
+    decide();
   });
 }

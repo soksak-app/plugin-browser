@@ -1,5 +1,5 @@
-// The 탭 section is a declared UI status (#P28): the view watches core.grid, pushes the browser tabs of the card that holds
-// its surface as a declared list, and each row runs browser.tab.select, which selects the tab through core.tab.select.
+// The 탭 section reads the browser.tabs status (#P28): the view watches core.grid, and the status lists the browser tabs of the card
+// that holds its surface, each row running browser.tab.select, which selects the tab through core.tab.select.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createViewPage } from "./view-host.mjs";
@@ -19,7 +19,7 @@ const grid = {
   ],
 };
 
-const tabsValues = (host) => host.snapshots.filter((snapshot) => snapshot.status === "tabs");
+const tabsValue = async (host) => (await host.expose("status.get", { name: "browser.tabs" })).result;
 
 test("the tabs status lists the browser tabs of the card that holds the surface", async (t) => {
   const host = createViewPage(t, "tabs-value");
@@ -27,9 +27,7 @@ test("the tabs status lists the browser tabs of the card that holds the surface"
   await host.settle();
   host.status("core.grid", grid);
   await host.settle();
-  const last = tabsValues(host).at(-1);
-  assert.ok(last, "the page pushed no value of browser.tabs");
-  assert.deepEqual(last.value, {
+  assert.deepEqual(await tabsValue(host), {
     elements: [{
       kind: "list",
       key: "tabs",
@@ -48,7 +46,7 @@ test("the tabs status is empty when the grid holds no card of the surface", asyn
   await host.settle();
   host.status("core.grid", { cards: [] });
   await host.settle();
-  assert.deepEqual(tabsValues(host).at(-1).value, {
+  assert.deepEqual(await tabsValue(host), {
     elements: [{ kind: "list", key: "tabs", empty: "브라우저 탭 없음", items: [] }],
   });
 });

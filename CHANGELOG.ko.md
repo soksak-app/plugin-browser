@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F332-6-1(후속): section view는 browser plugin의 surface에서만 status를 watch한다. `core.surfaces`를 읽고 다른 plugin이면 빈 상태를 보인다. 명령은 `runtime.command(name, params, {surface})`로 따라가는 surface에서 실행한다. 탭 page는 선언 UI snapshot을 보내지 않으므로 snapshot sender, 그 fixture 사본, model을 제거했다. 검증: 해당 test가 변경 전 41개 중 7개 실패했고(`no watch of a surface of another plugin`, `core.surfaces` watch 누락, `{surface}` 없는 click, snapshot push), 변경 후 41개 중 41개를 통과한다. `make test`가 140개 중 140개를 통과하고, `CORE_PLUGIN_API_DIR`를 core의 `packages/plugin-api`로 지정한 `make check`가 통과한다. 고정된 SDK 0.0.24가 아직 section 형태를 거부하므로 항목은 0.0.25 pin까지 보류된다.
 - F332-6-1: browser의 네 sidebar section이 plugin의 view다. `plugin.json`은 각 section을 `ui/section.html`의 `composition` `view`와 `height`로 선언하고, section 페이지(`ui/section-view.js`)는 `core.sidebars`가 그 section에 보고하는 surface의 status 값을 그린다. 검증: 변경 전 `test/section-view.test.mjs`는 `ui/section-view.js`에서 `ERR_MODULE_NOT_FOUND`로, `test/manifest.test.mjs`는 `browser.dom is a view of the section page`로 실패했고, 변경 후 두 파일이 12개 중 12개를 통과하며 `make test`가 138개 중 138개를 통과한다. `make check`는 아직 통과하지 않는다. 고정된 SDK 0.0.24가 section 형태를 거부하고, core의 exposure 검사가 section id를 선언되지 않은 이름으로 읽기 때문이다.
 - P31: `make push-check`가 통과한다. push 범위의 commit message만 검사하고(F274-browser), `make check`는 P103이 고정한 core commit에서 통과하므로, pre-push 훅이 더 이상 이 저장소의 push를 막지 않는다.
 - P9: CI와 release workflow가 완료되었다. `release.yml`이 tag `v0.0.3`부터 `v0.0.6`까지 release를 게시했고, `ci.yml`은 `.node-version`과 `packageManager`가 선언한 Node.js와 pnpm 버전으로 macOS runner에서 테스트를 실행한다.

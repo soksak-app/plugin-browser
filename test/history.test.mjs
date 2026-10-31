@@ -70,11 +70,12 @@ test("browser.history follows the region state and browser.history.go loads an e
   assert.deepEqual(seen, [-1, 1, 0]);
 });
 
-// The first snapshot of each section status is its whole value (core docs/spec/plugin-processes.md, rule 2), so the 히스토리 section
-// mounts with the empty history before the region reports a state.
-test("the browser pushes the empty history as the first snapshot of the history section before the region reports a state", { timeout: 10000 }, async (t) => {
-  const { statuses, pushed } = await setup(t);
-  assert.deepEqual(pushed.filter(([status]) => status === "history").map(([, value]) => value), [statuses.get("browser.history").read()]);
+// The page of the view pushes no declared UI snapshot: the section reads the status, and the context of the page has no push.
+test("the browser pushes no declared UI value of the history section, before or after the region reports a state", { timeout: 10000 }, async (t) => {
+  const { send, pushed, state } = await setup(t);
+  send(1);
+  state("https://a.test/one", "One");
+  assert.deepEqual(pushed, []);
 });
 
 test("the tab title is the document title, or the address without one, and is removed without both", { timeout: 10000 }, async (t) => {

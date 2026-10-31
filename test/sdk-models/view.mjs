@@ -29,13 +29,6 @@ export function createViewBridge({ handler, report }) {
   const sidecarListeners = [];
   const nativeListeners = new Map();
   const plugin = () => globalThis.window?.location?.host;
-  // The declared UI snapshots of each status: one snapshot is in transit until its acknowledgement, and a value that
-  // arrives in transit replaces the waiting value and is counted as skipped (declared-ui-snapshot.json).
-  const snapshotStates = new Map();
-  const snapshotState = (status) => {
-    if (!snapshotStates.has(status)) snapshotStates.set(status, { seq: 0, transit: null, dirty: null, skipped: 0 });
-    return snapshotStates.get(status);
-  };
 
   const post = (message) => handler.postMessage(message);
   const openCalls = () => {
@@ -102,40 +95,9 @@ export function createViewBridge({ handler, report }) {
     }
   }
 
-  // Each pushed value takes the next seq, so a value that waits in transit keeps the seq that its push gave it.
-  const sendSnapshot = (status, state, seq, value) => {
-    state.transit = seq;
-    post({ event: "declared-ui.snapshot", plugin: plugin(), status, seq, value, skipped: state.skipped });
-    state.skipped = 0;
-  };
-  const snapshots = {
-    push(status, value) {
-      const state = snapshotState(status);
-      state.seq += 1;
-      if (state.transit === null) return sendSnapshot(status, state, state.seq, value);
-      if (state.dirty !== null) {
-        state.skipped += 1;
-        report({ kind: "skipped", plugin: plugin(), status, count: state.skipped });
-      }
-      state.dirty = { seq: state.seq, value };
-    },
-  };
-  // An acknowledgement releases the snapshot in transit, and sends the waiting value when there is one.
-  const acknowledge = (status, seq) => {
-    const state = snapshotState(status);
-    if (state.transit !== seq) throw new Error(`declared UI acknowledgement of ${status} for seq ${seq} is not in transit`);
-    state.transit = null;
-    if (state.dirty !== null) {
-      const waiting = state.dirty;
-      state.dirty = null;
-      sendSnapshot(status, state, waiting.seq, waiting.value);
-    }
-  };
-
   // The host messages: replies to requests, command requests, host events and sidecar events.
   const onHost = (message) => {
     if (message.sok !== 1) return;
-    if (message.event === "declared-ui.snapshot.ack") return void acknowledge(message.data.status, message.data.seq);
     if (message.command !== undefined) return void runCommand(message);
     if (message.id !== undefined && pending.has(message.id)) {
       const entry = pending.get(message.id);
@@ -295,7 +257,6 @@ export function createViewBridge({ handler, report }) {
   const bridge = {
     // Test-model drain for fire-and-forget log writes; the public bridge does not expose this method.
     async flushLogs() { await Promise.all([...logWrites]); },
-    snapshots,
     calls: {
       request(command, params, timeout) {
         return request(command, params, timeout);

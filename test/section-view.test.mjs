@@ -1,7 +1,8 @@
 // The section view (core docs/spec/plugins.md#sections, docs/spec/native-surfaces.md#view-surfaces): one page draws the section of
-// its start values. It watches core.sidebars for the surface that its section follows, watches the status of its section on that
-// surface, draws the value as DOM, and runs the command of an item that the person clicks. The runtime is a fake of the view
-// bridge runtime, which takes status.watch(name, listener, {surface}) and command(name, params), so the test reads no SDK.
+// its start values. It watches core.sidebars for the surface that its section follows, reads core.surfaces to keep only a surface of
+// its own plugin, watches the status of its section on that surface, draws the value as DOM, and runs the command of an item that
+// the person clicks on that surface. The runtime is a fake of the view bridge runtime, which takes status.watch(name, listener,
+// {surface}) and command(name, params, {surface}), so the test reads no SDK.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -12,6 +13,7 @@ const { window } = createWindow("sok://browser/ui/section.html");
 const { document } = window;
 
 // A fake of the view runtime: each status.watch is recorded with its name and options, and its stop function marks it stopped.
+// Each command is recorded with its name, params and options.
 function fakeRuntime() {
   const watches = [];
   const commands = [];
@@ -26,9 +28,9 @@ function fakeRuntime() {
           return () => { watch.stopped = true; };
         },
       },
-      command(name, params) {
+      command(name, params, options) {
         const promise = Promise.resolve(null);
-        commands.push({ name, params, promise });
+        commands.push({ name, params, options, promise });
         return promise;
       },
     },
@@ -38,7 +40,7 @@ function fakeRuntime() {
 // The watches of a name that are not stopped; a watch with no options follows the workbench.
 const live = (fake, name) => fake.watches.filter((watch) => watch.name === name && !watch.stopped);
 
-// Delivers value to each live watch of name on surface (undefined for the workbench status core.sidebars).
+// Delivers value to each live watch of name on surface (undefined for the workbench statuses core.sidebars and core.surfaces).
 function deliver(fake, name, surface, value) {
   for (const watch of live(fake, name)) {
     if (watch.options?.surface === surface) watch.listener(value);
@@ -53,6 +55,9 @@ const sidebars = (surface) => [{
   sections: [{ id: "browser.tabs", surface }],
 }];
 
+// The value of core.surfaces with one entry for each surface and its plugin.
+const surfaces = (...entries) => entries.map(([surface, plugin]) => ({ surface, plugin, kind: "tab", sidebar: null }));
+
 function mount(fake, { section = SECTION, reports = [] } = {}) {
   const root = document.createElement("div");
   document.body.replaceChildren(root);
@@ -60,21 +65,48 @@ function mount(fake, { section = SECTION, reports = [] } = {}) {
   return root;
 }
 
-test("the section view watches core.sidebars without a surface, then the status of its section on the surface that the section follows", () => {
+test("the section view watches core.sidebars and core.surfaces without a surface, then the status of its section on the followed surface of its plugin", () => {
   const fake = fakeRuntime();
   mount(fake);
-  assert.equal(fake.watches.length, 1);
-  assert.equal(fake.watches[0].name, "core.sidebars");
-  assert.equal(fake.watches[0].options, undefined);
+  assert.deepEqual(fake.watches.map((watch) => [watch.name, watch.options]), [["core.sidebars", undefined], ["core.surfaces", undefined]]);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
   const tabs = live(fake, "browser.tabs");
   assert.equal(tabs.length, 1);
   assert.deepEqual(tabs[0].options, { surface: "tab-1" });
 });
 
+test("a followed surface of another plugin is not watched, and the section shows the empty state", () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["other-1", "other"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("other-1"));
+  assert.equal(live(fake, "browser.tabs").length, 0, "no watch of a surface of another plugin");
+  assert.equal(root.querySelector("p.empty").textContent, "연결된 탭 없음");
+});
+
+test("a followed surface that core.surfaces does not list is not watched", () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-9"));
+  assert.equal(live(fake, "browser.tabs").length, 0);
+  assert.equal(root.querySelector("p.empty").textContent, "연결된 탭 없음");
+});
+
+test("a change of core.surfaces that moves the followed surface to another plugin ends its watch", () => {
+  const fake = fakeRuntime();
+  mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
+  assert.equal(live(fake, "browser.tabs").length, 1);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "other"]));
+  assert.equal(live(fake, "browser.tabs").length, 0, "the watch of the surface is ended when its plugin is not browser");
+});
+
 test("a change of the followed surface unwatches the earlier surface and watches the new one", () => {
   const fake = fakeRuntime();
   mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"], ["tab-2", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
   const first = fake.watches.find((watch) => watch.name === "browser.tabs" && watch.options.surface === "tab-1");
@@ -86,9 +118,10 @@ test("a change of the followed surface unwatches the earlier surface and watches
   assert.equal(fake.watches.filter((watch) => watch.name === "browser.tabs").length, 2);
 });
 
-test("a value of the followed status is drawn as DOM, the selected item is marked, and a click runs its bound command", () => {
+test("a value of the followed status is drawn as DOM, the selected item is marked, and a click runs its command on the followed surface", () => {
   const fake = fakeRuntime();
   const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
   deliver(fake, "browser.tabs", "tab-2", {
     elements: [{
@@ -105,12 +138,14 @@ test("a value of the followed status is drawn as DOM, the selected item is marke
   assert.deepEqual(buttons.map((button) => button.textContent), ["Docs", "Mail"]);
   assert.equal(root.querySelector("[aria-current='true']").textContent, "Mail");
   buttons[0].click();
-  assert.deepEqual(fake.commands.map(({ name, params }) => ({ name, params })), [{ name: "browser.tab.select", params: { tab: "t1" } }]);
+  assert.deepEqual(fake.commands.map(({ name, params, options }) => ({ name, params, options })),
+    [{ name: "browser.tab.select", params: { tab: "t1" }, options: { surface: "tab-2" } }]);
 });
 
 test("a tree value is drawn with its children nested under their parent, and a status line is drawn as text", () => {
   const fake = fakeRuntime();
   const root = mount(fake, { section: { id: "browser.dom", sidebar: "left", card: null } });
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
   deliver(fake, "core.sidebars", undefined, [{ sidebar: "left", sections: [{ id: "browser.dom", surface: "tab-1" }] }]);
   deliver(fake, "browser.elements", "tab-1", {
     elements: [
@@ -129,6 +164,7 @@ test("a tree value is drawn with its children nested under their parent, and a s
 test("a section that follows no surface shows the empty state text and watches no status of the plugin", () => {
   const fake = fakeRuntime();
   const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
   deliver(fake, "core.sidebars", undefined, sidebars(null));
   assert.equal(root.querySelector("p.empty").textContent, "연결된 탭 없음");
@@ -140,12 +176,13 @@ test("a command that fails is reported with its name and its text", async () => 
   const reports = [];
   const root = document.createElement("div");
   document.body.replaceChildren(root);
-  fake.runtime.command = (name, params) => {
+  fake.runtime.command = (name, params, options) => {
     const promise = Promise.reject(new Error("tab is gone"));
-    fake.commands.push({ name, params, promise });
+    fake.commands.push({ name, params, options, promise });
     return promise;
   };
   createSectionView({ runtime: fake.runtime, root, section: SECTION, report: (text) => reports.push(text) });
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
   deliver(fake, "browser.tabs", "tab-1", {
     elements: [{ kind: "list", key: "tabs", empty: "없음", items: [{ key: "t1", label: "Docs", command: "browser.tab.select", params: { tab: "t1" } }] }],

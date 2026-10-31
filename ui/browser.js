@@ -223,7 +223,6 @@ export async function mount(root, context) {
     history = sessionHistory;
     const declared = declaredHistory(history);
     for (const listener of historyListeners) listener(declared);
-    context.declared.push("history", declared);
     showEmpty(state.url);
     if (state.url !== "" && state.url !== written) {
       written = state.url;
@@ -267,15 +266,13 @@ export async function mount(root, context) {
   // of the region log, because a status delivers only its latest value and each entries message is a batch of new entries.
   // Creates the status functions of one document stream. message.type of the data is dataType, and next(current, message) returns the
   // value after a data message. A failure of a delivered message or of the subscription is reported as a page error.
-  // status is the name of the status within the plugin, under which the snapshot is pushed (core docs/spec/declared-ui.md#status-mapping).
-  const documentStream = (status, stream, dataType, next, declared) => {
+  const documentStream = (stream, dataType, next, declared) => {
     const watchers = new Set();
     let latest = null;
     let subscription = null;
     const deliver = (value) => {
       latest = value;
       const view = declared(latest);
-      context.declared.push(status, view);
       for (const fn of watchers) fn(view);
     };
     // A message of a subscription that is closed and not yet removed by the region is dropped, so it cannot set a stale value.
@@ -348,8 +345,8 @@ export async function mount(root, context) {
       },
     };
   };
-  const elementStream = documentStream("elements", "elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), declaredElements);
-  const requestStream = documentStream("requests", "requests", "entries", (current, { entries, dropped }) => {
+  const elementStream = documentStream("elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), declaredElements);
+  const requestStream = documentStream("requests", "entries", (current, { entries, dropped }) => {
     if (!Number.isInteger(dropped) || dropped < 0) throw new Error(`requests entries message has dropped ${JSON.stringify(dropped)}, not a count`);
     const log = [...(current?.entries ?? []), ...entries];
     // The region counts each entry it drops since its last reset, and this status keeps the same bound. An entry that the status
@@ -361,20 +358,11 @@ export async function mount(root, context) {
   }, declaredRequests);
   context.exposure.status("browser.elements", elementStream.read, elementStream.subscribe);
   context.exposure.status("browser.requests", requestStream.read, requestStream.subscribe);
-  // The first snapshot of each section status is its whole value (core docs/spec/plugin-processes.md, rule 2); before the
-  // first message of a stream the value is the empty form of its section.
-  context.declared.push("elements", declaredElements(null));
-  context.declared.push("requests", declaredRequests(null));
-  // A region that reported a state before the mount pushed its history in show above; otherwise the history is empty.
-  if (region.state === null) context.declared.push("history", declaredHistory(history));
-  // The 탭 section follows core.grid: each value of the grid replaces the list of the section (core docs/spec/plugin-processes.md).
-  // The status is registered, so the section has this page as its source (core docs/spec/declared-ui.md#status-mapping); its read
-  // returns the latest value, and each value is also pushed as the declared UI snapshot of the section.
+  // The browser.tabs status follows core.grid: each value of the grid replaces the value of the status.
   let tabsValue = declaredTabs(null, context.surfaceId);
   const tabsListeners = new Set();
   const publishTabs = (value) => {
     tabsValue = value;
-    context.declared.push("tabs", value);
     for (const listener of tabsListeners) listener(value);
   };
   context.exposure.status("browser.tabs", () => tabsValue, (fn) => {

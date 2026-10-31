@@ -77,8 +77,6 @@ async function setup(t, { home = "https://home.test/", failLoad } = {}) {
     surfaceId: "browser-events-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: { status() {}, dom() {}, command(name, run) { commands.set(name, run); }, bind() {}, delegate() {}, dispose() {} },
-    declared: { push() {} },
-    declared: { push() {} },
     status: { report() {} },
   });
   t.after(() => { controller.dispose(); dom.window.close(); });

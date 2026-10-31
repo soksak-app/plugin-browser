@@ -132,9 +132,9 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
 
   const reply = (id, payload) => post({ sok: 1, id, ...payload });
   const deliver = (message) => {
+    // Core keeps no declared UI snapshot, so the host records a push for the test that asserts none, and answers nothing.
     if (message?.event === "declared-ui.snapshot") {
       snapshots.push(message);
-      post({ sok: 1, event: "declared-ui.snapshot.ack", data: { plugin: message.plugin, status: message.status, seq: message.seq } });
       return;
     }
     if (message?.event !== undefined) return;

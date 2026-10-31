@@ -46,7 +46,6 @@ async function mountBrowser() {
       command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {},
       dispose: async () => {},
     },
-    declared: { push() {} },
     status: { report: (phase, error) => { reports.push([phase, error]); } },
     runtime: {
       status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null,

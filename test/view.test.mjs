@@ -181,21 +181,17 @@ test("the page records its trace as the declared events of its catalog", async (
   }
 });
 
-// The status of a snapshot is the name within the plugin (core docs/spec/declared-ui.md#status-mapping).
-test("the page pushes the declared UI value of each section status under its name within the plugin", async (t) => {
-  const { region, snapshots, settle } = createViewPage(t, "declared");
-  await import("../build/test/ui/view.js?case=declared");
+// The section statuses are read through their exposure statuses; the page sends no declared UI snapshot, because core keeps none.
+test("the page sends no declared UI snapshot, and each section status is read through its exposure status", async (t) => {
+  const { region, snapshots, settle, expose } = createViewPage(t, "no-snapshot");
+  await import("../build/test/ui/view.js?case=no-snapshot");
   await settle();
   region.show("https://a.test/one", { title: "One" });
   await settle();
-  const byStatus = Object.fromEntries(snapshots.map((snapshot) => [snapshot.status, snapshot]));
-  assert.deepEqual(Object.keys(byStatus).toSorted(), ["elements", "history", "requests", "tabs"]);
-  assert.equal(byStatus.history.plugin, "browser");
-  assert.deepEqual(byStatus.history.value.elements,
-    [{ kind: "list", key: "history", empty: "기록 없음", items: [] }], "the first value is the whole value of the status");
-  assert.ok(Number.isInteger(byStatus.history.seq) && byStatus.history.seq > 0);
-  assert.deepEqual(byStatus.requests.value,
-    { elements: [{ kind: "list", key: "requests", empty: "요청 없음", items: [] }] });
+  assert.deepEqual(snapshots, []);
+  assert.deepEqual((await expose("status.get", { name: "browser.history" })).result.elements,
+    [{ kind: "list", key: "history", empty: "기록 없음", items: [] }]);
+  assert.deepEqual((await expose("status.get", { name: "browser.tabs" })).result.elements[0].kind, "list");
 });
 
 test("a browser.address.select run focuses the address field of the view", async (t) => {

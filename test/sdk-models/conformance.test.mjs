@@ -21,11 +21,6 @@ const EXCLUDED_CASES = {
   "binder.delegate.dispatches-declared-controls": "the page does not call expose.delegate",
   "binder.audit.reports-unbound-controls": "the page does not call expose.audit",
   "binder.run.runs-and-refuses": "the page does not call the binder run",
-  "snapshot.ack.refuses-a-seq-that-is-not-in-transit": "the host sends acknowledgements of snapshots in transit only, so the page receives no refused one",
-  "snapshot.peer-lost.reports-the-transit-and-the-dirty-value": "the page does not call peerLost",
-  "snapshot.peer-lost.refuses-an-unknown-reason": "the page does not call peerLost",
-  "snapshot.pull.returns-the-latest-value-and-refuses-a-missing-one": "the page does not call pull",
-  "snapshot.receiver.acknowledges-then-delivers": "the receiver role is the workbench side; the page is the sender",
   "view.bridge.refuses-malformed-host-message": "the view channel refuses messages without the marker before the bridge receives them",
   "view.bridge.refuses-unsupported-page": "the page is always soksak://browser/, so the bridge creation check is not reached",
   "view.bridge.sidecar-subscriptions": "the page subscribes to sidecar messages only, not to runtime.sidecar.onFailure",
@@ -52,7 +47,7 @@ function viewWindow() {
 }
 
 test("the excluded cases and steps are present in the copied fixtures", () => {
-  const ids = new Set(["view-bridge", "view-native", "view-composition", "create-binder", "expose", "calls", "declared-ui-snapshot", "draw-list", "interactive", "view-commands", "view-settings"].flatMap((name) => fixture(name)).map((entry) => entry.id));
+  const ids = new Set(["view-bridge", "view-native", "view-composition", "create-binder", "expose", "calls", "draw-list", "interactive", "view-commands", "view-settings"].flatMap((name) => fixture(name)).map((entry) => entry.id));
   for (const id of [...Object.keys(EXCLUDED_CASES), ...Object.keys(EXCLUDED_STEPS)]) assert.ok(ids.has(id), `excluded case ${id} is not in the fixtures`);
 });
 
@@ -532,31 +527,6 @@ test("draw list cases replay against the list model", async () => {
         updated: [...updated],
         error,
       }, step.output, label);
-    }
-  }
-});
-
-test("declared UI snapshot cases replay against the snapshot sender", async () => {
-  for (const testCase of replayable("declared-ui-snapshot")) {
-    const sokView = viewWindow();
-    globalThis.window.location = { host: "demo" };
-    const posted = [];
-    const reports = [];
-    const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: (event) => reports.push(event) });
-    for (const [index, step] of testCase.steps.entries()) {
-      const label = `${testCase.id}#${index}`;
-      const before = posted.length;
-      const reportsBefore = reports.length;
-      let throws = null;
-      try {
-        if (step.push) bridge.snapshots.push(step.push.status, step.push.value);
-        else if (step.ack) sokView.listener({ sok: 1, event: "declared-ui.snapshot.ack", data: { plugin: "demo", status: step.ack.status, seq: step.ack.seq } });
-        else throw new Error(`unknown snapshot step in ${label}`);
-      } catch (failure) {
-        throws = errorText(failure);
-      }
-      await settle();
-      assert.deepEqual({ sent: posted.slice(before), reports: reports.slice(reportsBefore), delivered: [], result: null, throws }, step.output, label);
     }
   }
 });

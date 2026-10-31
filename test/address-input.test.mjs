@@ -33,8 +33,6 @@ async function setup(t) {
       status() {}, dom() {}, command(name, run) { commands.set(name, run); },
       bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose,
     },
-    declared: { push() {} },
-    declared: { push() {} },
     status: { report(phase) { assert.equal(phase, "ready"); } },
   });
   t.after(() => dom.window.close());
@@ -131,7 +129,6 @@ test("the card footer shows the address of the link under the pointer", { timeou
     surfaceId: "browser-footer-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: { status() {}, dom() {}, command() {}, bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose },
-    declared: { push() {} },
     status: { report() {} },
   });
   t.after(() => controller.dispose());

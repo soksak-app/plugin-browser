@@ -16,6 +16,7 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- F324-browser: version 0.0.8은 core `^0.0.23`을 요구하고, core `v0.0.23`의 plugin API release file을 쓰며, core `v0.0.23` Tauri host application zip 안의 `sok`로 release를 pack한다.
 - F272-browser: `main`에 push하면 tag가 없을 때 `soksak-release-gate`로 선언된 version을 core release `v0.0.21`의 `sok`와 함께 release한다. `@soksak/plugin-api`에 대한 의존은 그 release의 pack 파일이다. 어떤 workflow도 core를 checkout하지 않는다.
 - P101-browser: Hook 검증을 실제 실행 방식으로 유지한다. Hook owner가 이 manifest에 선언된 plugin API source에서 연결된 package 경로를 찾고 두 hook을 실행하면서 development link가 바뀌지 않는지 확인한다. 정적 hook command mirror는 제거했다. Boundary와 workflow owner가 6/6, record checker가 69개 file 통과한다. View consumer는 재실행하지 않았다.
 

@@ -49,8 +49,8 @@ function fakeExpose() {
       statuses.set(name, { read, subscribe });
       return Promise.resolve();
     },
-    dom(name, element) {
-      doms.push({ name, element });
+    dom(name, target) {
+      doms.push({ name, target });
       return Promise.resolve();
     },
   };
@@ -62,6 +62,18 @@ const DECLARATIONS = {
   commands: [{ name: "browser.tab.select" }, { name: "browser.history.go" }],
   dom: [],
 };
+
+// The dom names of the section view, each registered once through expose.dom.
+const DOM_NAMES = ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"];
+
+// The provider that the page registered for a dom name: the function that returns the current elements.
+const providerOf = (fake, name) => fake.expose.doms.find((entry) => entry.name === name).target;
+
+// The elements of a dom name in document order, as root holds them.
+const namedIn = (root, name) => [...root.querySelectorAll(`[data-expose="${name}"]`)];
+
+// The labels of the elements of an item list, in order: the text of each element without its children.
+const labelsOf = (elements) => elements.map((el) => el.firstChild.textContent);
 
 // The watches of a name that are not stopped; a watch with no options follows the workbench.
 const live = (fake, name) => fake.watches.filter((watch) => watch.name === name && !watch.stopped);
@@ -258,25 +270,44 @@ test("the rows, items, empty texts and status lines carry declared dom names, an
   assert.deepEqual(named("browser.section.item").map((el) => [el.tagName, el.textContent, el.dataset.command, JSON.parse(el.dataset.params).tab]),
     [["BUTTON", "Docs", "browser.tab.select", "t1"], ["BUTTON", "Mail", "browser.tab.select", "t2"]]);
   assert.equal(named("browser.section.status")[0].textContent, "2 of 2");
-  // Each named element is registered with the exposure of the page under its name.
+  // The registry of the page lists each named element of the section, in document order.
   for (const name of ["browser.section.row", "browser.section.item", "browser.section.status"]) {
-    const registered = fake.expose.doms.filter((entry) => entry.name === name).map((entry) => entry.element);
-    for (const el of named(name)) assert.ok(registered.includes(el), `${name} element is registered`);
+    assert.deepEqual(providerOf(fake, name)(), named(name), `${name} lists its elements in document order`);
   }
   for (const el of root.querySelectorAll("button")) assert.ok(el.dataset.command && el.dataset.expose, "each button has a command and a dom name");
 });
 
-test("a draw reuses the registered elements, so a new item registers only its row and its button", () => {
+test("each dom name is registered once, with a provider that returns the current elements", () => {
   const fake = fakeRuntime();
-  mount(fake);
+  const root = mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
   deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
-  const registered = fake.expose.doms.length;
-  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
-  assert.equal(fake.expose.doms.length, registered, "a draw of the same value registers no element");
   deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", false], ["t3", "News", true]]));
-  assert.equal(fake.expose.doms.length, registered + 2, "one new row and one new button");
+  for (const name of DOM_NAMES) {
+    const registrations = fake.expose.doms.filter((entry) => entry.name === name);
+    assert.equal(registrations.length, 1, `${name} is registered once`);
+    assert.equal(typeof registrations[0].target, "function", `${name} is registered with a provider`);
+  }
+  assert.equal(providerOf(fake, "browser.section.row")().length, 3);
+  assert.equal(root.querySelectorAll('[data-expose="browser.section.row"]').length, 3);
+});
+
+test("the provider of the rows lists them in document order, a nested child after its parent, and a removed row is not listed", () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  const item = (key, label, children) => ({ key, label, command: "browser.tab.select", params: { tab: key }, ...(children ? { children } : {}) });
+  deliver(fake, "browser.tabs", "tab-2", { elements: [{ kind: "tree", key: "tabs", empty: "없음", nodes: [
+    item("a", "A", [item("a1", "A1")]),
+    item("b", "B"),
+  ] }] });
+  assert.deepEqual(labelsOf(providerOf(fake, "browser.section.row")()), ["A", "A1", "B"]);
+  assert.deepEqual(labelsOf(providerOf(fake, "browser.section.item")()), ["A", "A1", "B"]);
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["c", "C", false]]));
+  assert.deepEqual(labelsOf(providerOf(fake, "browser.section.row")()), ["C"], "a row that a draw removed is not listed");
+  assert.deepEqual(providerOf(fake, "browser.section.row")(), namedIn(root, "browser.section.row"));
 });
 
 test("the empty state text carries the dom name browser.section.empty", () => {

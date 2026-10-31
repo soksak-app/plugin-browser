@@ -64,7 +64,10 @@ function checkParams(name, schema, params) {
 export function createExpose({ register, unregister, onRequest, reply }, declarations) {
   const declared = () => (typeof declarations === "function" ? declarations() : declarations);
   const isDeclared = (kind, name) => (declared()[kind] ?? []).some((entry) => entry.name === name);
+  const isMany = (name) => (declared().dom ?? []).some((entry) => entry.name === name && entry.many === true);
   const statuses = new Map();
+  // The providers of each dom name, in registration order. A provider returns the current elements of the name (core: a function,
+  // or an element that is provided as one element).
   const doms = new Map();
   const commands = new Map();
   let disposed = false;
@@ -100,13 +103,14 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
     if (!status) throw new RequestError(ERROR.unknownStatus, `unknown status ${name}`);
     return status;
   };
+  // The connected elements of a dom name, read from its providers at each request; an index addresses them in that order.
   const elementOf = (name, params) => {
-    const element = doms.get(name);
-    if (!element) throw new RequestError(ERROR.notRegistered, `unknown dom ${name}`);
+    if (!doms.has(name)) throw new RequestError(ERROR.notRegistered, `unknown dom ${name}`);
     const index = params.index ?? 0;
     if (!Number.isInteger(index) || index < 0) throw new RequestError(ERROR.invalidParams, "index must be a non-negative integer");
-    if (index !== 0) throw new RequestError(ERROR.notRegistered, `dom ${name} has no element at index ${index}`);
-    return element;
+    const elements = doms.get(name).flatMap((provide) => provide()).filter((el) => el.isConnected !== false);
+    if (index >= elements.length) throw new RequestError(ERROR.notRegistered, `dom ${name} has no element at index ${index}`);
+    return elements[index];
   };
 
   async function dispatch(method, params = {}) {
@@ -146,8 +150,6 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
         return null;
       }
       case "dom.act": {
-        const element = doms.get(params.name);
-        if (!element) throw new RequestError(ERROR.notRegistered, `unknown dom ${params.name}`);
         if (params.address !== undefined) throw new RequestError(ERROR.invalidParams, `dom ${params.name} takes no address`);
         if (params.action !== "click") throw new RequestError(ERROR.invalidParams, `unknown action ${params.action}`);
         elementOf(params.name, params).click();
@@ -214,14 +216,19 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
         throw error;
       }
     },
-    async dom(name, element) {
+    // A function is the provider of the name, which returns the current elements; an element is provided as one element. A name
+    // that is not declared many takes one provider.
+    async dom(name, target) {
       refuseDisposed();
-      if (doms.has(name)) throw new Error(`dom ${name} is already registered`);
-      doms.set(name, element);
+      if (doms.has(name) && !isMany(name)) throw new Error(`dom ${name} is already registered`);
+      const provide = typeof target === "function" ? target : () => [target];
+      doms.set(name, [...(doms.get(name) ?? []), provide]);
       try {
         await register("dom", name);
       } catch (error) {
-        doms.delete(name);
+        const rest = doms.get(name).filter((other) => other !== provide);
+        if (rest.length === 0) doms.delete(name);
+        else doms.set(name, rest);
         throw error;
       }
     },

@@ -20,15 +20,6 @@ const PLUGIN = "browser";
 // The text that the section shows when it follows no surface.
 const EMPTY_TEXT = "연결된 탭 없음";
 
-// The dom names of the elements that a section draws, each with its tag and class. The exposure registers an element for good
-// (the SDK has no unregister), so the elements are reused across draws (see take).
-const NAMED = new Map([
-  ["browser.section.row", { tag: "li" }],
-  ["browser.section.item", { tag: "button" }],
-  ["browser.section.empty", { tag: "p", className: "empty" }],
-  ["browser.section.status", { tag: "p", className: "status" }],
-]);
-
 /**
  * Creates the view of one section in root.
  *
@@ -73,10 +64,12 @@ export function createSectionView({ runtime, expose, declarations, root, section
     return () => stateListeners.delete(listener);
   }).catch((error) => report(`status browser.section: ${error?.message ?? error}`));
 
-  const element = (tag, className, text) => {
+  // An element of a draw. A named element carries its dom name, which is the name of its provider.
+  const element = (tag, className, text, name) => {
     const node = doc.createElement(tag);
     if (className !== undefined) node.className = className;
     if (text !== undefined) node.textContent = text;
+    if (name !== undefined) node.dataset.expose = name;
     return node;
   };
 
@@ -93,38 +86,21 @@ export function createSectionView({ runtime, expose, declarations, root, section
   });
   binder.delegate(root);
 
-  // The named elements of a draw are reused: the first unused element of a name is taken, and a new one is created and registered
-  // only when every element of the name is in use. A new element per draw would grow the registry of the exposure at each draw.
-  const pools = new Map([...NAMED].map(([name, shape]) => [name, { shape, nodes: [], used: 0 }]));
-  const restart = () => {
-    for (const pool of pools.values()) pool.used = 0;
-  };
-  const take = (name) => {
-    const pool = pools.get(name);
-    if (pool.used === pool.nodes.length) {
-      const node = doc.createElement(pool.shape.tag);
-      if (pool.shape.tag === "button") node.type = "button";
-      node.dataset.expose = name;
-      pool.nodes.push(node);
-      expose.dom(name, node).catch((error) => report(`dom ${name}: ${error?.message ?? error}`));
-    }
-    const node = pool.nodes[pool.used++];
-    node.replaceChildren();
-    node.className = pool.shape.className ?? "";
-    node.removeAttribute("aria-current");
-    delete node.dataset.command;
-    delete node.dataset.params;
-    return node;
-  };
+  // Each dom name of the section has one provider: it returns the elements of the name that the root holds, in document order.
+  // The elements of a draw are new, so a removed element is not held by the provider, and an index follows document order.
+  for (const name of ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"]) {
+    expose.dom(name, () => [...root.querySelectorAll(`[data-expose="${name}"]`)])
+      .catch((error) => report(`dom ${name}: ${error?.message ?? error}`));
+  }
 
   // An item of a list or a node of a tree: its label is a button when it has a command, and its children nest under it.
   const drawItem = (item) => {
-    const row = take("browser.section.row");
+    const row = element("li", undefined, undefined, "browser.section.row");
     if (item.command === undefined) {
       row.append(element("span", undefined, item.label));
     } else {
-      const button = take("browser.section.item");
-      button.textContent = item.label;
+      const button = element("button", undefined, item.label, "browser.section.item");
+      button.type = "button";
       binder.mark(button, item.command, item.params);
       row.append(button);
     }
@@ -143,26 +119,19 @@ export function createSectionView({ runtime, expose, declarations, root, section
     return list;
   };
 
-  const drawNamed = (name, text) => {
-    const node = take(name);
-    node.textContent = text;
-    return node;
-  };
-
   const drawElement = (value) => {
     if (value.kind === "list") {
-      return value.items.length === 0 ? drawNamed("browser.section.empty", value.empty) : drawNodes("list", value.items);
+      return value.items.length === 0 ? element("p", "empty", value.empty, "browser.section.empty") : drawNodes("list", value.items);
     }
     if (value.kind === "tree") {
-      return value.nodes.length === 0 ? drawNamed("browser.section.empty", value.empty) : drawNodes("tree", value.nodes);
+      return value.nodes.length === 0 ? element("p", "empty", value.empty, "browser.section.empty") : drawNodes("tree", value.nodes);
     }
-    if (value.kind === "status-line") return drawNamed("browser.section.status", value.text);
+    if (value.kind === "status-line") return element("p", "status", value.text, "browser.section.status");
     throw new Error(`section ${section.id} draws no element of kind ${JSON.stringify(value.kind)}`);
   };
 
   const drawText = (text) => {
-    restart();
-    root.replaceChildren(drawNamed("browser.section.empty", text));
+    root.replaceChildren(element("p", "empty", text, "browser.section.empty"));
   };
 
   const draw = (value) => {
@@ -170,7 +139,6 @@ export function createSectionView({ runtime, expose, declarations, root, section
       report(`section ${section.id} has no elements in the value of ${status}`);
       return;
     }
-    restart();
     root.replaceChildren(...value.elements.map(drawElement));
   };
 

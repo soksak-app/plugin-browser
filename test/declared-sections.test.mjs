@@ -14,8 +14,8 @@ test("browser.history is one list whose items run browser.history.go and select 
     key: "history",
     empty: "기록 없음",
     items: [
-      { key: "h0:https:__a.test_one", label: "One", command: "browser.history.go", params: { index: 0 }, selected: false },
-      { key: "h1:https:__b.test_two", label: "https://b.test/two", command: "browser.history.go", params: { index: 1 }, selected: true },
+      { key: "h0:https://a.test/one", label: "One", command: "browser.history.go", params: { index: 0 }, selected: false },
+      { key: "h1:https://b.test/two", label: "https://b.test/two", command: "browser.history.go", params: { index: 1 }, selected: true },
     ],
   }]);
   const empty = declaredHistory({ entries: [], index: -1 });
@@ -124,12 +124,11 @@ test("a browser.history key names its entry by index and URL, and a history key 
   // The back-forward list drops its oldest entry: each remaining entry moves to a lower index.
   const after = declaredHistory({ entries: [entry("b"), entry("c"), entry("d")], index: 1 }).elements[0].items;
   assertKeysKeepRows(before, after);
-  for (const item of [...before, ...after]) {
-    assert.match(item.key, /^[A-Za-z0-9._:-]{1,128}$/, `history key ${item.key} is outside the declared key form`);
-  }
-  const longUrl = `https://a.test/${"x".repeat(2000)}`;
-  const [long] = declaredHistory({ entries: [{ url: longUrl, title: "" }], index: 0 }).elements[0].items;
-  assert.match(long.key, /^[A-Za-z0-9._:-]{1,128}$/, "a long URL is cut to the key limit");
+  // drawList takes any text as a key, so the key holds the whole URL: two URLs that differ only after a long common start, or
+  // only in characters outside a narrow set, name two rows.
+  const prefix = `https://a.test/${"x".repeat(200)}`;
+  const long = declaredHistory({ entries: [{ url: `${prefix}?a`, title: "" }, { url: `${prefix}?b`, title: "" }], index: 0 }).elements[0].items;
+  assert.deepEqual(long.map((item) => item.key), [`h0:${prefix}?a`, `h1:${prefix}?b`]);
 });
 
 test("an element whose depth skips a level is refused with an error", () => {

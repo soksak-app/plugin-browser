@@ -19,10 +19,6 @@ const STREAM_READ_LIMIT_MS = 10000;
 const cutText = (text) => (text.length > 500 ? [...text].slice(0, 500).join("") : text);
 // A tree accepts at most 16 levels (core docs/spec/declared-ui.md#limits); the elements below the limit are counted and stated.
 const TREE_LEVELS = 16;
-// A row key holds 1 to 128 code points of A-Z, a-z, 0-9, ., _, : and - (core docs/spec/declared-ui.md, key rules). A history key
-// keeps the URL in that set: each other code point becomes _, and the URL is cut to 100 code points, so the key stays within 128.
-const KEY_URL_LIMIT = 100;
-const keyText = (text) => [...text].slice(0, KEY_URL_LIMIT).map((char) => (/[A-Za-z0-9._:-]/.test(char) ? char : "_")).join("");
 
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
@@ -34,7 +30,7 @@ export const declaredHistory = (history) => ({
     key: "history",
     empty: "기록 없음",
     items: history.entries.map((entry, index) => ({
-      key: `h${index}:${keyText(entry.url)}`,
+      key: `h${index}:${entry.url}`,
       label: cutText(entry.title || entry.url),
       command: "browser.history.go",
       params: { index },

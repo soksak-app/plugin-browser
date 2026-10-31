@@ -8,6 +8,24 @@ import { createBinder } from "./binder.mjs";
 
 const ERROR = { unknownStatus: 1001, notRegistered: 1002, invalidParams: -32602, unknownMethod: -32601, failed: -32000 };
 
+/**
+ * The effective CSS zoom of the element, as elementRect of the plugin API reads it: the product of the computed zoom of the
+ * element and of each ancestor of the flat tree (a slotted element continues at its slot, a shadow root at its host).
+ */
+function effectiveZoom(element) {
+  const view = element.ownerDocument.defaultView;
+  let zoom = 1;
+  // default: each step takes the next flat-tree parent: the slot of a slotted element, else the parent element, else the host
+  // of a shadow root; the document element has none of them, so null ends the walk at the root of the flat tree.
+  for (let node = element; node; node = node.assignedSlot ?? node.parentElement ?? node.getRootNode().host ?? null) {
+    const computed = view.getComputedStyle(node).zoom;
+    const value = Number(computed);
+    if (!Number.isFinite(value) || value <= 0) throw new Error(`computed zoom ${computed} is not a positive number`);
+    zoom *= value;
+  }
+  return zoom;
+}
+
 class RequestError extends Error {
   constructor(code, message) {
     super(message);
@@ -136,8 +154,9 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
         return null;
       }
       case "dom.rect": {
-        const box = elementOf(params.name, params).getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width, height: box.height };
+        const element = elementOf(params.name, params);
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height, zoom: effectiveZoom(element) };
       }
       case "command.run": {
         const command = commands.get(params.name);

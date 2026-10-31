@@ -80,6 +80,11 @@ test("expose cases replay against the exposure model", async () => {
         const element = {
           id: name,
           dataset: {},
+          // The markup of a case sets no zoom, so each element has the initial computed zoom 1 and no flat-tree parent.
+          ownerDocument: { defaultView: { getComputedStyle: () => ({ zoom: "1" }) } },
+          assignedSlot: null,
+          parentElement: null,
+          getRootNode: () => ({ host: null }),
           getBoundingClientRect: () => {
             const rect = testCase.rects?.[name] ?? { left: 0, top: 0, width: 0, height: 0 };
             return { left: rect.left, top: rect.top, width: rect.width, height: rect.height, x: rect.left, y: rect.top };

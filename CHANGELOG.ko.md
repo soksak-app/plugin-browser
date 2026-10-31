@@ -16,6 +16,7 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- F272-browser: `main`에 push하면 tag가 없을 때 `soksak-release-gate`로 선언된 version을 core release `v0.0.21`의 `sok`와 함께 release한다. `@soksak/plugin-api`에 대한 의존은 그 release의 pack 파일이다. 어떤 workflow도 core를 checkout하지 않는다.
 - P101-browser: Hook 검증을 실제 실행 방식으로 유지한다. Hook owner가 이 manifest에 선언된 plugin API source에서 연결된 package 경로를 찾고 두 hook을 실행하면서 development link가 바뀌지 않는지 확인한다. 정적 hook command mirror는 제거했다. Boundary와 workflow owner가 6/6, record checker가 69개 file 통과한다. View consumer는 재실행하지 않았다.
 
 - P100-browser: Browser 테스트 host와 bridge model을 현재 view log contract에 맞춘다. Host fake는 clock 요청에 응답하고 batch에서 선언된 plugin event를 기록하며, 거부된 batch를 error route로 전달하고 그 route도 실패할 때만 보고한다. 집중 view owner 22/22, operation owner 2/2, operation conformance 1/1, boundary 및 workflow owner 7/7 통과한다. 집중 needle Red는 workflow test의 hook command 두 줄을 찾았으며 이제 전체 package 이름을 검사 대상 한 줄에 쓰지 않고 선언된 실행 경로를 구성한다. package 전체 suite는 재실행하지 않았다.

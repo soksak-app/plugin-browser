@@ -6,21 +6,10 @@
 // the tab state, and the commands. The page reads the start values of the surface (the tab, its params, its origin, its
 // project and the declarations of the plugin) from window.sokSurface, which the host injects before the page runs.
 import { createExpose } from "@soksak/plugin-api";
-import { createViewBridge } from "@soksak/plugin-api/view";
 import { mount } from "./browser.js";
-import { createEmitter, errorText } from "./events.js";
+import { createPage } from "./page.js";
 import { startValues } from "./start-values.js";
 import { loadDiagnostics } from "./view-diagnostics.js";
-
-/**
- * The reporter of this page: each record is an emit of the catalog event plugin.browser.report, which the emitter stores
- * through the bridge logger under the name without the plugin prefix (core docs/spec/logging.md). The bridge logger reports a
- * refused record through runtime.error.
- */
-function createReporter(runtime) {
-  const emitEvent = createEmitter(runtime, "browser");
-  return (text) => emitEvent("error", "plugin.browser.report", { text });
-}
 
 /**
  * The surface context of the view of one page, over the view bridge: every entry runs through the call route of the view,
@@ -116,41 +105,11 @@ export function createViewContext({ bridge, start, report, diagnostics = null })
   };
 }
 
-/** Sets the theme on the root of the page, as the theme script of the view and each later theme message carry it. */
-function applyTheme(theme) {
-  if (theme?.scheme !== "dark" && theme?.scheme !== "light") throw new Error("the theme must have scheme dark or light");
-  document.documentElement.style.colorScheme = theme.scheme;
-  for (const [token, value] of Object.entries(theme.tokens ?? {})) {
-    document.documentElement.style.setProperty(token, value);
-  }
-}
-
-/** The errors and unhandled rejections of this page are written to the application log when they occur. */
-function installPageErrors(report) {
-  for (const [type, pick] of [["error", (event) => event.error], ["unhandledrejection", (event) => event.reason]]) {
-    addEventListener(type, (event) => {
-      const error = pick(event);
-      report(`view browser: ${error?.message ?? String(error)}`);
-    });
-  }
-}
-
-// The page: the start values, the bridge over the injected channel, the theme of the document, and the mount into the
-// shadow root of the page body.
+// The page: the start values, the bridge over the injected channel with the reporter and the theme (page.js), and the mount into
+// the shadow root of the page body.
 const start = startValues();
 const diagnostics = await loadDiagnostics(start);
-const bridge = createViewBridge({
-  handler: window.webkit.messageHandlers["sok-view"],
-  report: (event) => {
-    const text = `view bridge: ${JSON.stringify(event)}`;
-    if (event?.kind === "open-calls") console.debug(text);
-    else console.error(text);
-  },
-});
-const report = createReporter(bridge.runtime);
-installPageErrors(report);
-if (window.sokTheme) applyTheme(window.sokTheme);
-bridge.runtime.theme(applyTheme);
+const { bridge, report } = createPage();
 const { context } = createViewContext({ bridge, start, report, diagnostics });
 const host = document.body.appendChild(document.createElement("div"));
 host.style.cssText = "height:100%";

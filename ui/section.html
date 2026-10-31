@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>브라우저</title>
+<style>
+html,body{height:100%;margin:0}
+body{background:var(--card);color:var(--fg);font:12px/1.4 var(--font);overflow:auto}
+ul{list-style:none;margin:0;padding:0}
+ul.tree ul{padding-left:12px}li>ul{flex-basis:100%}
+li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:2px 8px;min-width:0}
+li.selected{background:var(--inset)}
+button{border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+button:hover{text-decoration:underline}
+.detail{color:var(--muted);margin-left:auto;white-space:nowrap}
+.empty,.status{margin:0;padding:4px 8px;color:var(--muted)}
+</style>
+</head>
+<body>
+<script type="module" src="./section.js"></script>
+</body>
+</html>

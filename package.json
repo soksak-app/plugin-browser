@@ -19,6 +19,10 @@
     "ui/browser.js",
     "ui/events.js",
     "ui/index.html",
+    "ui/page.js",
+    "ui/section-view.js",
+    "ui/section.html",
+    "ui/section.js",
     "ui/start-values.js",
     "ui/view-diagnostics.js",
     "ui/view.js"

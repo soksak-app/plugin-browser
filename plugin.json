@@ -30,22 +30,26 @@
     {
       "id": "browser.dom",
       "name": "DOM",
-      "status": "browser.elements"
+      "composition": { "kind": "view", "page": "ui/section.html" },
+      "height": "fill"
     },
     {
       "id": "browser.network",
       "name": "네트워크",
-      "status": "browser.requests"
+      "composition": { "kind": "view", "page": "ui/section.html" },
+      "height": "fill"
     },
     {
       "id": "browser.tabs",
       "name": "탭",
-      "status": "browser.tabs"
+      "composition": { "kind": "view", "page": "ui/section.html" },
+      "height": 160
     },
     {
       "id": "browser.history",
       "name": "히스토리",
-      "status": "browser.history"
+      "composition": { "kind": "view", "page": "ui/section.html" },
+      "height": 160
     }
   ],
   "settings": {
@@ -118,7 +122,7 @@
       },
       {
         "name": "browser.history",
-        "description": "The declared UI value of the 히스토리 section: one list of the session history entries of the document region from the oldest, each with the title or the address as its label and bound to browser.history.go with its position, the current entry selected, or the empty list.",
+        "description": "The value of the 히스토리 section, which the section view draws: one list of the session history entries of the document region from the oldest, each with the title or the address as its label and bound to browser.history.go with its position, the current entry selected, or the empty list.",
         "schema": {
           "type": "object",
           "properties": {
@@ -128,7 +132,7 @@
       },
       {
         "name": "browser.elements",
-        "description": "The declared UI value of the DOM section: one tree of the elements of the document in document order, each with tag, id and class as its label nested by depth, a status line for a snapshot cut above 500 nodes, and a status line for the elements below the 16-level limit of a tree, or the empty tree before the first snapshot and after a reset of the document.",
+        "description": "The value of the DOM section, which the section view draws: one tree of the elements of the document in document order, each with tag, id and class as its label nested by depth, a status line for a snapshot cut above 500 nodes, and a status line for the elements below the 16-level limit of a tree, or the empty tree before the first snapshot and after a reset of the document.",
         "schema": {
           "type": "object",
           "properties": {
@@ -138,7 +142,7 @@
       },
       {
         "name": "browser.requests",
-        "description": "The declared UI value of the 네트워크 section: one static list of the requests that the document recorded, each with type and address as its label and the duration in milliseconds as its detail, and a status line with the count the request log dropped, or the empty list before the first entries and after a reset of the document.",
+        "description": "The value of the 네트워크 section, which the section view draws: one static list of the requests that the document recorded, each with type and address as its label and the duration in milliseconds as its detail, and a status line with the count the request log dropped, or the empty list before the first entries and after a reset of the document.",
         "schema": {
           "type": "object",
           "properties": {
@@ -148,7 +152,7 @@
       },
       {
         "name": "browser.tabs",
-        "description": "The declared UI value of the 탭 section: one list of the browser tabs of the card that holds the surface, each with its title or label as its label and bound to browser.tab.select with its tab, the active tab selected, or the empty list without such a card. The page follows core.grid through runtime.status.watch.",
+        "description": "The value of the 탭 section, which the section view draws: one list of the browser tabs of the card that holds the surface, each with its title or label as its label and bound to browser.tab.select with its tab, the active tab selected, or the empty list without such a card. The page follows core.grid through runtime.status.watch.",
         "schema": {
           "type": "object",
           "properties": {

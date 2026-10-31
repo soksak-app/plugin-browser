@@ -30,16 +30,18 @@ test("every section module is published", () => {
   }
 });
 
-test("every section is a declared UI status of this plugin, and the tab selection is a command of it", () => {
-  const declared = (name) => manifest.exposes.status.some((entry) => entry.name === name);
+test("every section is a view of the section page, at its declared height, and the tab selection is a command of it", () => {
   const sections = Object.fromEntries(manifest.sections.map((section) => [section.id, section]));
-  assert.equal(sections["browser.history"].status, "browser.history");
-  assert.equal(sections["browser.network"].status, "browser.requests");
-  assert.equal(sections["browser.dom"].status, "browser.elements");
-  assert.equal(sections["browser.tabs"].status, "browser.tabs");
+  assert.deepEqual(Object.keys(sections).sort(), ["browser.dom", "browser.history", "browser.network", "browser.tabs"]);
   for (const section of manifest.sections) {
+    assert.deepEqual(section.composition, { kind: "view", page: "ui/section.html" }, `${section.id} is a view of the section page`);
+    assert.equal(section.status, undefined, `${section.id} declares no status`);
     assert.equal(section.module, undefined, `${section.id} declares no module`);
-    assert.ok(declared(section.status), `${section.status} is not a status of this plugin`);
+    assert.equal(section.fill, undefined, `${section.id} declares no fill`);
   }
+  assert.equal(sections["browser.dom"].height, "fill");
+  assert.equal(sections["browser.network"].height, "fill");
+  assert.equal(sections["browser.tabs"].height, 160);
+  assert.equal(sections["browser.history"].height, 160);
   assert.ok(manifest.exposes.commands.some((entry) => entry.name === "browser.tab.select"), "browser.tab.select is a declared command");
 });

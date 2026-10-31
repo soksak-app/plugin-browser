@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F332-6-1: The four browser sections are views of the plugin: `plugin.json` declares each section with the `composition` `view` of `ui/section.html` and a `height`, and the section page (`ui/section-view.js`) draws the value of its status on the surface that `core.sidebars` reports for the section. Validation: before the change `test/section-view.test.mjs` failed with `ERR_MODULE_NOT_FOUND` for `ui/section-view.js` and `test/manifest.test.mjs` failed with `browser.dom is a view of the section page`; after it the two files pass 12 of 12 and `make test` passes 138 of 138. `make check` does not pass yet: the pinned SDK 0.0.24 refuses the section form, and core's exposure check reads the section ids as undeclared names.
 - P31: `make push-check` passes: it checks only the commit messages of the pushed range (F274-browser), and `make check` passes on the pinned core commit of P103, so the pre-push hook no longer blocks the pushes of this repository.
 - P9: The CI and release workflows are complete: `release.yml` published the release on the tags `v0.0.3` to `v0.0.6`, and `ci.yml` runs the tests on a macOS runner with the Node.js and pnpm versions that `.node-version` and `packageManager` declare.
 - P108: The DOM section gives each element that has children `expanded: true`, so it shows every element of the snapshot; core draws only the root of a branch without that field. Validation: `test/declared-sections.test.mjs` read branches without `expanded` before the change and passes after it.

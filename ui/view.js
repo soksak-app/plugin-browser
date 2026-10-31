@@ -138,7 +138,7 @@ function installPageErrors(report) {
 // The page: the start values, the bridge over the injected channel, the theme of the document, and the mount into the
 // shadow root of the page body.
 const start = startValues();
-const diagnostics = await loadDiagnostics();
+const diagnostics = await loadDiagnostics(start);
 const bridge = createViewBridge({
   handler: window.webkit.messageHandlers["sok-view"],
   report: (event) => {

@@ -16,7 +16,7 @@ function checkViewPage(html) {
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const PAGE = new URL("../build/test/ui/index.html", import.meta.url);
-const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: manifest.exposes };
+const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: manifest.exposes, diagnostics: null };
 
 test("the view page begins with its doctype, holds no import map, and carries the page script", () => {
   const html = readFileSync(PAGE, "utf8");

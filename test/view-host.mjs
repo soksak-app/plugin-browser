@@ -250,16 +250,13 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (input) => {
     const url = String(input);
-    if (url === "soksak://browser/diagnostics.json" || url === "sok://browser/diagnostics.json") {
-      return { status: 404, ok: false };
-    }
     throw new Error(`the page fetched ${url}, which the test host serves no document for`);
   };
   t.after(() => { globalThis.fetch = realFetch; });
 
   // The start values in the form that core injects (docs/spec/native-surfaces.md#view-surfaces, start values): the
   // declarations are the exposes of the plugin.
-  window.sokSurface = Object.freeze(start ?? { surface: "browser-1", params: {}, origin, project: { id: "prj-project", root: "/project" }, declarations: MANIFEST.exposes });
+  window.sokSurface = Object.freeze(start ?? { surface: "browser-1", params: {}, origin, project: { id: "prj-project", root: "/project" }, declarations: MANIFEST.exposes, diagnostics: null });
   installViewChannel(window, handler);
   post({ sok: 1, event: "theme", data: { scheme: "dark", tokens: {} } });
 

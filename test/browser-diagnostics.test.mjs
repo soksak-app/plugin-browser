@@ -139,12 +139,18 @@ test("diagnostic observer refuses repeated starts and unknown actions", { timeou
   await command({ action: "stop" });
 });
 
-test("normal staging without diagnostics does not attach a diagnostic module", { timeout: 1000 }, async () => {
-  const calls = [];
-  const declaration = await loadDiagnostics("soksak://browser/ui/index.html", async (url) => {
-    calls.push(url);
-    return { status: 404, ok: false };
-  });
-  assert.equal(declaration, null);
-  assert.deepEqual(calls, ["soksak://browser/diagnostics.json"]);
+test("a release view without a diagnostic declaration in its start values attaches no diagnostic module", { timeout: 1000 }, async () => {
+  assert.equal(await loadDiagnostics({ surface: "browser-1", diagnostics: null }), null);
+});
+
+test("a diagnostic view loads the declaration of its start values and its attach function", { timeout: 1000 }, async () => {
+  const declaration = { module: "ui/browser-diagnostics.js", exposes: {} };
+  const diagnostics = await loadDiagnostics({ surface: "browser-1", diagnostics: declaration });
+  assert.deepEqual(diagnostics.declaration, declaration);
+  assert.equal(typeof diagnostics.attach, "function");
+});
+
+test("start values without a diagnostic declaration are refused with an error that names them", { timeout: 1000 }, async () => {
+  await assert.rejects(loadDiagnostics({ surface: "browser-1" }),
+    /^Error: the start values of the browser view have no diagnostics: window\.sokSurface \{surface, params, origin, project, declarations, diagnostics\} carries it$/);
 });

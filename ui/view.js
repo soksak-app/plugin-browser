@@ -5,9 +5,8 @@
 // docs/spec/native-surfaces.md#view-surfaces, view calls): the tab reports, the event records as the call runtime.log,
 // the tab state, and the commands. The page reads the start values of the surface (the tab, its params, its origin, its
 // project and the declarations of the plugin) from window.sokSurface, which the host injects before the page runs.
-import { createExpose } from "@soksak/plugin-api";
 import { mount } from "./browser.js";
-import { createPage } from "./page.js";
+import { callOf, createPage, createPageExposure } from "./page.js";
 import { startValues } from "./start-values.js";
 import { loadDiagnostics } from "./view-diagnostics.js";
 
@@ -25,23 +24,8 @@ export function createViewContext({ bridge, start, report, diagnostics = null })
   if (typeof report !== "function") throw new TypeError("createViewContext requires the report function");
   const { calls, commands, runtime } = bridge;
   // The fire-and-forget calls of the context: a refusal of the route is a record, not a lost report.
-  const send = (command, params) => calls.request(command, params)
-    .then(undefined, (error) => report(`view call ${command}: ${error?.message ?? error}`));
-  // The exposure of the page: the local entries answer the binds and the exposure requests, and each registration goes
-  // through the channel. A command is declared by commands.register of the bridge, which registers the same handler for
-  // the requests of core, so the local registration sends no declaration of its own.
-  const exposure = createExpose({
-    register: (kind, name) => kind === "command"
-      ? Promise.resolve()
-      : calls.request("runtime.native.call", { name: "registered", payload: { kind, name } }).then(() => undefined),
-    // The exposure requests of the surface (status.get, status.watch, status.next, status.unwatch, command.run, dom.rect,
-    // dom.act) reach the view as the host event exposure-request {id, surface, method, params} through the subscription
-    // runtime.native.on (core docs/spec/native-surfaces.md#view-surfaces, view exposure), and the answer replies through
-    // exposureReply.
-    onRequest: (answer) => runtime.native.on("exposure-request", answer),
-    reply: (id, payload) => send("runtime.native.call", { name: "exposureReply", payload: { id, ...payload } }),
-    report,
-  }, () => start.declarations);
+  const send = callOf(calls, report);
+  const exposure = createPageExposure({ bridge, declarations: start.declarations, report });
   return {
     context: {
       surfaceId: start.surface,

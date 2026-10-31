@@ -80,6 +80,15 @@ export function createBinder(run, { check } = {}) {
           text: textOf(element),
         }));
     },
+    // Marks an element with a command without a listener: a delegated root runs the marked control (docs/spec/exposure.md).
+    mark(element, name, params, valueName) {
+      check(name);
+      element.dataset.command = name;
+      if (params && Object.keys(params).length) element.dataset.params = JSON.stringify(params);
+      else delete element.dataset.params;
+      if (valueName) element.dataset.value = valueName;
+      return element;
+    },
     async run(name, params) {
       check(name);
       calls.push({ name, params, element: null });

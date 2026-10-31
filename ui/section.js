@@ -2,10 +2,11 @@
 // The host serves this page for each section surface and injects the start values with section {id, sidebar, card}; the section
 // view selects the status that the section draws by its id (section-view.js).
 
-import { createPage } from "./page.js";
+import { createPage, createPageExposure } from "./page.js";
 import { startValues } from "./start-values.js";
 import { createSectionView } from "./section-view.js";
 
 const start = startValues();
 const { bridge, report } = createPage();
-createSectionView({ runtime: bridge.runtime, root: document.body, section: start.section, report });
+const expose = createPageExposure({ bridge, declarations: start.declarations, report });
+createSectionView({ runtime: bridge.runtime, expose, declarations: start.declarations, root: document.body, section: start.section, report });

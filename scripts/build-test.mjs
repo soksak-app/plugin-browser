@@ -15,7 +15,7 @@ const outputModels = path.join(outputRoot, "sdk-models");
 
 // Each SDK specifier maps to its model file (relative to test/sdk-models) and the names that the model exports.
 const MODELS = {
-  "@soksak/plugin-api": { file: "index.mjs", names: ["createExpose", "drawList"] },
+  "@soksak/plugin-api": { file: "index.mjs", names: ["createBinder", "createExpose", "drawList"] },
   "@soksak/plugin-api/view": { file: "view.mjs", names: ["createViewBridge"] },
   "@soksak/plugin-api/diagnostic-view-frames": { file: "diagnostic-view-frames.mjs", names: ["observeViewDocumentFrames"] },
 };

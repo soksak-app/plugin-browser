@@ -20,6 +20,7 @@ function fakeRuntime() {
   return {
     watches,
     commands,
+    expose: fakeExpose(),
     runtime: {
       status: {
         watch(name, listener, options) {
@@ -36,6 +37,31 @@ function fakeRuntime() {
     },
   };
 }
+
+// A fake of the exposure of the page: each status is recorded with its read and subscribe, and each dom registration with its element.
+function fakeExpose() {
+  const statuses = new Map();
+  const doms = [];
+  return {
+    statuses,
+    doms,
+    status(name, read, subscribe) {
+      statuses.set(name, { read, subscribe });
+      return Promise.resolve();
+    },
+    dom(name, element) {
+      doms.push({ name, element });
+      return Promise.resolve();
+    },
+  };
+}
+
+// The exposes of the browser plugin that the section view uses: the commands of its items.
+const DECLARATIONS = {
+  status: [],
+  commands: [{ name: "browser.tab.select" }, { name: "browser.history.go" }],
+  dom: [],
+};
 
 // The watches of a name that are not stopped; a watch with no options follows the workbench.
 const live = (fake, name) => fake.watches.filter((watch) => watch.name === name && !watch.stopped);
@@ -61,7 +87,7 @@ const surfaces = (...entries) => entries.map(([surface, plugin]) => ({ surface, 
 function mount(fake, { section = SECTION, reports = [] } = {}) {
   const root = document.createElement("div");
   document.body.replaceChildren(root);
-  createSectionView({ runtime: fake.runtime, root, section, report: (text) => reports.push(text) });
+  createSectionView({ runtime: fake.runtime, expose: fake.expose, declarations: DECLARATIONS, root, section, report: (text) => reports.push(text) });
   return root;
 }
 
@@ -181,7 +207,7 @@ test("a command that fails is reported with its name and its text", async () => 
     fake.commands.push({ name, params, options, promise });
     return promise;
   };
-  createSectionView({ runtime: fake.runtime, root, section: SECTION, report: (text) => reports.push(text) });
+  createSectionView({ runtime: fake.runtime, expose: fake.expose, declarations: DECLARATIONS, root, section: SECTION, report: (text) => reports.push(text) });
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
   deliver(fake, "browser.tabs", "tab-1", {
@@ -190,6 +216,85 @@ test("a command that fails is reported with its name and its text", async () => 
   root.querySelector("button").click();
   await fake.commands[0].promise.catch(() => {});
   assert.deepEqual(reports, ["command browser.tab.select: tab is gone"]);
+});
+
+// The value of one list of tabs on the surface tab-2, with two items.
+const tabsValue = (items) => ({
+  elements: [{ kind: "list", key: "tabs", empty: "브라우저 탭 없음", items: items.map(([key, label, selected]) => ({
+    key, label, command: "browser.tab.select", params: { tab: key }, selected,
+  })) }],
+});
+
+test("the section view registers the status browser.section, which reports its pending, empty and followed states on each change", () => {
+  const fake = fakeRuntime();
+  mount(fake);
+  const status = fake.expose.statuses.get("browser.section");
+  assert.ok(status, "browser.section is registered");
+  assert.deepEqual(status.read(), { section: "browser.tabs", state: "pending" });
+  const seen = [];
+  status.subscribe((value) => seen.push(value.state));
+  deliver(fake, "core.surfaces", undefined, [...surfaces(["other-1", "other"]), ...surfaces(["tab-1", "browser"])]);
+  deliver(fake, "core.sidebars", undefined, sidebars("other-1"));
+  deliver(fake, "core.sidebars", undefined, sidebars("other-1"));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
+  assert.deepEqual(seen, ["pending", "empty", "followed"], "each change is notified once");
+  assert.deepEqual(status.read(), { section: "browser.tabs", state: "followed" });
+});
+
+test("the rows, items, empty texts and status lines carry declared dom names, and each item is a command control", () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  deliver(fake, "browser.tabs", "tab-2", {
+    elements: [
+      ...tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]).elements,
+      { kind: "status-line", key: "tabs.cut", text: "2 of 2" },
+    ],
+  });
+  const named = (name) => [...root.querySelectorAll(`[data-expose="${name}"]`)];
+  assert.equal(named("browser.section.row").length, 2);
+  assert.deepEqual(named("browser.section.item").map((el) => [el.tagName, el.textContent, el.dataset.command, JSON.parse(el.dataset.params).tab]),
+    [["BUTTON", "Docs", "browser.tab.select", "t1"], ["BUTTON", "Mail", "browser.tab.select", "t2"]]);
+  assert.equal(named("browser.section.status")[0].textContent, "2 of 2");
+  // Each named element is registered with the exposure of the page under its name.
+  for (const name of ["browser.section.row", "browser.section.item", "browser.section.status"]) {
+    const registered = fake.expose.doms.filter((entry) => entry.name === name).map((entry) => entry.element);
+    for (const el of named(name)) assert.ok(registered.includes(el), `${name} element is registered`);
+  }
+  for (const el of root.querySelectorAll("button")) assert.ok(el.dataset.command && el.dataset.expose, "each button has a command and a dom name");
+});
+
+test("a draw reuses the registered elements, so a new item registers only its row and its button", () => {
+  const fake = fakeRuntime();
+  mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
+  const registered = fake.expose.doms.length;
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
+  assert.equal(fake.expose.doms.length, registered, "a draw of the same value registers no element");
+  deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", false], ["t3", "News", true]]));
+  assert.equal(fake.expose.doms.length, registered + 2, "one new row and one new button");
+});
+
+test("the empty state text carries the dom name browser.section.empty", () => {
+  const fake = fakeRuntime();
+  const root = mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars(null));
+  const empty = root.querySelector('[data-expose="browser.section.empty"]');
+  assert.equal(empty?.textContent, "연결된 탭 없음");
+});
+
+test("a value that names a command the plugin does not declare is refused", () => {
+  const fake = fakeRuntime();
+  mount(fake);
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
+  const value = { elements: [{ kind: "list", key: "tabs", empty: "없음", items: [{ key: "t1", label: "Docs", command: "browser.unknown", params: {} }] }] };
+  assert.throws(() => deliver(fake, "browser.tabs", "tab-2", value), /command browser\.unknown is not declared/);
 });
 
 test("a section id that the plugin does not declare is refused", () => {

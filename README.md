@@ -7,7 +7,7 @@ Browser plugin: an address bar and a document region that shows web pages. The p
 ```sh
 make test                                   # tests
 make check                                  # SDK checks of the pinned core release
-make pack OUT=<folder> SOK=<core>/target/debug/sok   # the plugin release
+make pack OUT=<folder> # the plugin release
 make hooks                                  # once after cloning: check commit messages and records at commit time
 ```
 

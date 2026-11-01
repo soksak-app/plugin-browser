@@ -1,9 +1,5 @@
-# browser plugin repository 의 test 와 pack(docs/features.md). pack 은 core 의 sok 를 쓴다.
+# browser plugin repository 의 test 와 pack(docs/features.md). pack 은 pnpm pack 으로 release 를 쓴다.
 .PHONY: install test check pack push-check hooks
-
-SOK ?= sok
-# DIAGNOSTICS=1 이면 diagnostics.json 을 담은 진단 package 를 쓴다.
-PACK_FLAGS = $(if $(DIAGNOSTICS),--diagnostics,)
 
 # test 는 package.json 이 정한 core commit 의 @soksak/plugin-api 를 쓴다.
 # The installation stage (core docs/spec/plugins.md#repositories): it installs the locked dependencies; the tests, checks and packs consume them without installing.
@@ -33,7 +29,7 @@ check:
 
 pack:
 	@test -n "$(OUT)" || { echo "make pack OUT=<folder>" >&2; exit 2; }
-	$(SOK) plugin pack . $(OUT) $(PACK_FLAGS)
+	pnpm pack --pack-destination $(OUT)
 
 # The check that a push needs: the commit messages of the pushed range, because a published commit message is kept; CI runs
 # the tests and checks on the pushed commits.

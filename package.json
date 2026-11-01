@@ -16,6 +16,7 @@
   "files": [
     "plugin.json",
     "diagnostics.json",
+    "ui/browser-diagnostics.js",
     "events.json",
     "ui/browser.js",
     "ui/events.js",

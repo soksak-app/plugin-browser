@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F355-4-browser-1: release는 진단 build만 읽는 진단 module `ui/browser-diagnostics.js`를 담고, 보류된 체크리스트 항목은 core 0.0.25의 release gate가 요구하는 `원인:`과 `재시도 조건:`을 적는다.
 - F355-4-browser: `make pack OUT=<folder>`는 `pnpm pack`으로 release를 쓰고, release.yml은 더 이상 core release를 내려받지 않는다. core 0.0.25는 plugin의 `pnpm pack` 파일을 설치하고 `sok plugin pack`이 없기 때문이다. release는 `diagnostics.json`을 담고, `@soksak/plugin-api`는 core release `v0.0.25`에 pin된다.
 - F342-browser: view page는 watch 중인 status의 값을 `{name, value, version}`을 담은 view 호출 `changed`로 보낸다. core F342-1이 `createExpose`의 `changed` port를 요구하기 때문이다. 이 변경 전에는 모든 browser view가 `createExpose requires the port changed function`으로 로드에 실패했다. page와 exposure model에서 `status.next` 언급을 제거했고, expose case 사본은 core `contract/expose.json`을 따른다. 검증: `test/page-exposure.test.mjs`가 변경 전 `TypeError [Error]: createExpose requires the port changed function`으로 실패했고 변경 후 통과한다. `pnpm test`가 156개 중 156개를 통과한다. `@soksak/plugin-api`의 pin은 아직 `changed`보다 앞선 v0.0.24이므로, release는 core F342-1을 게시한 release를 기다린다.
 - F332-6-6: section view는 따라가는 surface가 status를 아직 등록하지 않은 동안 exposure registry가 주는 null 값을 보고하지 않고 아무것도 그리지 않는다. `elements`가 없는 다른 형태의 값은 계속 보고한다. 검증: `test/section-view.test.mjs`가 변경 전 그 보고로 실패했고 변경 후 통과한다. `make test`가 155개 중 155개를 통과하고, `CORE_PLUGIN_API_DIR`를 core의 `packages/plugin-api`로 지정한 `make check`가 통과한다.

@@ -90,8 +90,11 @@ test("make pack writes the release with pnpm pack into the folder that OUT names
   assert.doesNotMatch(readFileSync(path.join(ROOT, "Makefile"), "utf8"), /\bSOK\b|PACK_FLAGS/, "the Makefile must not name a sok");
 });
 
-test("the release holds diagnostics.json, which the hosts of a diagnostic build read", { timeout: 1000 }, () => {
-  assert.ok(manifest.files.includes("diagnostics.json"), `package.json files: ${JSON.stringify(manifest.files)}`);
+test("the release holds diagnostics.json and its module, which the hosts of a diagnostic build read", { timeout: 1000 }, () => {
+  const { module } = JSON.parse(readFileSync(path.join(ROOT, "diagnostics.json"), "utf8"));
+  for (const file of ["diagnostics.json", module]) {
+    assert.ok(manifest.files.some((entry) => file === entry || file.startsWith(`${entry}/`)), `package.json files must list ${file}: ${JSON.stringify(manifest.files)}`);
+  }
 });
 
 test("no workflow checks out another repository", { timeout: 1000 }, () => {

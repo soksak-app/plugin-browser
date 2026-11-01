@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F355-7-browser: Version 0.0.11 requires core `^0.0.26`, the first core release that installs the `pnpm pack` form of a plugin release.
 - F355-4-browser-1: The release holds the diagnostic module `ui/browser-diagnostics.js`, which only a diagnostic build reads, and the held checklist items state `Cause:` and `Retry when:`, which the release gate of core 0.0.25 requires.
 - F355-4-browser: `make pack OUT=<folder>` writes the release with `pnpm pack`, and release.yml no longer downloads a core release, because core 0.0.25 installs the `pnpm pack` file of a plugin and has no `sok plugin pack`. The release holds `diagnostics.json`, and `@soksak/plugin-api` is pinned to the core release `v0.0.25`.
 - F342-browser: A view page sends each watched status value through the view call `changed`, which carries `{name, value, version}`, because core F342-1 requires the `changed` port of `createExpose`; before this change every browser view failed to load with `createExpose requires the port changed function`. The `status.next` mention is removed from the page and the exposure model, and the expose case copy follows core `contract/expose.json`. Validation: `test/page-exposure.test.mjs` failed with `TypeError [Error]: createExpose requires the port changed function` before the change and passes after it; `pnpm test` passes 156 of 156. The pin of `@soksak/plugin-api` still names v0.0.24, which predates `changed`, so the release waits for the core release that publishes F342-1.

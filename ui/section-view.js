@@ -173,6 +173,11 @@ export function createSectionView({ runtime, expose, declarations, root, section
   };
 
   const draw = (value) => {
+    // The registry gives null while the followed surface has not registered the status, so the section draws nothing until the first value.
+    if (value === null) {
+      root.replaceChildren();
+      return;
+    }
     if (!Array.isArray(value?.elements)) {
       report(`section ${section.id} has no elements in the value of ${status}`);
       return;

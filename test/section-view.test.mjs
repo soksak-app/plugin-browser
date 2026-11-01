@@ -209,6 +209,19 @@ test("a section that follows no surface shows the empty state text and watches n
   assert.equal(live(fake, "browser.tabs").length, 0, "no watch of the status remains on a null surface");
 });
 
+test("a null value of the followed status, before the surface registers it, draws nothing and is not reported", () => {
+  const fake = fakeRuntime();
+  const reports = [];
+  const root = mount(fake, { reports });
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
+  deliver(fake, "browser.tabs", "tab-1", null);
+  assert.deepEqual(reports, []);
+  assert.equal(root.children.length, 0);
+  deliver(fake, "browser.tabs", "tab-1", {});
+  assert.deepEqual(reports, ["section browser.tabs has no elements in the value of browser.tabs"]);
+});
+
 test("a command that fails is reported with its name and its text", async () => {
   const fake = fakeRuntime();
   const reports = [];

@@ -11,11 +11,6 @@ make pack OUT=<folder> # the plugin release
 make hooks                                  # once after cloning: check commit messages and records at commit time
 ```
 
-`make check` runs the manifest check (`scripts/check-manifest.mjs`), the SDK tools (exposure, engines, events, records) and the contract case copy check against the `@soksak/plugin-api` that `package.json` pins. To check against the core `main` branch, check out its `packages/plugin-api` folder into a scratch folder with a separate index file, which leaves the core checkout unchanged, and set `CORE_PLUGIN_API_DIR` to that folder:
-
-```sh
-GIT_INDEX_FILE=<scratch>/index git -C <core> --work-tree=<scratch> checkout origin/main -- packages/plugin-api
-CORE_PLUGIN_API_DIR=<scratch>/packages/plugin-api make check
-```
+`make check` runs the census check of the events kit and the record check of the records kit that `package.json` pins. The application validates `plugin.json` when it installs the release, and the registry check compares the exposed names of the release with the declarations of each listed core.
 
 The checklist is [docs/features.md](docs/features.md).

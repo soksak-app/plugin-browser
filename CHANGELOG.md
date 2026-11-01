@@ -26,6 +26,7 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- F355-3-4-browser: The checks come from the records kit and events kit releases instead of the plugin API of core; the manifest, exposure, engines and case copy checks and `CORE_PLUGIN_API_DIR` are removed, because the application validates the manifest at installation and the registry check compares the exposed names with each listed core. Red: `the checks come from the kit releases, and no check reads the plugin API of core` failed. Green: it passes, and `make test` and `make check` pass.
 - F336-browser: Version 0.0.10 requires core 0.0.25.
 - F332-6-4-3: A history row key holds the whole URL, so two entries whose URLs differ only after a long common start or only in punctuation are two rows.
 - F326-browser: Version 0.0.9 requires core `^0.0.24` and uses the plugin API release file and the `sok` of core `v0.0.24`.

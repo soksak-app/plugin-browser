@@ -11,11 +11,6 @@ make pack OUT=<folder> # plugin release
 make hooks                                  # clone 후 한 번: commit 때 commit message와 record를 검사
 ```
 
-`make check`는 manifest 검사(`scripts/check-manifest.mjs`), SDK 도구(exposure, engines, events, records)와 contract case 복사 검사를 `package.json`이 고정한 `@soksak/plugin-api`로 실행한다. core `main` branch로 검사하려면 core의 `origin/main`에서 `packages/plugin-api` 폴더를 별도 index 파일로 scratch 폴더에 checkout하고(core checkout은 바뀌지 않는다), `CORE_PLUGIN_API_DIR`를 그 폴더로 지정한다:
-
-```sh
-GIT_INDEX_FILE=<scratch>/index git -C <core> --work-tree=<scratch> checkout origin/main -- packages/plugin-api
-CORE_PLUGIN_API_DIR=<scratch>/packages/plugin-api make check
-```
+`make check`는 `package.json`이 pin한 events kit의 census 검사와 records kit의 record 검사를 실행한다. application은 release를 설치할 때 `plugin.json`을 검증하고, registry 검사는 release의 exposed 이름을 각 listed core의 선언과 비교한다.
 
 Checklist는 [docs/features.md](docs/features.md)다.

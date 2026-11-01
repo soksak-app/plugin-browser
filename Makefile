@@ -1,7 +1,6 @@
 # browser plugin repository 의 test 와 pack(docs/features.md). pack 은 pnpm pack 으로 release 를 쓴다.
 .PHONY: install test check pack push-check hooks
 
-# test 는 package.json 이 정한 core commit 의 @soksak/plugin-api 를 쓴다.
 # The installation stage (core docs/spec/plugins.md#repositories): it installs the locked dependencies; the tests, checks and packs consume them without installing.
 install:
 	pnpm install --frozen-lockfile
@@ -10,22 +9,12 @@ install:
 test:
 	pnpm test
 
-# check runs the SDK validators of the pinned @soksak/plugin-api, or of the packages/plugin-api source of core when
-# CORE_PLUGIN_API_DIR names it (README.md). scripts/check-manifest.mjs validates plugin.json with validateManifest.
-# soksak-exposure checks the public names of the page and the section sources against plugin.json and the core declarations,
-# soksak-engines checks that engines.soksak admits the release of that @soksak/plugin-api, soksak-events counts the records
-# missing from the sources and matches events.json with the emit sites, and soksak-records checks the records.
-SDK_EXPOSURE = $(if $(CORE_PLUGIN_API_DIR),node $(CORE_PLUGIN_API_DIR)/exposure-check.js,pnpm exec soksak-exposure)
-SDK_ENGINES = $(if $(CORE_PLUGIN_API_DIR),node $(CORE_PLUGIN_API_DIR)/engines-check.js,pnpm exec soksak-engines)
-SDK_EVENTS = $(if $(CORE_PLUGIN_API_DIR),node $(CORE_PLUGIN_API_DIR)/events-check.js,pnpm exec soksak-events)
-SDK_RECORDS = $(if $(CORE_PLUGIN_API_DIR),node $(CORE_PLUGIN_API_DIR)/records-check.js,pnpm exec soksak-records)
+# check runs the checks of the kit releases that package.json pins: soksak-events counts the records missing from the sources
+# and matches events.json with the emit sites, and soksak-records checks the records. The application validates plugin.json
+# when it installs the release, and the registry check compares the exposed names of the release with each listed core.
 check:
-	node scripts/check-manifest.mjs
-	$(SDK_EXPOSURE)
-	$(SDK_ENGINES)
-	$(SDK_EVENTS) --census census.json --catalog events.json
-	$(SDK_RECORDS)
-	node scripts/check-test-cases.mjs
+	pnpm exec soksak-events --census census.json --catalog events.json
+	pnpm exec soksak-records
 
 pack:
 	@test -n "$(OUT)" || { echo "make pack OUT=<folder>" >&2; exit 2; }

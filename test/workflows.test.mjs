@@ -1,7 +1,7 @@
 // The workflows run make check after make test (F238-c-24): ci.yml runs make test, then make check; release.yml runs ci.yml as
 // its checks, then make pack.
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -24,20 +24,14 @@ function makeTargets(file) {
     .map((command) => command.split(/\s+/)[1]);
 }
 
-test("commit hooks run their SDK checks without replacing the linked source", { timeout: 5000 }, (t) => {
-  const sdkDependencies = Object.entries(manifest.devDependencies).filter(([name]) => name === "@soksak/" + "plugin-api");
-  assert.equal(sdkDependencies.length, 1, "the manifest declares one plugin API source");
-  const [sdkPackage] = sdkDependencies[0];
-  const sdkLink = path.join(ROOT, "node_modules", ...sdkPackage.split("/"));
-  const linkedSource = readlinkSync(sdkLink);
+test("commit hooks run the record and commit message checks of the records kit", { timeout: 5000 }, (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "soksak-browser-commit-message-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const message = path.join(directory, "message.txt");
-  writeFileSync(message, "chore(hooks): Run SDK checks through Node (#P99-browser)\n\nCall SDK bin files directly so hooks preserve the linked source.\n");
+  writeFileSync(message, "chore(hooks): Run the kit checks (#P99-browser)\n\nRun the record and commit message checks of the records kit.\n");
   for (const [hook, args] of [["pre-commit", []], ["commit-msg", [message]]]) {
     const result = spawnSync(path.join(ROOT, ".githooks", hook), args, { cwd: ROOT, encoding: "utf8", timeout: 4000 });
     assert.equal(result.status, 0, `${hook} failed: ${result.stderr || result.stdout}`);
-    assert.equal(readlinkSync(sdkLink), linkedSource, `${hook} replaced the linked SDK source`);
   }
 });
 
@@ -104,7 +98,12 @@ test("no workflow checks out another repository", { timeout: 1000 }, () => {
   }
 });
 
-test("the dependency on core is the packed release file of the core release that package.json pins", { timeout: 1000 }, () => {
-  assert.equal(manifest.devDependencies[PLUGIN_API],
-    "https://github.com/soksak-app/core/releases/download/v0.0.26/soksak-plugin-api-0.0.26.tgz");
+test("the checks come from the kit releases, and no check reads the plugin API of core", { timeout: 1000 }, () => {
+  assert.equal(manifest.devDependencies[PLUGIN_API], undefined, "package.json must not pin the plugin API of core");
+  assert.equal(manifest.devDependencies["@soksak/kit-records"], "https://github.com/soksak-app/kit-records/releases/download/v0.0.1/soksak-kit-records-0.0.1.tgz");
+  assert.equal(manifest.devDependencies["@soksak/kit-events"], "https://github.com/soksak-app/kit-events/releases/download/v0.0.1/soksak-kit-events-0.0.1.tgz");
+  for (const file of ["Makefile", ".githooks/commit-msg", ".githooks/pre-commit"]) {
+    assert.doesNotMatch(readFileSync(path.join(ROOT, file), "utf8"), /CORE_PLUGIN_API_DIR|soksak-exposure|soksak-engines|node_modules\/@soksak|check-manifest|check-test-cases/,
+      `${file} must run only the commands of the kit releases`);
+  }
 });

@@ -1,8 +1,8 @@
 import { createBinder } from "./binder.mjs";
 
 // Model of createExpose of the plugin API for the calls that the browser view page makes: status, command and dom
-// registration and the exposure requests status.get, status.watch, status.next, status.unwatch, command.run, dom.act and
-// dom.rect. The wire form and the refusals are the forms of test/fixtures/sdk-cases/expose.json and
+// registration and the exposure requests status.get, status.watch, status.unwatch, command.run, dom.act and dom.rect.
+// A watched status value leaves the page only through port.changed(name, value, version), which the port requires. The wire form and the refusals are the forms of test/fixtures/sdk-cases/expose.json and
 // command-registration.json, and the binder of bind in create-binder.json. A call outside this surface throws an error
 // that names the call.
 
@@ -58,10 +58,11 @@ function checkParams(name, schema, params) {
 /**
  * Creates the exposure of one surface page. register(kind, name) posts the registration of a status, dom or command
  * and resolves when the host accepts it. onRequest(handle) subscribes to the exposure requests, and reply(id, payload)
- * answers one with {result} or {error: {code, message}}. declarations is the declared exposes of the plugin, or a
- * function that returns them.
+ * answers one with {result} or {error: {code, message}}. changed(name, value, version) receives each value of a watched
+ * status. declarations is the declared exposes of the plugin, or a function that returns them.
  */
-export function createExpose({ register, unregister, onRequest, reply }, declarations) {
+export function createExpose({ register, unregister, onRequest, reply, changed }, declarations) {
+  if (typeof changed !== "function") throw new TypeError("createExpose requires the port changed function");
   const declared = () => (typeof declarations === "function" ? declarations() : declarations);
   const isDeclared = (kind, name) => (declared()[kind] ?? []).some((entry) => entry.name === name);
   const isMany = (name) => (declared().dom ?? []).some((entry) => entry.name === name && entry.many === true);
@@ -85,18 +86,16 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
     if (disposed) throw new Error("exposure is disposed");
   };
 
-  // A status keeps the version of its value: the value that the first watch reads is version 1, and each later change
-  // adds one. status.next answers with the current version when it is newer than the version of the request.
-  const flush = (status) => {
-    for (const waiter of [...status.waiters]) {
-      if (status.version > waiter.version) {
-        status.waiters.splice(status.waiters.indexOf(waiter), 1);
-        waiter.resolve({ version: status.version, value: status.value });
-      }
-    }
-  };
-  const closeWaiters = (status) => {
-    for (const waiter of status.waiters.splice(0)) waiter.resolve({ closed: true });
+  // A watched value that differs from the last one gets the next version and is sent through changed. The value that the first
+  // watch reads is version 1.
+  const publish = (status, value) => {
+    if (!status.watching) return;
+    const text = JSON.stringify(value);
+    if (text === status.text) return;
+    status.text = text;
+    status.value = value;
+    status.version += 1;
+    changed(status.name, value, status.version);
   };
   const statusOf = (name) => {
     const status = statuses.get(name);
@@ -119,33 +118,23 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
         return statusOf(params.name).read();
       case "status.watch": {
         const status = statusOf(params.name);
-        if (status.watching) return null;
+        // A repeated watch sends the current value again with its version.
+        if (status.watching) {
+          if (status.version > 0) changed(status.name, status.value, status.version);
+          return null;
+        }
         status.watching = true;
-        status.version = 1;
-        status.value = status.read();
-        status.settling = true;
-        status.unsubscribe = status.subscribe((value) => {
-          if (!status.watching) return;
-          status.value = value;
-          if (status.settling) return;
-          status.version += 1;
-          flush(status);
-        });
-        status.settling = false;
+        status.unsubscribe = status.subscribe((value) => publish(status, value));
+        publish(status, await status.read());
         return null;
-      }
-      case "status.next": {
-        const status = statusOf(params.name);
-        if (!status.watching) return { closed: true };
-        if (status.version > params.version) return { version: status.version, value: status.value };
-        return new Promise((resolve) => status.waiters.push({ version: params.version, resolve }));
       }
       case "status.unwatch": {
         const status = statusOf(params.name);
         if (status.watching) {
           status.watching = false;
           status.unsubscribe?.();
-          closeWaiters(status);
+          status.unsubscribe = null;
+          status.text = undefined;
         }
         return null;
       }
@@ -195,7 +184,7 @@ export function createExpose({ register, unregister, onRequest, reply }, declara
       refuseDisposed();
       if (!isDeclared("status", name)) throw new Error(`status ${name} is not declared`);
       if (statuses.has(name)) throw new Error(`status ${name} is already registered`);
-      statuses.set(name, { read, subscribe, version: 0, value: undefined, watching: false, waiters: [], settling: false });
+      statuses.set(name, { name, read, subscribe, version: 0, value: null, text: undefined, watching: false, unsubscribe: null });
       try {
         await register("status", name);
       } catch (error) {

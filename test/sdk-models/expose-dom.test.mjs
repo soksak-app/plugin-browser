@@ -24,6 +24,7 @@ function exposureOf(dom) {
     register: async () => {},
     onRequest: (answer) => { handle = answer; },
     reply: (id, payload) => { replies.push({ id, payload }); },
+    changed: () => {},
   }, { status: [], commands: [], dom });
   const request = async (id, method, params) => {
     await handle({ id, method, params });

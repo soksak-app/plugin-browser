@@ -110,7 +110,7 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     unobserve() {}
     disconnect() {}
   };
-  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [], cids: [] };
+  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [], changed: [], cids: [] };
   const logs = [];
   let clockUs = 0;
   let monoNs = 0;
@@ -237,6 +237,11 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
             exposurePending.delete(payload.id);
             const { id: _id, ...answer } = payload;
             request(answer);
+            return null;
+          }
+          // A watched status value of the page: {name, value, version} in the order the page sent it.
+          if (name === "changed") {
+            reports.changed.push(payload);
             return null;
           }
           throw new Error(`the page called the native ${name}`);

@@ -1,10 +1,10 @@
 // The statuses browser.elements and browser.requests follow the document streams of the region (core docs/spec/native-surfaces.md#document-streams)
-// and serve the declared UI values of the DOM and 네트워크 sections (#P27.2). The region is a fake at the consumer
+// and serve the values of the DOM and 네트워크 sections (#P27.2). The region is a fake at the consumer
 // boundary: it records each subscription and its close.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { declaredElements, declaredRequests } from "../build/test/ui/browser.js";
+import { elementsValue, requestsValue } from "../build/test/ui/browser.js";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 // The address of the document that a region shows when a test reads its streams.
@@ -71,7 +71,7 @@ test("browser.elements subscribes to the elements stream while watched and close
   await flush();
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["elements", false]]);
   region.subscriptions[0].listener(snapshot([element], 1));
-  assert.deepEqual(values.at(-1), declaredElements({ nodes: [element], total: 1, truncated: false }));
+  assert.deepEqual(values.at(-1), elementsValue({ nodes: [element], total: 1, truncated: false }));
   stop();
   await flush();
   assert.equal(region.subscriptions[0].closed, true, "stopping the watch closes the elements subscription");
@@ -86,7 +86,7 @@ test("a read of browser.elements without a watch takes one snapshot and closes i
   await flush();
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["elements", false]]);
   region.subscriptions[0].listener(snapshot([element], 2000, true));
-  assert.deepEqual(await read, declaredElements({ nodes: [element], total: 2000, truncated: true }));
+  assert.deepEqual(await read, elementsValue({ nodes: [element], total: 2000, truncated: true }));
   assert.equal(region.subscriptions[0].closed, true, "the read ends its subscription");
   await mounted.dispose();
   dom.window.close();
@@ -95,10 +95,10 @@ test("a read of browser.elements without a watch takes one snapshot and closes i
 test("a read of each stream status of a region without a document is the empty value at once and opens no subscription", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   assert.equal(region.state, null, "the fake region has no document");
-  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
-  assert.deepEqual(await statuses.get("browser.requests").read(), declaredRequests(null));
+  assert.deepEqual(await statuses.get("browser.elements").read(), elementsValue(null));
+  assert.deepEqual(await statuses.get("browser.requests").read(), requestsValue(null));
   region.state = { url: "" };
-  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
+  assert.deepEqual(await statuses.get("browser.elements").read(), elementsValue(null));
   assert.deepEqual(region.subscriptions, [], "a read without a document opened a stream subscription");
   await mounted.dispose();
   dom.window.close();
@@ -111,10 +111,10 @@ test("a read of browser.elements while a watch holds its subscription is the wat
   region.state = { url: DOCUMENT };
   const stop = statuses.get("browser.elements").subscribe(() => {});
   await flush();
-  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements(null));
+  assert.deepEqual(await statuses.get("browser.elements").read(), elementsValue(null));
   assert.deepEqual(region.subscriptions.map((s) => s.stream), ["elements"], "the read opened a second subscription");
   region.subscriptions[0].listener(snapshot([element], 1));
-  assert.deepEqual(await statuses.get("browser.elements").read(), declaredElements({ nodes: [element], total: 1, truncated: false }));
+  assert.deepEqual(await statuses.get("browser.elements").read(), elementsValue({ nodes: [element], total: 1, truncated: false }));
   stop();
   await mounted.dispose();
   dom.window.close();
@@ -148,7 +148,7 @@ test("a message that arrives after the watch stops does not set the value that a
   await flush();
   assert.equal(region.subscriptions.length, 2, "the read subscribes again instead of returning the message of the closed watch");
   region.subscriptions[1].listener(snapshot([], 0));
-  assert.deepEqual(await read, declaredElements({ nodes: [], total: 0, truncated: false }));
+  assert.deepEqual(await read, elementsValue({ nodes: [], total: 0, truncated: false }));
   await mounted.dispose();
   dom.window.close();
 });
@@ -160,7 +160,7 @@ test("browser.elements reports null after a reset of the document", async () => 
   await flush();
   region.subscriptions[0].listener(snapshot([element], 1));
   region.subscriptions[0].listener({ type: "reset" });
-  assert.deepEqual(values.at(-1), declaredElements(null), "a reset draws the empty tree of the section");
+  assert.deepEqual(values.at(-1), elementsValue(null), "a reset draws the empty tree of the section");
   stop();
   await mounted.dispose();
   dom.window.close();
@@ -175,15 +175,15 @@ test("browser.requests accumulates the entries of each batch, clears on reset, a
   const [a, b, c, d, e] = ["a", "b", "c", "d", "e"].map((name) => request(`https://${name}.test/`));
   const stream = region.subscriptions[0];
   stream.listener({ type: "entries", entries: [a, b], dropped: 0 });
-  assert.deepEqual(values.at(-1), declaredRequests({ entries: [a, b], dropped: 0 }));
+  assert.deepEqual(values.at(-1), requestsValue({ entries: [a, b], dropped: 0 }));
   stream.listener({ type: "entries", entries: [c], dropped: 0 });
-  assert.deepEqual(values.at(-1), declaredRequests({ entries: [a, b, c], dropped: 0 }));
+  assert.deepEqual(values.at(-1), requestsValue({ entries: [a, b, c], dropped: 0 }));
   stream.listener({ type: "entries", entries: [d], dropped: 2 });
-  assert.deepEqual(values.at(-1), declaredRequests({ entries: [a, b, c, d], dropped: 2 }));
+  assert.deepEqual(values.at(-1), requestsValue({ entries: [a, b, c, d], dropped: 2 }));
   stream.listener({ type: "reset" });
-  assert.deepEqual(values.at(-1), declaredRequests(null), "a reset draws the empty list of the section");
+  assert.deepEqual(values.at(-1), requestsValue(null), "a reset draws the empty list of the section");
   stream.listener({ type: "entries", entries: [e], dropped: 0 });
-  assert.deepEqual(values.at(-1), declaredRequests({ entries: [e], dropped: 0 }));
+  assert.deepEqual(values.at(-1), requestsValue({ entries: [e], dropped: 0 }));
   stop();
   await flush();
   assert.equal(stream.closed, true, "stopping the watch closes the requests subscription");
@@ -213,7 +213,7 @@ test("a read of browser.requests returns the request log of its first entries me
   const read = statuses.get("browser.requests").read();
   await flush();
   region.subscriptions[0].listener({ type: "entries", entries: [request("https://log.test/")], dropped: 3 });
-  assert.deepEqual(await read, declaredRequests({ entries: [request("https://log.test/")], dropped: 3 }));
+  assert.deepEqual(await read, requestsValue({ entries: [request("https://log.test/")], dropped: 3 }));
   assert.equal(region.subscriptions[0].closed, true, "the read ends its subscription");
   await mounted.dispose();
   dom.window.close();

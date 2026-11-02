@@ -49,7 +49,7 @@ test("the browser declares its session history status and the command that loads
 test("browser.history follows the region state and browser.history.go loads an entry by its offset", { timeout: 10000 }, async (t) => {
   const { statuses, commands, entries, send } = await setup(t);
   const seen = [];
-  // The status serves the declared UI value of the 히스토리 section (#P27.2): the current entry is the selected item.
+  // The status serves the value of the 히스토리 section (#P27.2): the current entry is the selected item.
   const selected = (value) => value.elements[0].items.findIndex((item) => item.selected === true);
   statuses.get("browser.history").subscribe((value) => seen.push(selected(value)));
   assert.deepEqual(statuses.get("browser.history").read().elements,

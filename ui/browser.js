@@ -15,23 +15,19 @@ const css = `:host{display:flex;height:100%;flex-direction:column;background:var
 const REQUEST_LOG_LIMIT = 200;
 // A read of a document stream fails when no data message arrives within this limit (docs/spec/native-surfaces.md#document-streams).
 const STREAM_READ_LIMIT_MS = 10000;
-// A text field of a declared UI value accepts 500 code points (core docs/spec/declared-ui.md#limits), so a label is cut to them.
-const cutText = (text) => (text.length > 500 ? [...text].slice(0, 500).join("") : text);
-// A tree accepts at most 16 levels (core docs/spec/declared-ui.md#limits); the elements below the limit are counted and stated.
-const TREE_LEVELS = 16;
 
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
-/** The declared UI value of the 히스토리 section from the session history of the document region. The key of an entry names its index
+/** The value of the 히스토리 section from the session history of the document region. The key of an entry names its index
  *  and its URL, so a key that a later draw lists names the same entry. */
-export const declaredHistory = (history) => ({
+export const historyValue = (history) => ({
   elements: [{
     kind: "list",
     key: "history",
     empty: "기록 없음",
     items: history.entries.map((entry, index) => ({
       key: `h${index}:${entry.url}`,
-      label: cutText(entry.title || entry.url),
+      label: entry.title || entry.url,
       command: "browser.history.go",
       params: { index },
       selected: index === history.index,
@@ -42,21 +38,16 @@ export const declaredHistory = (history) => ({
 /** The label of one element of the document, as the tag with its id and classes. */
 const elementLabel = (node) => {
   const classes = node.class.trim().split(/\s+/).filter(Boolean).map((name) => `.${name}`).join("");
-  return cutText(`${node.tag}${node.id ? `#${node.id}` : ""}${classes}`);
+  return `${node.tag}${node.id ? `#${node.id}` : ""}${classes}`;
 };
 
-/** The declared UI value of the DOM section from one snapshot of the elements stream of the document region. */
-export const declaredElements = (elements) => {
+/** The value of the DOM section from one snapshot of the elements stream of the document region. */
+export const elementsValue = (elements) => {
   const roots = [];
   const stack = [];
   let count = 0;
-  let below = 0;
   // A node whose depth continues an earlier branch nests under it; a depth that skips a level is refused by the check below.
   for (const node of elements?.nodes ?? []) {
-    if (node.depth >= TREE_LEVELS) {
-      below += 1;
-      continue;
-    }
     // The walk lists each element after its parent, so an element is at most one level below the last open element; a deeper
     // element has no parent in the list, and it is refused rather than placed at the root.
     if (node.depth > stack.length) throw new Error(`element of depth ${node.depth} has no open parent: the open depth is ${stack.length}`);
@@ -64,8 +55,7 @@ export const declaredElements = (elements) => {
     count += 1;
     const parent = stack[node.depth - 1];
     if (parent) {
-      // Core draws the children of a branch only when its expanded field is true (core docs/spec/declared-ui.md#status-mapping),
-      // and the section shows every element of the snapshot.
+      // The section view shows every element of the snapshot, so each branch is expanded.
       parent.expanded = true;
       parent.children ??= [];
       parent.children.push(item);
@@ -77,21 +67,20 @@ export const declaredElements = (elements) => {
   }
   const value = [{ kind: "tree", key: "elements", empty: "요소 없음", nodes: roots }];
   if (elements?.truncated) value.push({ kind: "status-line", key: "elements.cut", text: `${elements.nodes.length} of ${elements.total}` });
-  if (below > 0) value.push({ kind: "status-line", key: "elements.levels", text: `16 단계 아래의 요소 ${below}개는 보이지 않음` });
   return { elements: value };
 };
 
-/** The declared UI value of the 네트워크 section from one value of the requests stream of the document region. The entries carry no
+/** The value of the 네트워크 section from one value of the requests stream of the document region. The entries carry no
  *  identifier, so the key of a request is its position in the request sequence since the last reset: the region counts the entries it
  *  drops before its log, so the first entry of the value has the position dropped. */
-export const declaredRequests = (requests) => {
+export const requestsValue = (requests) => {
   const elements = [{
     kind: "list",
     key: "requests",
     empty: "요청 없음",
     items: (requests?.entries ?? []).map((entry, index) => ({
       key: `r${requests.dropped + index}`,
-      label: cutText(`${entry.type} ${entry.url}`),
+      label: `${entry.type} ${entry.url}`,
       detail: `${Math.round(entry.duration)}ms`,
     })),
   }];
@@ -99,9 +88,9 @@ export const declaredRequests = (requests) => {
   return { elements };
 };
 
-// The declared UI value of the 탭 section (#P28): one list of the browser tabs of the card that holds the surface, each row
+// The value of the 탭 section (#P28): one list of the browser tabs of the card that holds the surface, each row
 // running browser.tab.select with its tab, and the active tab selected. Without such a card the list is empty.
-const declaredTabs = (grid, surface) => {
+const tabsOf = (grid, surface) => {
   const card = grid?.cards.find((item) => item.tabs.some((tab) => tab.id === surface));
   const tabs = card?.tabs.filter((tab) => tab.plugin === "browser") ?? [];
   return { elements: [{
@@ -224,8 +213,8 @@ export async function mount(root, context) {
     tabTitle(state);
     tabFooter(state.link);
     history = sessionHistory;
-    const declared = declaredHistory(history);
-    for (const listener of historyListeners) listener(declared);
+    const value = historyValue(history);
+    for (const listener of historyListeners) listener(value);
     showEmpty(state.url);
     if (state.url !== "" && state.url !== written) {
       written = state.url;
@@ -258,9 +247,9 @@ export async function mount(root, context) {
     fn(current);
     return () => locationListeners.delete(fn);
   });
-  context.exposure.status("browser.history", () => declaredHistory(history), (fn) => {
+  context.exposure.status("browser.history", () => historyValue(history), (fn) => {
     historyListeners.add(fn);
-    fn(declaredHistory(history));
+    fn(historyValue(history));
     return () => historyListeners.delete(fn);
   });
   // The element and request streams of the document region (docs/spec/native-surfaces.md#document-streams). A watch holds one
@@ -269,13 +258,13 @@ export async function mount(root, context) {
   // of the region log, because a status delivers only its latest value and each entries message is a batch of new entries.
   // Creates the status functions of one document stream. message.type of the data is dataType, and next(current, message) returns the
   // value after a data message. A failure of a delivered message or of the subscription is reported as a page error.
-  const documentStream = (stream, dataType, next, declared) => {
+  const documentStream = (stream, dataType, next, sectionValue) => {
     const watchers = new Set();
     let latest = null;
     let subscription = null;
     const deliver = (value) => {
       latest = value;
-      const view = declared(latest);
+      const view = sectionValue(latest);
       for (const fn of watchers) fn(view);
     };
     // A message of a subscription that is closed and not yet removed by the region is dropped, so it cannot set a stale value.
@@ -335,11 +324,11 @@ export async function mount(root, context) {
       // A region without a document has no elements and no requests, and its stream sends no message, so the read is the empty value.
       // A read while a watch holds the subscription is the value of the watch, which the status watch of the exposure reads
       // after it subscribes.
-      read: () => ((region.state?.url ?? "") === "" ? Promise.resolve(declared(null))
-        : latest !== null || subscription !== null ? declared(latest) : readFirst().then(declared)),
+      read: () => ((region.state?.url ?? "") === "" ? Promise.resolve(sectionValue(null))
+        : latest !== null || subscription !== null ? sectionValue(latest) : readFirst().then(sectionValue)),
       subscribe(fn) {
         watchers.add(fn);
-        fn(declared(latest));
+        fn(sectionValue(latest));
         if (subscription === null) open();
         return () => {
           watchers.delete(fn);
@@ -348,7 +337,7 @@ export async function mount(root, context) {
       },
     };
   };
-  const elementStream = documentStream("elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), declaredElements);
+  const elementStream = documentStream("elements", "snapshot", (_, { nodes, total, truncated }) => ({ nodes, total, truncated }), elementsValue);
   const requestStream = documentStream("requests", "entries", (current, { entries, dropped }) => {
     if (!Number.isInteger(dropped) || dropped < 0) throw new Error(`requests entries message has dropped ${JSON.stringify(dropped)}, not a count`);
     const log = [...(current?.entries ?? []), ...entries];
@@ -358,11 +347,11 @@ export async function mount(root, context) {
     const counted = dropped - (current?.dropped ?? 0);
     if (shed > counted) throw new Error(`requests log sheds ${shed} entries, and the region counts ${counted} dropped since the last message`);
     return { entries: log.slice(-REQUEST_LOG_LIMIT), dropped };
-  }, declaredRequests);
+  }, requestsValue);
   context.exposure.status("browser.elements", elementStream.read, elementStream.subscribe);
   context.exposure.status("browser.requests", requestStream.read, requestStream.subscribe);
   // The browser.tabs status follows core.grid: each value of the grid replaces the value of the status.
-  let tabsValue = declaredTabs(null, context.surfaceId);
+  let tabsValue = tabsOf(null, context.surfaceId);
   const tabsListeners = new Set();
   const publishTabs = (value) => {
     tabsValue = value;
@@ -374,7 +363,7 @@ export async function mount(root, context) {
     return () => tabsListeners.delete(fn);
   });
   publishTabs(tabsValue);
-  const stopGrid = context.runtime.status.watch("core.grid", (grid) => publishTabs(declaredTabs(grid, context.surfaceId)));
+  const stopGrid = context.runtime.status.watch("core.grid", (grid) => publishTabs(tabsOf(grid, context.surfaceId)));
   context.exposure.command("browser.history.go", reported("browser.history.go", navigated(({ index }) => {
     if (!Number.isInteger(index) || index < 0 || index >= history.entries.length) {
       throw new Error(`history entry ${index} is outside the session history of ${history.entries.length} entries`);

@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F332-6-5: The section values keep whole labels and every level of a DOM snapshot, because the section views draw them; the limits of the removed declared UI are gone.
 - F379-browser: `engines.soksak` is `^0.0.30`, and the version is 0.0.15. Red: the core version test failed on `^0.0.29`. Green: it passes.
 - F355-7-browser: Version 0.0.11 requires core `^0.0.26`, the first core release that installs the `pnpm pack` form of a plugin release.
 - F355-4-browser-1: The release holds the diagnostic module `ui/browser-diagnostics.js`, which only a diagnostic build reads, and the held checklist items state `Cause:` and `Retry when:`, which the release gate of core 0.0.25 requires.

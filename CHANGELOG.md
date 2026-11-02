@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F389-browser: `engines.soksak` is `^0.0.32`, and the version is 0.0.17. Red: the core version test failed on `^0.0.31`. Green: it passes.
 - F387-browser: `engines.soksak` is `^0.0.31`, and the version is 0.0.16. Red: the core version test failed on `^0.0.30`. Green: it passes.
 - F332-6-5: The section values keep whole labels and every level of a DOM snapshot, because the section views draw them; the limits of the removed declared UI are gone.
 - F379-browser: `engines.soksak` is `^0.0.30`, and the version is 0.0.15. Red: the core version test failed on `^0.0.29`. Green: it passes.

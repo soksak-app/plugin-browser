@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P29: version 0.0.18이 수정을 담으므로 hold된 release 항목을 닫았다.
 - F332-6-4-4: version 0.0.18을 publish하고 registry에 등록했다.
 - F332-6-4-2: DOM 행의 key는 core 0.0.32의 `node` 필드로 요소를 나타내므로, 앞에 요소가 삽입되어도 유지된 행은 같은 요소를 보인다. 이 필드가 없는 요소는 거부한다. version은 0.0.18이다.
 - F389-browser: `engines.soksak`은 `^0.0.32`이고, version은 0.0.17다. Red: core version test가 `^0.0.31`에서 실패했다. Green: 통과한다.

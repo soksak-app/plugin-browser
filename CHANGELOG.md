@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P29: The held release item is closed, because version 0.0.18 contains its corrections.
 - F332-6-4-4: Version 0.0.18 is published and listed in the registry.
 - F332-6-4-2: A DOM row key names its element through the `node` field of core 0.0.32, so a kept row shows the same element after an insertion before it, and an element without the field is refused. The version is 0.0.18.
 - F389-browser: `engines.soksak` is `^0.0.32`, and the version is 0.0.17. Red: the core version test failed on `^0.0.31`. Green: it passes.

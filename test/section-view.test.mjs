@@ -209,6 +209,19 @@ test("a section that follows no surface shows the empty state text and watches n
   assert.equal(live(fake, "browser.tabs").length, 0, "no watch of the status remains on a null surface");
 });
 
+test("a section that core.sidebars no longer draws ends its watch and reports nothing, because its removal follows the status", () => {
+  const fake = fakeRuntime();
+  const reports = [];
+  const root = mount(fake, { reports });
+  deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));
+  deliver(fake, "core.sidebars", undefined, sidebars("tab-1"));
+  assert.equal(live(fake, "browser.tabs").length, 1);
+  deliver(fake, "core.sidebars", undefined, []);
+  assert.deepEqual(reports, []);
+  assert.equal(live(fake, "browser.tabs").length, 0, "no watch of the status remains");
+  assert.equal(root.querySelector("p.empty").textContent, "연결된 탭 없음");
+});
+
 test("a null value of the followed status, before the surface registers it, draws nothing and is not reported", () => {
   const fake = fakeRuntime();
   const reports = [];

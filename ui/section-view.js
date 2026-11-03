@@ -214,7 +214,7 @@ export function createSectionView({ runtime, expose, declarations, root, section
   runtime.status.watch("core.sidebars", (sidebars) => {
     const own = sidebars.find((bar) => bar.sidebar === section.sidebar)?.sections.find((entry) => entry.id === section.id);
     if (own === undefined) {
-      report(`section ${section.id} is not drawn in sidebar ${section.sidebar} of core.sidebars`);
+      // A set that leaves the sidebar changes the status before core removes the views of its sections.
       reported = null;
     } else if (own.surface !== null && typeof own.surface !== "string") {
       report(`section ${section.id} follows ${JSON.stringify(own.surface)} in core.sidebars, which is not a surface`);

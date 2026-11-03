@@ -4,6 +4,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { elementsValue, historyValue, requestsValue } from "../build/test/ui/browser.js";
 
+test("a DOM row keeps the key of its element after an insertion before it", { timeout: 1000 }, () => {
+  const html = { node: 1, depth: 0, tag: "html", id: "", class: "" };
+  const kept = { node: 2, depth: 1, tag: "p", id: "", class: "" };
+  const inserted = { node: 3, depth: 1, tag: "div", id: "", class: "" };
+  const keyOf = (nodes, label) => elementsValue({ nodes, total: nodes.length, truncated: false }).elements[0].nodes[0].children.find((row) => row.label === label).key;
+  assert.equal(keyOf([html, inserted, kept], "p"), keyOf([html, kept], "p"));
+});
+
+test("an element of a snapshot without a node identity is refused", { timeout: 1000 }, () => {
+  const nodes = [{ depth: 0, tag: "html", id: "", class: "" }];
+  assert.throws(() => elementsValue({ nodes, total: 1, truncated: false }), /element html has no node identity: undefined/);
+});
+
 test("browser.history is one list whose items run browser.history.go and select the current entry", () => {
   const { elements } = historyValue({
     entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://b.test/two", title: "" }],
@@ -25,10 +38,10 @@ test("browser.history is one list whose items run browser.history.go and select 
 test("browser.elements is one tree nested by depth whose cut is stated in status lines", () => {
   const { elements } = elementsValue({
     nodes: [
-      { depth: 0, tag: "html", id: "", class: "" },
-      { depth: 1, tag: "div", id: "box", class: " a  b " },
-      { depth: 2, tag: "span", id: "", class: "" },
-      { depth: 1, tag: "p", id: "", class: "" },
+      { node: 1, depth: 0, tag: "html", id: "", class: "" },
+      { node: 2, depth: 1, tag: "div", id: "box", class: " a  b " },
+      { node: 3, depth: 2, tag: "span", id: "", class: "" },
+      { node: 4, depth: 1, tag: "p", id: "", class: "" },
     ],
     total: 2000,
     truncated: true,
@@ -37,10 +50,10 @@ test("browser.elements is one tree nested by depth whose cut is stated in status
   assert.equal(tree.kind, "tree");
   // The section view shows every element of the snapshot, so each branch is expanded.
   assert.deepEqual(tree.nodes, [{
-    key: "n0", label: "html", expanded: true,
+    key: "n1", label: "html", expanded: true,
     children: [
-      { key: "n1", label: "div#box.a.b", expanded: true, children: [{ key: "n2", label: "span" }] },
-      { key: "n3", label: "p" },
+      { key: "n2", label: "div#box.a.b", expanded: true, children: [{ key: "n3", label: "span" }] },
+      { key: "n4", label: "p" },
     ],
   }]);
   assert.deepEqual(cut, { kind: "status-line", key: "elements.cut", text: "4 of 2000" });
@@ -48,8 +61,8 @@ test("browser.elements is one tree nested by depth whose cut is stated in status
 
 test("browser.elements holds every level of the snapshot, because the section view draws nested rows at any depth", () => {
   const nodes = [
-    { depth: 0, tag: "html", id: "", class: "" },
-    ...Array.from({ length: 17 }, (_, index) => ({ depth: index + 1, tag: "div", id: "", class: "" })),
+    { node: 1, depth: 0, tag: "html", id: "", class: "" },
+    ...Array.from({ length: 17 }, (_, index) => ({ node: index + 2, depth: index + 1, tag: "div", id: "", class: "" })),
   ];
   const { elements } = elementsValue({ nodes, total: nodes.length, truncated: false });
   assert.equal(elements.length, 1, `a status line was added: ${JSON.stringify(elements.slice(1))}`);
@@ -130,7 +143,7 @@ test("a browser.history key names its entry by index and URL, and a history key 
 
 test("an element whose depth skips a level is refused with an error", () => {
   assert.throws(() => elementsValue({ nodes: [
-    { depth: 0, tag: "html", id: "", class: "" },
-    { depth: 2, tag: "span", id: "", class: "" },
+    { node: 7, depth: 0, tag: "html", id: "", class: "" },
+    { node: 8, depth: 2, tag: "span", id: "", class: "" },
   ], total: 2, truncated: false }), /depth 2/);
 });

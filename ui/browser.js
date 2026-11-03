@@ -45,14 +45,14 @@ const elementLabel = (node) => {
 export const elementsValue = (elements) => {
   const roots = [];
   const stack = [];
-  let count = 0;
   // A node whose depth continues an earlier branch nests under it; a depth that skips a level is refused by the check below.
   for (const node of elements?.nodes ?? []) {
     // The walk lists each element after its parent, so an element is at most one level below the last open element; a deeper
     // element has no parent in the list, and it is refused rather than placed at the root.
     if (node.depth > stack.length) throw new Error(`element of depth ${node.depth} has no open parent: the open depth is ${stack.length}`);
-    const item = { key: `n${count}`, label: elementLabel(node) };
-    count += 1;
+    // The node identity stays while the element exists, so a kept row shows the same element after an insertion before it.
+    if (!Number.isSafeInteger(node.node) || node.node <= 0) throw new Error(`element ${node.tag} has no node identity: ${node.node}`);
+    const item = { key: `n${node.node}`, label: elementLabel(node) };
     const parent = stack[node.depth - 1];
     if (parent) {
       // The section view shows every element of the snapshot, so each branch is expanded.

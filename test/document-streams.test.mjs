@@ -60,7 +60,7 @@ async function mountBrowser() {
 }
 
 const snapshot = (nodes, total = nodes.length, truncated = false) => ({ type: "snapshot", seq: 1, nodes, total, truncated });
-const element = { depth: 0, tag: "html", id: "", class: "" };
+const element = { node: 1, depth: 0, tag: "html", id: "", class: "" };
 const request = (url) => ({ url, type: "script", start: 0, duration: 1 });
 
 

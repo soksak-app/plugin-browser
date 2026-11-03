@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F332-6-4-2: DOM 행의 key는 core 0.0.32의 `node` 필드로 요소를 나타내므로, 앞에 요소가 삽입되어도 유지된 행은 같은 요소를 보인다. 이 필드가 없는 요소는 거부한다. version은 0.0.18이다.
 - F389-browser: `engines.soksak`은 `^0.0.32`이고, version은 0.0.17다. Red: core version test가 `^0.0.31`에서 실패했다. Green: 통과한다.
 - F387-browser: `engines.soksak`은 `^0.0.31`이고, version은 0.0.16다. Red: core version test가 `^0.0.30`에서 실패했다. Green: 통과한다.
 - F332-6-5: section 값은 label 전체와 DOM snapshot의 모든 단계를 담는다. section view가 그것을 그리기 때문이며, 지워진 declared UI의 제한은 없어졌다.

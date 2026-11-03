@@ -14,3 +14,5 @@ make hooks                                  # clone 후 한 번: commit 때 comm
 `make check`는 `package.json`이 pin한 events kit의 census 검사와 records kit의 record 검사를 실행한다. application은 release를 설치할 때 `plugin.json`을 검증하고, registry 검사는 release의 exposed 이름을 각 listed core의 선언과 비교한다.
 
 Checklist는 [docs/features.md](docs/features.md)다.
+
+Spec은 [docs/spec/core-compatibility.ko.md](docs/spec/core-compatibility.ko.md)와 unload 너머로 각 view가 유지하는 것을 적은 [docs/spec/unload.ko.md](docs/spec/unload.ko.md)다.

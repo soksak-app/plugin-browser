@@ -14,3 +14,5 @@ make hooks                                  # once after cloning: check commit m
 `make check` runs the census check of the events kit and the record check of the records kit that `package.json` pins. The application validates `plugin.json` when it installs the release, and the registry check compares the exposed names of the release with the declarations of each listed core.
 
 The checklist is [docs/features.md](docs/features.md).
+
+The specifications are [docs/spec/core-compatibility.md](docs/spec/core-compatibility.md) and [docs/spec/unload.md](docs/spec/unload.md), which states what each view keeps across an unload.

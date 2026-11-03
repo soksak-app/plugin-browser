@@ -5,6 +5,8 @@
 <title>브라우저</title>
 <style>
 html,body{height:100%;margin:0}
+/* The body scrolls the section, so the section view keeps the scroll position of its root (section-view.js). */
+html{overflow:hidden}
 body{background:var(--card);color:var(--fg);font:12px/1.4 var(--font);overflow:auto}
 ul{list-style:none;margin:0;padding:0}
 ul.tree ul{padding-left:12px}li>ul{flex-basis:100%}

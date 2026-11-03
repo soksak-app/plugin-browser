@@ -46,6 +46,16 @@ test("every section is a view of the section page, at its declared height, and t
   assert.ok(manifest.exposes.commands.some((entry) => entry.name === "browser.tab.select"), "browser.tab.select is a declared command");
 });
 
+// The memory saver of core unloads a hidden section surface only when its section declares unload, of the form of surface.unload
+// (core docs/spec/plugins.md#sections, #memory-saver). The section views write their state through the tab state of their surface
+// (ui/section-view.js).
+test("each section declares unload as the surface declares it", () => {
+  assert.deepEqual(manifest.surface.unload, { format: 1, maxBytes: 16384 });
+  for (const section of manifest.sections) {
+    assert.deepEqual(section.unload, { format: 1, maxBytes: 16384 }, `${section.id} declares unload`);
+  }
+});
+
 // The names that the section views expose (ui/section-view.js): the status of each section and the dom names of its rows, items and
 // texts. Each dom name is a list, because a section draws several elements of each name.
 test("the section views declare the status browser.section and the dom names of their rows, items and texts as lists", () => {

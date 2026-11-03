@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P112: 네 section이 `unload`를 선언하므로 core의 memory saver가 숨은 section을 unload한다. section의 view는 body의 scroll 위치를 따라가는 surface와 함께 tab state로 유지하고, restore된 section은 같은 surface의 행이 그 위치에 닿으면 그 위치로 scroll한다. 행은 따라가는 surface의 status로 돌아온다. Red: manifest test가 `browser.dom declares unload`로, restore case가 `the restored section shows the scroll position that it had`로 실패했다. Green: 통과한다.
 - F432-browser: `engines.soksak`은 `^0.0.34`이고, version은 0.0.20이다. Red: core version test가 `^0.0.33`에서 실패했다. Green: 통과한다.
 - P27: 통합 window run이 browser check를 통과한 뒤 이 항목은 측정 P27.4를 위해 보류된다.
 - P111: commit hook test가 hook을 4초에 끝내지 않아, 느린 runner에서 실패하지 않는다.

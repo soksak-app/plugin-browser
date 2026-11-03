@@ -31,25 +31,29 @@
       "id": "browser.dom",
       "name": "DOM",
       "composition": { "kind": "view", "page": "ui/section.html" },
-      "height": "fill"
+      "height": "fill",
+      "unload": { "format": 1, "maxBytes": 16384 }
     },
     {
       "id": "browser.network",
       "name": "네트워크",
       "composition": { "kind": "view", "page": "ui/section.html" },
-      "height": "fill"
+      "height": "fill",
+      "unload": { "format": 1, "maxBytes": 16384 }
     },
     {
       "id": "browser.tabs",
       "name": "탭",
       "composition": { "kind": "view", "page": "ui/section.html" },
-      "height": 160
+      "height": 160,
+      "unload": { "format": 1, "maxBytes": 16384 }
     },
     {
       "id": "browser.history",
       "name": "히스토리",
       "composition": { "kind": "view", "page": "ui/section.html" },
-      "height": 160
+      "height": 160,
+      "unload": { "format": 1, "maxBytes": 16384 }
     }
   ],
   "settings": {

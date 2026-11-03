@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P112: The four sections declare `unload`, so the memory saver of core unloads a hidden section. The view of a section keeps the scroll position of its body with the surface that it follows as its tab state, and a restored section scrolls to that position once the rows of the same surface reach it; the rows return through the status of the followed surface. Red: the manifest test failed with `browser.dom declares unload`, and the restore cases failed with `the restored section shows the scroll position that it had`. Green: they pass.
 - F432-browser: `engines.soksak` is `^0.0.34`, and the version is 0.0.20. Red: the core version test failed on `^0.0.33`. Green: it passes.
 - P27: The item is held for its measurement P27.4 after the integrated window run passed the browser checks.
 - P111: The commit hook test no longer ends a hook at 4 seconds, so a slow runner does not fail it.

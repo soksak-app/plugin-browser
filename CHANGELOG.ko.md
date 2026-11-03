@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P109: 이 저장소는 records kit 0.0.6을 쓰며, 그 release gate는 `Closed:` 사유가 있는 닫힌 항목을 받아들인다.
 - P29: version 0.0.18이 수정을 담으므로 hold된 release 항목을 닫았다.
 - F332-6-4-4: version 0.0.18을 publish하고 registry에 등록했다.
 - F332-6-4-2: DOM 행의 key는 core 0.0.32의 `node` 필드로 요소를 나타내므로, 앞에 요소가 삽입되어도 유지된 행은 같은 요소를 보인다. 이 필드가 없는 요소는 거부한다. version은 0.0.18이다.

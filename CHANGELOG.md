@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P109: The repository uses the records kit 0.0.6, whose release gate accepts a closed item with a `Closed:` reason.
 - P29: The held release item is closed, because version 0.0.18 contains its corrections.
 - F332-6-4-4: Version 0.0.18 is published and listed in the registry.
 - F332-6-4-2: A DOM row key names its element through the `node` field of core 0.0.32, so a kept row shows the same element after an insertion before it, and an element without the field is refused. The version is 0.0.18.

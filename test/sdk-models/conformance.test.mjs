@@ -1,5 +1,5 @@
 // Conformance of the models of test/sdk-models to the published view and exposure cases recorded in
-// test/fixtures/sdk-cases. Each step of a covered case is replayed against the model and its output is asserted.
+// test/fixtures/contract. Each step of a covered case is replayed against the model and its output is asserted.
 // The page calls only part of each surface. EXCLUDED_CASES lists the cases that exercise an operation outside the
 // page surface, with the reason. EXCLUDED_STEPS lists the steps of a covered case that exercise an operation outside the
 // page surface. The test fails when a listed case or step is replayed, or when a listed item is absent from the fixtures.
@@ -12,7 +12,7 @@ import { drawList } from "./list.mjs";
 import { createExpose } from "./expose.mjs";
 import { createViewBridge } from "./view.mjs";
 
-const fixtureFile = (name) => JSON.parse(readFileSync(new URL(`../fixtures/sdk-cases/${name}.json`, import.meta.url), "utf8"));
+const fixtureFile = (name) => JSON.parse(readFileSync(new URL(`../fixtures/contract/${name}.json`, import.meta.url), "utf8"));
 const fixture = (name) => fixtureFile(name).cases;
 const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0)); };
 const errorText = (error) => (error instanceof Error ? error.message : String(error?.message ?? error));

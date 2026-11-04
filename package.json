@@ -18,6 +18,7 @@
     "diagnostics.json",
     "ui/browser-diagnostics.js",
     "events.json",
+    "contract-copies.json",
     "ui/browser.js",
     "ui/events.js",
     "ui/index.html",

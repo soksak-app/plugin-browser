@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P111: commit hook test가 hook을 4초에 끝내지 않아, 느린 runner에서 실패하지 않는다.
 - P110: core.sidebars가 더 이상 그리지 않는 section은 watch를 끝내고 보고하지 않는다.
 - F402-browser: `engines.soksak`은 `^0.0.33`이고 version은 0.0.19이다. Red: core version test가 `^0.0.32`에서 실패했다. Green: 통과한다.
 - P109: 이 저장소는 records kit 0.0.6을 쓰며, 그 release gate는 `Closed:` 사유가 있는 닫힌 항목을 받아들인다.

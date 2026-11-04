@@ -24,13 +24,14 @@ function makeTargets(file) {
     .map((command) => command.split(/\s+/)[1]);
 }
 
-test("commit hooks run the record and commit message checks of the records kit", { timeout: 5000 }, (t) => {
+test("commit hooks run the record and commit message checks of the records kit", { timeout: 120000 }, (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "soksak-browser-commit-message-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const message = path.join(directory, "message.txt");
   writeFileSync(message, "chore(hooks): Run the kit checks (#P99-browser)\n\nRun the record and commit message checks of the records kit.\n");
   for (const [hook, args] of [["pre-commit", []], ["commit-msg", [message]]]) {
-    const result = spawnSync(path.join(ROOT, ".githooks", hook), args, { cwd: ROOT, encoding: "utf8", timeout: 4000 });
+    const result = spawnSync(path.join(ROOT, ".githooks", hook), args, { cwd: ROOT, encoding: "utf8", timeout: 60000 });
+    assert.equal(result.error, undefined, `${hook} did not end: ${result.error?.message}`);
     assert.equal(result.status, 0, `${hook} failed: ${result.stderr || result.stdout}`);
   }
 });

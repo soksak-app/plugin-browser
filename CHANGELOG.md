@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P111: The commit hook test no longer ends a hook at 4 seconds, so a slow runner does not fail it.
 - P110: A section that core.sidebars no longer draws ends its watch and reports nothing.
 - F402-browser: `engines.soksak` is `^0.0.33`, and the version is 0.0.19. Red: the core version test failed on `^0.0.32`. Green: it passes.
 - P109: The repository uses the records kit 0.0.6, whose release gate accepts a closed item with a `Closed:` reason.

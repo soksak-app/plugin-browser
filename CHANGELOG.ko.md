@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P118: subject `docs(features): State the checklist as facts (#P16)`는 체크리스트가 P16로 적는 항목이 아니라 지워진 항목의 것이다.
 - P117: plugin API case 사본은 `test/fixtures/contract`에 있고, release가 싣는 `contract-copies.json`이 각 사본을 SHA-256과 함께 적으며, test가 선언과 사본을 비교한다. Red: 선언이 없어 test가 실패했다. Green: 통과한다.
 - P116: core 호환성 문서는 package가 선언한 범위 `^0.0.34`를 적고, test가 두 문서를 `engines.soksak`과 비교한다. Red: test가 `^0.0.34`에 대한 `^0.0.24`로 실패했다. Green: 통과한다.
 - P115: 각 section view가 core의 section view benchmark 항목을 제공한다. `browser.view.frames`는 content frame을 관찰하고 root를 marker color로 칠하며, `browser.view.history`는 session history 길이를 답하고, 자기 section의 ready status(예: `browser.tabs.view.ready`)는 browser tab이 없는 section이 보이는 텍스트 `연결된 탭 없음`을 보일 때만 true다. section view의 화면은 바뀌지 않는다.

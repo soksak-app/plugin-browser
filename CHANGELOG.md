@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P118: The subject `docs(features): State the checklist as facts (#P16)` belongs to a removed item, not to the item that the checklist states as P16.
 - P117: The plugin API case copies are in `test/fixtures/contract`, and `contract-copies.json`, which the release carries, names each copy with its SHA-256; a test compares the declaration with the copies. Red: the test failed without the declaration. Green: it passes.
 - P116: The core compatibility document states `^0.0.34`, the range that the package declares, and a test compares both documents with `engines.soksak`. Red: the test failed with `^0.0.24` against `^0.0.34`. Green: it passes.
 - P115: Each section view serves the entries of the section view benchmark of core: `browser.view.frames` observes its content frames and paints its root with a marker color, `browser.view.history` answers its session history length, and the ready status of its own section, such as `browser.tabs.view.ready`, is true only while it shows the text `연결된 탭 없음`, which a section without a browser tab shows. The screen of the section view does not change.

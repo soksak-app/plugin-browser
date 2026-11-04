@@ -32,7 +32,7 @@ export function createPageExposure({ bridge, declarations, report }) {
     register: (kind, name) => kind === "command"
       ? Promise.resolve()
       : calls.request("runtime.native.call", { name: "registered", payload: { kind, name } }).then(() => undefined),
-    // The exposure requests of the surface (status.get, status.watch, status.unwatch, command.run, dom.rect, dom.act) reach
+    // The exposure requests of the surface (status.get, status.watch, status.unwatch, command.run, element.rect, element.act) reach
     // the view as the host event exposure-request {id, surface, method, params} through the subscription runtime.native.on
     // (core docs/spec/native-surfaces.md#view-surfaces, view exposure), and the answer replies through exposureReply.
     onRequest: (answer) => runtime.native.on("exposure-request", answer),

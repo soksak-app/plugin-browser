@@ -43,7 +43,7 @@ async function mountBrowser() {
     composition: { create: async () => composition },
     exposure: {
       status: async (name, read, subscribe) => statuses.set(name, { read, subscribe }),
-      command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {},
+      command: async () => {}, element: async () => {}, delegate: async () => {}, bind: async () => {},
       dispose: async () => {},
     },
     status: { report: (phase, error) => { reports.push([phase, error]); } },

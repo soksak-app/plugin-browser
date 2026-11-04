@@ -23,7 +23,7 @@ async function setup(t) {
     tab: { title: (text) => titles.push(text), footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
-      status(name, read, subscribe) { statuses.set(name, { read, subscribe }); }, dom() {},
+      status(name, read, subscribe) { statuses.set(name, { read, subscribe }); }, element() {},
       command(name, run) { commands.set(name, run); },
       async bind() {}, async delegate() {}, async dispose() {},
     },

@@ -103,7 +103,7 @@ test("expose cases replay against the exposure model", async () => {
       let throws = null;
       try {
         if (step.status) await expose.status(step.status.name, () => value, (fn) => { subscribers.add(fn); return () => subscribers.delete(fn); });
-        else if (step.dom) await expose.dom(step.dom.name, elementOf(step.dom.selector));
+        else if (step.element) await expose.element(step.element.name, elementOf(step.element.selector));
         else if (step.command) await expose.command(step.command.name, (params) => { effects.push(`run ${step.command.name} ${JSON.stringify(params)}`); });
         else if (step.bind) {
           const element = elementOf(step.bind.selector);

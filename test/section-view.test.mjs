@@ -47,19 +47,19 @@ function fakeRuntime({ stored } = { stored: null }) {
   };
 }
 
-// A fake of the exposure of the page: each status is recorded with its read and subscribe, and each dom registration with its element.
+// A fake of the exposure of the page: each status is recorded with its read and subscribe, and each element registration with its target.
 function fakeExpose() {
   const statuses = new Map();
-  const doms = [];
+  const elements = [];
   return {
     statuses,
-    doms,
+    elements,
     status(name, read, subscribe) {
       statuses.set(name, { read, subscribe });
       return Promise.resolve();
     },
-    dom(name, target) {
-      doms.push({ name, target });
+    element(name, target) {
+      elements.push({ name, target });
       return Promise.resolve();
     },
   };
@@ -69,16 +69,16 @@ function fakeExpose() {
 const DECLARATIONS = {
   status: [],
   commands: [{ name: "browser.tab.select" }, { name: "browser.history.go" }],
-  dom: [],
+  element: [],
 };
 
-// The dom names of the section view, each registered once through expose.dom.
-const DOM_NAMES = ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"];
+// The element names of the section view, each registered once through expose.element.
+const ELEMENT_NAMES = ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"];
 
-// The provider that the page registered for a dom name: the function that returns the current elements.
-const providerOf = (fake, name) => fake.expose.doms.find((entry) => entry.name === name).target;
+// The provider that the page registered for an element name: the function that returns the current elements.
+const providerOf = (fake, name) => fake.expose.elements.find((entry) => entry.name === name).target;
 
-// The elements of a dom name in document order, as root holds them.
+// The elements of an element name in document order, as root holds them.
 const namedIn = (root, name) => [...root.querySelectorAll(`[data-expose="${name}"]`)];
 
 // The labels of the elements of an item list, in order: the text of each element without its children.
@@ -290,7 +290,7 @@ test("the section view registers the status browser.section, which reports its p
   assert.deepEqual(status.read(), { section: "browser.tabs", state: "followed" });
 });
 
-test("the rows, items, empty texts and status lines carry declared dom names, and each item is a command control", async () => {
+test("the rows, items, empty texts and status lines carry declared element names, and each item is a command control", async () => {
   const fake = fakeRuntime();
   const root = await mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
@@ -310,18 +310,18 @@ test("the rows, items, empty texts and status lines carry declared dom names, an
   for (const name of ["browser.section.row", "browser.section.item", "browser.section.status"]) {
     assert.deepEqual(providerOf(fake, name)(), named(name), `${name} lists its elements in document order`);
   }
-  for (const el of root.querySelectorAll("button")) assert.ok(el.dataset.command && el.dataset.expose, "each button has a command and a dom name");
+  for (const el of root.querySelectorAll("button")) assert.ok(el.dataset.command && el.dataset.expose, "each button has a command and an element name");
 });
 
-test("each dom name is registered once, with a provider that returns the current elements", async () => {
+test("each element name is registered once, with a provider that returns the current elements", async () => {
   const fake = fakeRuntime();
   const root = await mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
   deliver(fake, "core.sidebars", undefined, sidebars("tab-2"));
   deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", true]]));
   deliver(fake, "browser.tabs", "tab-2", tabsValue([["t1", "Docs", false], ["t2", "Mail", false], ["t3", "News", true]]));
-  for (const name of DOM_NAMES) {
-    const registrations = fake.expose.doms.filter((entry) => entry.name === name);
+  for (const name of ELEMENT_NAMES) {
+    const registrations = fake.expose.elements.filter((entry) => entry.name === name);
     assert.equal(registrations.length, 1, `${name} is registered once`);
     assert.equal(typeof registrations[0].target, "function", `${name} is registered with a provider`);
   }
@@ -346,7 +346,7 @@ test("the provider of the rows lists them in document order, a nested child afte
   assert.deepEqual(providerOf(fake, "browser.section.row")(), namedIn(root, "browser.section.row"));
 });
 
-test("the empty state text carries the dom name browser.section.empty", async () => {
+test("the empty state text carries the element name browser.section.empty", async () => {
   const fake = fakeRuntime();
   const root = await mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-1", "browser"]));

@@ -15,7 +15,7 @@ test("a watched status is sent as a changed call with its name, value and versio
     calls: { request: async (command, params) => { calls.push({ command, params }); return null; } },
     runtime: { native: { on: (name, fn) => { if (name === "exposure-request") answer = fn; return () => {}; } } },
   };
-  const declarations = { status: [{ name: "browser.location" }], commands: [], dom: [] };
+  const declarations = { status: [{ name: "browser.location" }], commands: [], element: [] };
   const expose = createPageExposure({ bridge, declarations, report: (text) => reports.push(text) });
   let value = { url: "https://a.test/" };
   const subscribers = new Set();

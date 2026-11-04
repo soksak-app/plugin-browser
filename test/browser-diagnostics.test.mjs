@@ -215,7 +215,7 @@ function sectionFixture(tokens = THEME, section = SECTION) {
     // The ready status of the section, by the name that the section view registers.
     ready: () => statuses.get(`${section.id}.view.ready`),
     attach: async ({ declaration = DECLARATION } = {}) => {
-      await createSectionView({ runtime, expose: { status: async () => {}, dom: async () => {} }, declarations: { commands: [] },
+      await createSectionView({ runtime, expose: { status: async () => {}, element: async () => {} }, declarations: { commands: [] },
         root: doc.body, section, tabState: { read: async () => null, write: () => {} }, report: (text) => { throw new Error(text); } });
       return attach({ expose, root: doc.documentElement, section, declaration,
         log: (event, fields) => records.push({ event, fields }),

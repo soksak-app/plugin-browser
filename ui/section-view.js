@@ -36,7 +36,7 @@ const sameState = (a, b) => a.surface === b.surface && a.scroll.x === b.scroll.x
  *
  *     runtime       the view runtime of @soksak/plugin-api/view: status.watch(name, listener, {surface}) returns the function that ends
  *                   the watch, and command(name, params, {surface}) returns the promise of the reply
- *     expose        the exposure of the page (createPageExposure of page.js): status(name, read, subscribe) and dom(name, element)
+ *     expose        the exposure of the page (createPageExposure of page.js): status(name, read, subscribe) and element(name, provide)
  *     declarations  the exposes of the plugin: the commands that an item may run are declared
  *     root          the element that holds the body of the section and scrolls it
  *     section       the start value {id, sidebar, card} of the section surface
@@ -117,7 +117,7 @@ export async function createSectionView({ runtime, expose, declarations, root, s
     keep();
   });
 
-  // An element of a draw. A named element carries its dom name, which is the name of its provider.
+  // An element of a draw. A named element carries its element name, which is the name of its provider.
   const element = (tag, className, text, name) => {
     const node = doc.createElement(tag);
     if (className !== undefined) node.className = className;
@@ -139,11 +139,11 @@ export async function createSectionView({ runtime, expose, declarations, root, s
   });
   binder.delegate(root);
 
-  // Each dom name of the section has one provider: it returns the elements of the name that the root holds, in document order.
+  // Each element name of the section has one provider: it returns the elements of the name that the root holds, in document order.
   // The elements of a draw are new, so a removed element is not held by the provider, and an index follows document order.
   for (const name of ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"]) {
-    expose.dom(name, () => [...root.querySelectorAll(`[data-expose="${name}"]`)])
-      .catch((error) => report(`dom ${name}: ${error?.message ?? error}`));
+    expose.element(name, () => [...root.querySelectorAll(`[data-expose="${name}"]`)])
+      .catch((error) => report(`element ${name}: ${error?.message ?? error}`));
   }
 
   // The slot of a row with the name, created at its place in document order when it is missing. A slot keeps its element while

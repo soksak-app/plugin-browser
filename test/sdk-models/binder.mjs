@@ -8,6 +8,35 @@ export const INTERACTIVE = 'button, input, select, textarea, [role="button"], [c
 
 const TEXT_LIMIT = 40;
 
+// The implicit ARIA role of an input of each type (interactive.json); an input type outside this table has no role.
+const INPUT_ROLES = Object.freeze({
+  button: "button", image: "button", reset: "button", submit: "button", checkbox: "checkbox", radio: "radio", range: "slider",
+  number: "spinbutton", search: "searchbox", email: "textbox", tel: "textbox", text: "textbox", url: "textbox",
+});
+// The input types whose implicit role is combobox when the input names a list of suggestions.
+const LIST_INPUTS = new Set(["email", "search", "tel", "text", "url"]);
+
+/**
+ * The ARIA role of an audited element: the first token of its role attribute, else the implicit role of its tag and input
+ * type, else textbox for a contenteditable element, else null.
+ */
+export function roleOf(element) {
+  const explicit = element.getAttribute("role")?.trim().split(/\s+/)[0];
+  if (explicit) return explicit;
+  const tag = element.tagName.toLowerCase();
+  if (tag === "button") return "button";
+  if (tag === "textarea") return "textbox";
+  if (tag === "select") return element.multiple || element.size > 1 ? "listbox" : "combobox";
+  if (tag === "input") {
+    // An input without a known type attribute is a text input, whose type property is text.
+    const type = element.type;
+    if (element.hasAttribute("list") && LIST_INPUTS.has(type)) return "combobox";
+    return Object.hasOwn(INPUT_ROLES, type) ? INPUT_ROLES[type] : null;
+  }
+  if (element.matches('[contenteditable]:not([contenteditable="false"])')) return "textbox";
+  return null;
+}
+
 /**
  * Creates a binder over run(name, params), which runs a declared command and resolves with its result. check(name) throws
  * when the command is not declared; it runs before each bind and run.
@@ -69,12 +98,13 @@ export function createBinder(run, { check } = {}) {
       }
       changed += 1;
     },
-    // The audit rows of root: the controls of INTERACTIVE that have no command and no dom name, in document order.
+    // The audit rows of root: the controls of INTERACTIVE that lack a command or an element name, in document order, each
+    // with its role, element name, command and text.
     audit(root) {
       return [...root.querySelectorAll(INTERACTIVE)]
         .filter((element) => !(element.dataset.command !== undefined && element.dataset.expose !== undefined))
         .map((element) => ({
-          tag: element.tagName.toLowerCase(),
+          role: roleOf(element),
           expose: element.dataset.expose ?? null,
           command: element.dataset.command ?? null,
           text: textOf(element),
@@ -102,8 +132,8 @@ export function createBinder(run, { check } = {}) {
   };
 }
 
-// The text of an audit row: aria-label, else title, else the text content, trimmed and cut to TEXT_LIMIT characters.
+// The text of an audit row: a non-empty aria-label, else a non-empty title, else the text content, trimmed and cut to
+// TEXT_LIMIT characters.
 function textOf(element) {
-  const text = element.getAttribute("aria-label") ?? element.getAttribute("title") ?? element.textContent.trim();
-  return [...text.trim()].slice(0, TEXT_LIMIT).join("");
+  return (element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent || "").trim().slice(0, TEXT_LIMIT);
 }

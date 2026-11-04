@@ -262,7 +262,7 @@
         }
       }
     ],
-    "dom": [
+    "element": [
       {
         "name": "browser.address",
         "description": "The address field."

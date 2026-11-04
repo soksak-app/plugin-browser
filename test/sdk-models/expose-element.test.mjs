@@ -1,4 +1,4 @@
-// The dom provider of the exposure model (core docs/spec/exposure.md, dom): expose.dom(name, provide) with a function registers the
+// The element provider of the exposure model (core docs/spec/exposure.md, element): expose.element(name, provide) with a function registers the
 // provider once, each request reads it again, and an index addresses the elements in the order that the provider returns them.
 // The model follows the registration and the request forms of core's createExpose, so the browser section views replay on it.
 import assert from "node:assert/strict";
@@ -17,7 +17,7 @@ const element = (label, clicked) => ({
 });
 
 // The exposure of one page over the model, with the declared exposes and each reply of the requests in order.
-function exposureOf(dom) {
+function exposureOf(declared) {
   let handle = null;
   const replies = [];
   const expose = createExpose({
@@ -25,7 +25,7 @@ function exposureOf(dom) {
     onRequest: (answer) => { handle = answer; },
     reply: (id, payload) => { replies.push({ id, payload }); },
     changed: () => {},
-  }, { status: [], commands: [], dom });
+  }, { status: [], commands: [], element: declared });
   const request = async (id, method, params) => {
     await handle({ id, method, params });
     return replies.find((reply) => reply.id === id).payload;
@@ -37,10 +37,10 @@ test("an index of a provider addresses the elements in the order that the provid
   const clicked = [];
   const { expose, request } = exposureOf([{ name: "sample.row", description: "rows", many: true }]);
   let rows = [element("a", clicked), element("b", clicked)];
-  await expose.dom("sample.row", () => rows);
-  assert.deepEqual(await request(1, "dom.act", { name: "sample.row", index: 1, action: "click" }), { result: null });
+  await expose.element("sample.row", () => rows);
+  assert.deepEqual(await request(1, "element.act", { name: "sample.row", index: 1, action: "click" }), { result: null });
   rows = [element("c", clicked), element("a", clicked)];
-  await request(2, "dom.act", { name: "sample.row", index: 0, action: "click" });
+  await request(2, "element.act", { name: "sample.row", index: 0, action: "click" });
   assert.deepEqual(clicked, ["b", "c"]);
 });
 
@@ -48,15 +48,15 @@ test("a provider that returns fewer elements refuses an index beyond them", asyn
   const clicked = [];
   const { expose, request } = exposureOf([{ name: "sample.row", description: "rows", many: true }]);
   let rows = [element("a", clicked), element("b", clicked)];
-  await expose.dom("sample.row", () => rows);
+  await expose.element("sample.row", () => rows);
   rows = [element("a", clicked)];
-  const reply = await request(3, "dom.act", { name: "sample.row", index: 1, action: "click" });
-  assert.equal(reply.error?.message, "dom sample.row has no element at index 1");
+  const reply = await request(3, "element.act", { name: "sample.row", index: 1, action: "click" });
+  assert.equal(reply.error?.message, "element sample.row has no element at index 1");
   assert.deepEqual(clicked, []);
 });
 
 test("a name that is not declared many is registered once", async () => {
   const { expose } = exposureOf([{ name: "sample.one", description: "one" }]);
-  await expose.dom("sample.one", () => [element("a", [])]);
-  await assert.rejects(expose.dom("sample.one", () => [element("b", [])]), /dom sample\.one is already registered/);
+  await expose.element("sample.one", () => [element("a", [])]);
+  await assert.rejects(expose.element("sample.one", () => [element("b", [])]), /element sample\.one is already registered/);
 });

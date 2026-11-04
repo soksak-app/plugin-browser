@@ -11,7 +11,7 @@ const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.u
 async function setup(t) {
   const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
   const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
-  const commands = new Map(), requests = [], states = new Set(), doms = new Map();
+  const commands = new Map(), requests = [], states = new Set(), elements = new Map();
   const binder = createBinder((name, params) => {
     requests.push(name);
     return commands.get(name)(params);
@@ -28,21 +28,21 @@ async function setup(t) {
     surfaceId: "browser-empty-test",
     composition: { async create() { return { region: () => region, async dispose() {} }; } },
     exposure: {
-      status() {}, dom(name, element) { doms.set(name, element); }, command(name, run) { commands.set(name, run); },
+      status() {}, element(name, target) { elements.set(name, target); }, command(name, run) { commands.set(name, run); },
       bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose,
     },
     status: { report() {} },
   });
   t.after(async () => { await controller.dispose(); dom.window.close(); });
-  return { dom, root, requests, doms, commands };
+  return { dom, root, requests, elements, commands };
 }
 
 test("an empty address hides the document element and shows the declared empty state", { timeout: 10000 }, async (t) => {
-  const { root, doms } = await setup(t);
-  assert.ok(manifest.exposes.dom.some((entry) => entry.name === "browser.empty"), "browser.empty is not declared");
+  const { root, elements } = await setup(t);
+  assert.ok(manifest.exposes.element.some((entry) => entry.name === "browser.empty"), "browser.empty is not declared");
   const empty = root.querySelector('[data-expose="browser.empty"]');
   assert.ok(empty, "the empty state element is missing");
-  assert.equal(doms.get("browser.empty"), empty);
+  assert.equal(elements.get("browser.empty"), empty);
   assert.equal(empty.hidden, false);
   assert.equal(empty.textContent, "주소를 입력하세요");
   assert.equal(root.querySelector("#document").hidden, true, "the document element must be hidden without an address");

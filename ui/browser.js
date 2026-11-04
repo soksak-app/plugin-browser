@@ -394,12 +394,12 @@ export async function mount(root, context) {
     if (typeof tab !== "string" || tab === "") throw new Error(`browser.tab.select requires a tab, not ${JSON.stringify(tab)}`);
     return context.runtime.command("core.tab.select", { tab }, { cids: options.cids });
   }));
-  context.exposure.dom("browser.address", address);
-  context.exposure.dom("browser.document", area);
-  context.exposure.dom("browser.empty", empty);
-  context.exposure.dom("browser.back", root.querySelector('[data-command="browser.back"]'));
-  context.exposure.dom("browser.forward", root.querySelector('[data-command="browser.forward"]'));
-  context.exposure.dom("browser.reload", root.querySelector('[data-command="browser.reload"]'));
+  context.exposure.element("browser.address", address);
+  context.exposure.element("browser.document", area);
+  context.exposure.element("browser.empty", empty);
+  context.exposure.element("browser.back", root.querySelector('[data-command="browser.back"]'));
+  context.exposure.element("browser.forward", root.querySelector('[data-command="browser.forward"]'));
+  context.exposure.element("browser.reload", root.querySelector('[data-command="browser.reload"]'));
   await context.exposure.delegate(root);
   await context.exposure.bind(address, "browser.address.select", {}, { event: "focus" });
   await context.exposure.bind(address, "browser.navigate", () => {

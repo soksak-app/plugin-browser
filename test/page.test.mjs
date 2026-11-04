@@ -9,17 +9,17 @@ const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.u
 const { document } = new JSDOM("<div></div>").window;
 const names = (kind) => manifest.exposes[kind].map((entry) => entry.name);
 
-test("browser module is an app-DOM entry", () => {
+test("the browser module exports its mount function", () => {
   assert.match(source, /export (?:async )?function mount/);
 });
 
-test("every control names a declared dom entry and a declared command", () => {
+test("every control names a declared element entry and a declared command", () => {
   assert.match(source, /data-expose="browser.address/);
   assert.match(source, /data-command="browser.reload/);
-  assert.ok(names("dom").length > 0);
+  assert.ok(names("element").length > 0);
 });
 
-test("the document region is a declared dom entry and the start address is the home setting", () => {
+test("the document region is a declared element entry and the start address is the home setting", () => {
   assert.match(source, /browser.document/);
   assert.equal(manifest.home, undefined);
   assert.deepEqual(manifest.settings.home, { label: "홈 주소", description: manifest.settings.home.description, type: "address", default: "" });
@@ -32,7 +32,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   const root = dom.window.document.createElement("div");
   const shadow = root.attachShadow({ mode: "open" });
   const states = [];
-  const exposed = { statuses: new Map(), commands: new Map(), doms: new Map(), disposed: false };
+  const exposed = { statuses: new Map(), commands: new Map(), elements: new Map(), disposed: false };
   const region = {
     state: null,
     onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
@@ -53,7 +53,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
     exposure: {
       status: async (name, read, subscribe) => exposed.statuses.set(name, { read, subscribe }),
       command: async (name, fn) => exposed.commands.set(name, fn),
-      dom: async (name, element) => exposed.doms.set(name, element),
+      element: async (name, target) => exposed.elements.set(name, target),
       delegate: async () => {}, bind: async () => {},
       dispose: async () => { exposed.disposed = true; },
     },
@@ -112,7 +112,7 @@ async function mountRestored({ stored, history }) {
     tab: { title() {}, footer() {}, state: { read: () => stored, write: (value) => writes.push(value) } },
     surfaceId: "browser-state-test",
     composition: { create: async () => ({ region: () => region, dispose: async () => {} }) },
-    exposure: { status: async () => {}, command: async () => {}, dom: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
+    exposure: { status: async () => {}, command: async () => {}, element: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
     status: { report() {} },
     runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
       textSize: { read: async () => 1, on: async () => () => {} } },

@@ -56,15 +56,15 @@ test("each section declares unload as the surface declares it", () => {
   }
 });
 
-// The names that the section views expose (ui/section-view.js): the status of each section and the dom names of its rows, items and
-// texts. Each dom name is a list, because a section draws several elements of each name.
-test("the section views declare the status browser.section and the dom names of their rows, items and texts as lists", () => {
+// The names that the section views expose (ui/section-view.js): the status of each section and the element names of its rows, items and
+// texts. Each element name is a list, because a section draws several elements of each name.
+test("the section views declare the status browser.section and the element names of their rows, items and texts as lists", () => {
   const status = manifest.exposes.status.find((entry) => entry.name === "browser.section");
   assert.ok(status, "browser.section is declared");
   assert.deepEqual(status.schema.properties.state.enum, ["pending", "empty", "followed"]);
   assert.equal(status.schema.properties.section.type, "string");
-  const dom = Object.fromEntries(manifest.exposes.dom.map((entry) => [entry.name, entry]));
+  const elements = Object.fromEntries(manifest.exposes.element.map((entry) => [entry.name, entry]));
   for (const name of ["browser.section.row", "browser.section.item", "browser.section.empty", "browser.section.status"]) {
-    assert.equal(dom[name]?.many, true, `${name} is declared as a list`);
+    assert.equal(elements[name]?.many, true, `${name} is declared as a list`);
   }
 });

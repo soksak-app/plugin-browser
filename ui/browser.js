@@ -232,6 +232,8 @@ export async function mount(root, context) {
     disposeDiagnostics = await context.diagnostics.attach({
       expose: context.exposure,
       root: root.ownerDocument.documentElement,
+      // The tab surface has no section (core docs/spec/native-surfaces.md#view-surfaces, start values).
+      section: null,
       readRegionHistoryEntries: () => history.entries.length,
       log: (_event, fields) => context.runtime.log.trace("view.content_frame", fields),
     });

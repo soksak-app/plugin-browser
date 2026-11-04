@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P115: 각 section view가 core의 section view benchmark 항목을 제공한다. `browser.view.frames`는 content frame을 관찰하고 root를 marker color로 칠하며, `browser.view.history`는 session history 길이를 답하고, 자기 section의 ready status(예: `browser.tabs.view.ready`)는 browser tab이 없는 section이 보이는 텍스트 `연결된 탭 없음`을 보일 때만 true다. section view의 화면은 바뀌지 않는다.
 - P112: 네 section이 `unload`를 선언하므로 core의 memory saver가 숨은 section을 unload한다. section의 view는 body의 scroll 위치를 따라가는 surface와 함께 tab state로 유지하고, restore된 section은 같은 surface의 행이 그 위치에 닿으면 그 위치로 scroll한다. 행은 따라가는 surface의 status로 돌아온다. Red: manifest test가 `browser.dom declares unload`로, restore case가 `the restored section shows the scroll position that it had`로 실패했다. Green: 통과한다.
 - F432-browser: `engines.soksak`은 `^0.0.34`이고, version은 0.0.20이다. Red: core version test가 `^0.0.33`에서 실패했다. Green: 통과한다.
 - P27: 통합 window run이 browser check를 통과한 뒤 이 항목은 측정 P27.4를 위해 보류된다.

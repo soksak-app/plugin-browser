@@ -6,7 +6,7 @@
 // the tab state, and the commands. The page reads the start values of the surface (the tab, its params, its origin, its
 // project and the declarations of the plugin) from window.sokSurface, which the host injects before the page runs.
 import { mount } from "./browser.js";
-import { callOf, createPage, createPageExposure } from "./page.js";
+import { callOf, createPage, createPageExposure, exposeCommand } from "./page.js";
 import { startValues } from "./start-values.js";
 import { loadDiagnostics } from "./view-diagnostics.js";
 
@@ -62,7 +62,7 @@ export function createViewContext({ bridge, start, report, diagnostics = null })
       composition: bridge.composition,
       exposure: {
         status: (name, read, subscribe) => exposure.status(name, read, subscribe),
-        command: (name, run) => Promise.all([exposure.command(name, run), commands.register(name, run)]).then(() => undefined),
+        command: exposeCommand(exposure, commands),
         dom: (name, element) => exposure.dom(name, element),
         bind: exposure.bind,
         delegate: exposure.delegate,

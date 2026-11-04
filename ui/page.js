@@ -44,6 +44,14 @@ export function createPageExposure({ bridge, declarations, report }) {
 }
 
 /**
+ * The command registration of a view page over its exposure and the commands of its bridge: the exposure answers the binds of the
+ * page, and commands.register of the bridge declares the command and answers the requests of core with the same handler.
+ */
+export function exposeCommand(exposure, commands) {
+  return (name, run) => Promise.all([exposure.command(name, run), commands.register(name, run)]).then(() => undefined);
+}
+
+/**
  * The reporter of a page: each record is an emit of the catalog event plugin.browser.report, which the emitter stores through the
  * bridge logger under the name without the plugin prefix (core docs/spec/logging.md). The bridge logger reports a refused record
  * through runtime.error.

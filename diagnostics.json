@@ -30,6 +30,90 @@
             }
           }
         }
+      },
+      {
+        "name": "browser.view.frames",
+        "description": "Starts or stops the content-frame observation of the section view document, which paints the document root with the marker color while it runs. The start result includes the view document source clock and the marker color.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "action": { "type": "string", "enum": ["start", "stop"] }
+          }
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "markerColor": {
+              "type": "array",
+              "items": { "type": "integer" }
+            },
+            "sourceClock": {
+              "type": "object",
+              "properties": {
+                "documentTimeOriginMs": { "type": "number" },
+                "sourceNowMs": { "type": "number" },
+                "sourceResolutionMs": { "type": "number", "enum": [1] }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "browser.view.history",
+        "description": "Reads the length of the session history of the section view document.",
+        "params": { "type": "object", "properties": {} },
+        "result": { "type": "object", "properties": { "length": { "type": "integer" } } }
+      }
+    ],
+    "status": [
+      {
+        "name": "browser.dom.view.ready",
+        "description": "Whether the browser.dom section view shows its empty text, that text and the recognition language of the text.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ready": { "type": "boolean" },
+            "content": { "type": "string", "enum": ["연결된 탭 없음"] },
+            "language": { "type": "string", "enum": ["ko-KR"] }
+          }
+        }
+      },
+      {
+        "name": "browser.network.view.ready",
+        "description": "Whether the browser.network section view shows its empty text, that text and the recognition language of the text.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ready": { "type": "boolean" },
+            "content": { "type": "string", "enum": ["연결된 탭 없음"] },
+            "language": { "type": "string", "enum": ["ko-KR"] }
+          }
+        }
+      },
+      {
+        "name": "browser.tabs.view.ready",
+        "description": "Whether the browser.tabs section view shows its empty text, that text and the recognition language of the text.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ready": { "type": "boolean" },
+            "content": { "type": "string", "enum": ["연결된 탭 없음"] },
+            "language": { "type": "string", "enum": ["ko-KR"] }
+          }
+        }
+      },
+      {
+        "name": "browser.history.view.ready",
+        "description": "Whether the browser.history section view shows its empty text, that text and the recognition language of the text.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ready": { "type": "boolean" },
+            "content": { "type": "string", "enum": ["연결된 탭 없음"] },
+            "language": { "type": "string", "enum": ["ko-KR"] }
+          }
+        }
       }
     ]
   }

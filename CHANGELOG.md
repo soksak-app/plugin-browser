@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P27: The item is held for its measurement P27.4 after the integrated window run passed the browser checks.
 - P111: The commit hook test no longer ends a hook at 4 seconds, so a slow runner does not fail it.
 - P110: A section that core.sidebars no longer draws ends its watch and reports nothing.
 - F402-browser: `engines.soksak` is `^0.0.33`, and the version is 0.0.19. Red: the core version test failed on `^0.0.32`. Green: it passes.

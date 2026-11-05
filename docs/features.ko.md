@@ -1,5 +1,7 @@
 # 기능
 
+- [o] F476-browser — P2, core F476과 연결: test는 선언된 version을 되풀이하지 않는다. 입력: test가 자기가 선언한 version과 범위의 assertion을 가져, 동작 변경 없이 release마다 바뀌었다. 결과: 이를 지웠고 `make test`가 통과한다.
+- [o] F474-browser — P0, core F474와 연결: plugin이 `engines.soksak` `^0.0.36`를 선언해 core release 0.0.36이 설치하고, version은 0.0.22이다. Red: `test/core-version.test.mjs`가 `^0.0.35`에서 실패했다. Green: 통과한다. 결과: release run이 v0.0.22을 게시했고 registry가 이를 올리며, 게시된 core 0.0.36의 `sok plugin install`이 이를 선택한다.
 - [o] F472-browser — P2, core F472와 연결: 저장소의 명령 이름이 하는 일을 말하고, `make check`가 `sok-check commands`를 실행한다. 결과: `make test`가 통과한다.
 - [ ] P119 — P1, records kit KR14, KR15와 연결: push check와 CI가 kit의 체크리스트 이력 검사를 실행한다. 입력: `package.json`이 pin한 kit 0.0.6에는 `soksak-records --range`가 없어, 이 repository의 어떤 검사도 체크리스트를 이전 text와 비교하지 않는다. 기대: KR14와 KR15를 담은 kit release 뒤에 `package.json`이 그 release를 pin하고, `make push-check`가 push 범위에 `soksak-records --range`를 실행하고, CI가 event의 범위에 이를 실행한다.
 - [o] P118 — P2, P16와 연결: 이 항목은 P16의 이전 commit subject가 어느 항목의 것인지 적는다. 입력: 체크리스트에 record 규칙을 적용한 닫힌 항목이 P16를 가졌다가 폐기 줄 없이 체크리스트에서 빠졌고, 그 뒤 P16가 plugin, sidecar, release를 그 이름으로 부르는 항목에 배정되어, main의 commit subject에서 두 항목이 P16를 함께 쓴다. 기대: 기록이 각 subject의 주인을 밝히고, P16는 체크리스트가 적는 항목으로 남으며, 닫힌 항목을 다시 열거나 지우지 않는다. 결과: subject `docs(features): State the checklist as facts (#P16)`는 core 체크리스트 항목 R3.3을 위해 체크리스트를 사실로 적은, 지워진 항목의 것이다. P16의 그 뒤 subject는 모두 체크리스트가 적는 항목의 것이다. Red: 그 subject의 주인을 적은 기록이 없었다. Green: 이 항목이 그것을 적고 `soksak-records`가 통과한다.

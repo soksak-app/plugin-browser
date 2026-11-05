@@ -45,6 +45,7 @@
 - P32: The start values of the view accept an origin whose directory is null, which core docs/spec/native-surfaces.md#view-surfaces states. The start-value check moved to `ui/start-values.js` without a change, and `test/start-values.test.mjs` tests it. Red: the test `the start values with an origin whose directory is null are accepted, because a tab can record no directory` failed with `origin is {"directory":null}`. Green: `make test` passes 109 of 109, and `make check` passes with CORE_PLUGIN_API_DIR.
 ## Unreleased
 
+- F468-browser: The repository runs `soksak-check docs` and `soksak-check events` of the kit with `event-sources.json`.
 - F466-browser: The repository pins the kit release that reports a citation of a local build log or a temporary log.
 - F467-browser: The repository pins `@soksak/kit`.
 - F463-browser: The repository uses the checks kit and its one executable `soksak-check`.

@@ -39,6 +39,7 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- F467-browser: 저장소가 `@soksak/kit`을 pin한다.
 - F463-browser: 저장소가 checks kit과 실행 파일 하나 `soksak-check`를 쓴다.
 - F462-browser: `engines.soksak`은 `^0.0.35`이고, version은 0.0.21이다. Red: core version test가 `^0.0.34`에서 실패했다. Green: 통과한다.
 - F367-browser: `engines.soksak`은 `^0.0.29`이고, version은 0.0.14다. Red: core version test가 `^0.0.28`에서 실패했다. Green: 통과한다.

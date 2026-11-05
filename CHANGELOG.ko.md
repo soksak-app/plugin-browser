@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- F474-browser: release run이 v0.0.22을 게시했고 registry가 이를 올린다.
 - F474-browser: `engines.soksak`은 `^0.0.36`이고, version은 0.0.22이다. Red: core version test가 `^0.0.35`에서 실패했다. Green: 통과한다.
 - F432-browser: `engines.soksak`은 `^0.0.34`이고, version은 0.0.20이다. Red: core version test가 `^0.0.33`에서 실패했다. Green: 통과한다.
 - P27: 통합 window run이 browser check를 통과한 뒤 이 항목은 측정 P27.4를 위해 보류된다.

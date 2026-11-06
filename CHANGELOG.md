@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- F494-browser: `engines.soksak` is `^0.0.38`, and the version is 0.0.24.
 - F479-browser: The release run published v0.0.23, and the registry lists it.
 - F479-browser: `engines.soksak` is `^0.0.37`, and the version is 0.0.23.
 - F476-browser: The tests repeat no declared version.

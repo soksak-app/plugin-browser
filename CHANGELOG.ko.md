@@ -8,6 +8,7 @@
 - P116: core 호환성 문서는 package가 선언한 범위 `^0.0.34`를 적고, test가 두 문서를 `engines.soksak`과 비교한다. Red: test가 `^0.0.34`에 대한 `^0.0.24`로 실패했다. Green: 통과한다.
 - P115: 각 section view가 core의 section view benchmark 항목을 제공한다. `browser.view.frames`는 content frame을 관찰하고 root를 marker color로 칠하며, `browser.view.history`는 session history 길이를 답하고, 자기 section의 ready status(예: `browser.tabs.view.ready`)는 browser tab이 없는 section이 보이는 텍스트 `연결된 탭 없음`을 보일 때만 true다. section view의 화면은 바뀌지 않는다.
 - P112: 네 section이 `unload`를 선언하므로 core의 memory saver가 숨은 section을 unload한다. section의 view는 body의 scroll 위치를 따라가는 surface와 함께 tab state로 유지하고, restore된 section은 같은 surface의 행이 그 위치에 닿으면 그 위치로 scroll한다. 행은 따라가는 surface의 status로 돌아온다. Red: manifest test가 `browser.dom declares unload`로, restore case가 `the restored section shows the scroll position that it had`로 실패했다. Green: 통과한다.
+- F497-browser: `engines.soksak`은 `^0.0.39`이고, version은 0.0.25이다.
 - F494-browser: `engines.soksak`은 `^0.0.38`이고, version은 0.0.24이다.
 - F479-browser: release run이 v0.0.23을 게시했고 registry가 이를 올린다.
 - F479-browser: `engines.soksak`은 `^0.0.37`이고, version은 0.0.23이다.

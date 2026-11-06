@@ -8,6 +8,7 @@
 - P116: The core compatibility document states `^0.0.34`, the range that the package declares, and a test compares both documents with `engines.soksak`. Red: the test failed with `^0.0.24` against `^0.0.34`. Green: it passes.
 - P115: Each section view serves the entries of the section view benchmark of core: `browser.view.frames` observes its content frames and paints its root with a marker color, `browser.view.history` answers its session history length, and the ready status of its own section, such as `browser.tabs.view.ready`, is true only while it shows the text `연결된 탭 없음`, which a section without a browser tab shows. The screen of the section view does not change.
 - P112: The four sections declare `unload`, so the memory saver of core unloads a hidden section. The view of a section keeps the scroll position of its body with the surface that it follows as its tab state, and a restored section scrolls to that position once the rows of the same surface reach it; the rows return through the status of the followed surface. Red: the manifest test failed with `browser.dom declares unload`, and the restore cases failed with `the restored section shows the scroll position that it had`. Green: they pass.
+- F497-browser: `engines.soksak` is `^0.0.39`, and the version is 0.0.25.
 - F494-browser: `engines.soksak` is `^0.0.38`, and the version is 0.0.24.
 - F479-browser: The release run published v0.0.23, and the registry lists it.
 - F479-browser: `engines.soksak` is `^0.0.37`, and the version is 0.0.23.

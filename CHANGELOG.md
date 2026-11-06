@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P119: The push check and CI run the checklist history check of the kit: `package.json` pins kit 0.0.14, which holds KR14 and KR15, `make check-push` runs `sok-check docs --range` on the pushed range, and CI runs `make check-push` on the range of its event. Red: the tests of the push check failed on the Makefile and `ci.yml` before the change. Green: they pass.
 - P120: The core compatibility documents state `^0.0.39`, the range that `package.json` declares.
 - P118: The subject `docs(features): State the checklist as facts (#P16)` belongs to a removed item, not to the item that the checklist states as P16.
 - P113: The plugin declares its exposed elements in `exposes.element` and registers them through `expose.element`, as core F502-13 renames the exposure kind `dom` to `element`, and the binder model reports the ARIA role of each audit row; `engines.soksak` is `^0.0.35`, the core release of F502-13. Red: 85 of 192 tests failed on element entries, the binder audit replay failed on its tag rows, and the core version test failed on `^0.0.34`. Green: the tests that the change touches pass.

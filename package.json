@@ -34,7 +34,7 @@
     "test": "node scripts/build-test.mjs && node --test test/"
   },
   "devDependencies": {
-    "@soksak/kit": "https://github.com/soksak-app/kit/releases/download/v0.0.13/soksak-kit-0.0.13.tgz",
+    "@soksak/kit": "https://github.com/soksak-app/kit/releases/download/v0.0.14/soksak-kit-0.0.14.tgz",
     "jsdom": "^30.0.1"
   }
 }

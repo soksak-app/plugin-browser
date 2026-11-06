@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- P119: push check와 CI가 kit의 체크리스트 이력 검사를 실행한다. `package.json`이 KR14와 KR15를 담은 kit 0.0.14를 pin하고, `make check-push`가 push 범위에 `sok-check docs --range`를 실행하며, CI가 event의 범위에 `make check-push`를 실행한다. Red: 변경 전 Makefile과 `ci.yml`에서 push check test가 실패했다. Green: 통과한다.
 - P120: core 호환 문서가 `package.json`이 선언한 범위 `^0.0.39`을 적는다.
 - P118: subject `docs(features): State the checklist as facts (#P16)`는 체크리스트가 P16로 적는 항목이 아니라 지워진 항목의 것이다.
 - P113: core F502-13이 exposure 종류 `dom`을 `element`로 바꾸므로, plugin은 노출하는 element를 `exposes.element`에 선언하고 `expose.element`로 등록하며, binder model은 각 audit 행의 ARIA role을 보고한다. `engines.soksak`은 F502-13의 core release인 `^0.0.35`다. Red: element entry에서 test 192개 중 85개가 실패했고, binder audit replay가 tag 행에서 실패했으며, core version test가 `^0.0.34`에서 실패했다. Green: 변경이 닿는 test가 통과한다.

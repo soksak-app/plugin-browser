@@ -1,4 +1,4 @@
-import { createBinder } from "./binder.mjs";
+import { createBinder, roleOf } from "./binder.mjs";
 
 // Model of createExpose of the plugin API for the calls that the browser view page makes: status, command and element
 // registration and the exposure requests status.get, status.watch, status.unwatch, command.run, element.act and element.rect.
@@ -147,7 +147,7 @@ export function createExpose({ register, unregister, onRequest, reply, changed }
       case "element.rect": {
         const element = elementOf(params.name, params);
         const box = element.getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width, height: box.height, zoom: effectiveZoom(element) };
+        return { x: box.x, y: box.y, width: box.width, height: box.height, zoom: effectiveZoom(element), role: roleOf(element) };
       }
       case "command.run": {
         const command = commands.get(params.name);

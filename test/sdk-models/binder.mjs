@@ -13,17 +13,26 @@ const INPUT_ROLES = Object.freeze({
   button: "button", image: "button", reset: "button", submit: "button", checkbox: "checkbox", radio: "radio", range: "slider",
   number: "spinbutton", search: "searchbox", email: "textbox", tel: "textbox", text: "textbox", url: "textbox",
 });
+// The implicit ARIA role of a tag that needs no attribute to have it (HTML-AAM), for the roles that element.rect reports.
+const TAG_ROLES = Object.freeze({
+  article: "article", dialog: "dialog", h1: "heading", h2: "heading", h3: "heading", h4: "heading", h5: "heading", h6: "heading", hr: "separator",
+  img: "img", li: "listitem", meter: "meter", nav: "navigation", ol: "list", progress: "progressbar", search: "search", table: "table", td: "cell",
+  th: "columnheader", tr: "row", ul: "list",
+});
 // The input types whose implicit role is combobox when the input names a list of suggestions.
 const LIST_INPUTS = new Set(["email", "search", "tel", "text", "url"]);
 
 /**
- * The ARIA role of an audited element: the first token of its role attribute, else the implicit role of its tag and input
- * type, else textbox for a contenteditable element, else null.
+ * The ARIA role of an element, which the audit rows and element.rect report: the first token of its role attribute, else the
+ * implicit role of its tag and input type, else textbox for a contenteditable element, else null. A group only groups, so its
+ * role is null (expose.json, interactive.json).
  */
 export function roleOf(element) {
   const explicit = element.getAttribute("role")?.trim().split(/\s+/)[0];
-  if (explicit) return explicit;
+  if (explicit) return explicit === "group" ? null : explicit;
   const tag = element.tagName.toLowerCase();
+  if (Object.hasOwn(TAG_ROLES, tag)) return TAG_ROLES[tag];
+  if (tag === "a") return element.hasAttribute("href") ? "link" : null;
   if (tag === "button") return "button";
   if (tag === "textarea") return "textbox";
   if (tag === "select") return element.multiple || element.size > 1 ? "listbox" : "combobox";

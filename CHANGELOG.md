@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- P121: The copy of `expose.json` and its digest are the file of core main, and the exposure model answers the role of the element in `element.rect` by the rule of core. Red: the replay of `expose.element.act-rect-and-refusals` failed without `role`, and the role test failed on the earlier rule. Green: they pass.
 - P119: The push check and CI run the checklist history check of the kit: `package.json` pins kit 0.0.14, which holds KR14 and KR15, `make check-push` runs `sok-check docs --range` on the pushed range, and CI runs `make check-push` on the range of its event. Red: the tests of the push check failed on the Makefile and `ci.yml` before the change. Green: they pass.
 - P120: The core compatibility documents state `^0.0.39`, the range that `package.json` declares.
 - P118: The subject `docs(features): State the checklist as facts (#P16)` belongs to a removed item, not to the item that the checklist states as P16.

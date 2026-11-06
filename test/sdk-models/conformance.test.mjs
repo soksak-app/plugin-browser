@@ -69,13 +69,24 @@ test("expose cases replay against the exposure model", async () => {
       reply: (id, payload) => { replies.push({ id, payload }); },
       changed: (name, value, version) => { changes.push({ name, value, version }); },
     }, testCase.declarations);
+    // The markup of the case, which gives each element its tag and attributes; the role that element.rect reports reads them.
+    const markup = new JSDOM(testCase.markup ?? "").window.document;
     // The fake element of a selector: its click runs the listeners of the page and records the click.
     const elementOf = (selector) => {
       const name = selector.replace("#", "");
       if (!elements.has(selector)) {
         const listeners = {};
+        const node = markup.querySelector(selector);
+        if (!node) throw new Error(`the markup of ${testCase.id} has no element ${selector}`);
         const element = {
           id: name,
+          tagName: node.tagName,
+          type: node.type,
+          multiple: node.multiple,
+          size: node.size,
+          getAttribute: (attribute) => node.getAttribute(attribute),
+          hasAttribute: (attribute) => node.hasAttribute(attribute),
+          matches: (query) => node.matches(query),
           dataset: {},
           // The markup of a case sets no zoom, so each element has the initial computed zoom 1 and no flat-tree parent.
           ownerDocument: { defaultView: { getComputedStyle: () => ({ zoom: "1" }) } },

@@ -3,6 +3,8 @@
 // The model follows the registration and the request forms of core's createExpose, so the browser section views replay on it.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { JSDOM } from "jsdom";
+import { roleOf } from "./binder.mjs";
 import { createExpose } from "./expose.mjs";
 
 // A fake element that records each click and reports its connection.
@@ -59,4 +61,13 @@ test("a name that is not declared many is registered once", async () => {
   const { expose } = exposureOf([{ name: "sample.one", description: "one" }]);
   await expose.element("sample.one", () => [element("a", [])]);
   await assert.rejects(expose.element("sample.one", () => [element("b", [])]), /element sample\.one is already registered/);
+});
+
+// element.rect reports the ARIA role of the element by the rule of core's roleOf (expose.json): the first token of the role
+// attribute, else the implicit role of the tag, and null for a group and for an element that only holds text.
+test("the role of element.rect follows the role attribute and the tag, and a group or a plain element has none (P121)", () => {
+  const { document } = new JSDOM("<div role='tab selected'></div><button></button><div></div><div role='group'><input></div>"
+    + "<ul><li></li></ul><a href='#'></a><a></a><h2></h2><span contenteditable></span>").window;
+  const roles = [...document.body.querySelectorAll("*")].map((element) => roleOf(element));
+  assert.deepEqual(roles, ["tab", "button", null, null, "textbox", "list", "listitem", "link", null, "heading", "textbox"]);
 });

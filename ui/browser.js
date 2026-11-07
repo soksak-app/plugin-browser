@@ -102,16 +102,22 @@ const tabsOf = (grid, surface) => {
   }] };
 };
 
+const EMPTY_INSTRUCTION = "주소를 입력하세요";
+
 export async function mount(root, context) {
-  root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">주소를 입력하세요</div>`;
+  root.innerHTML = `<style>${css}</style><div id="bar"><button data-command="browser.back" aria-label="뒤로">${icon("chevron-left")}</button><button data-command="browser.forward" aria-label="앞으로">${icon("chevron-right")}</button><button data-command="browser.reload" aria-label="새로 고침">${icon("rotate-cw")}</button><input id="address" data-expose="browser.address" aria-label="주소"></div><div id="document" data-expose="browser.document"></div><div id="empty" data-expose="browser.empty" data-command="browser.address.select">${EMPTY_INSTRUCTION}</div>`;
   const emitEvent = createEmitter(context.runtime, "browser");
   const address = root.querySelector("#address");
   const area = root.querySelector("#document");
   const empty = root.querySelector("#empty");
   // 주소가 없으면 문서 요소를 숨겨 합성이 문서 영역을 보이지 않게 배치하고, 빈 상태를 그 자리에 둔다.
+  let content;
   const showEmpty = (url) => {
-    area.hidden = url === "";
-    empty.hidden = url !== "";
+    content = url === "" ? { kind: "empty", instruction: EMPTY_INSTRUCTION }
+      : { kind: "document", instruction: null };
+    area.hidden = content.kind === "empty";
+    empty.hidden = content.kind !== "empty";
+    empty.textContent = content.instruction ?? "";
   };
   // The tab state is the address of the document, which a restored or restarted tab opens (core docs/spec/plugins.md#memory-saver).
   // The read is a call of the view channel, so the page awaits it.
@@ -379,6 +385,7 @@ export async function mount(root, context) {
     fn(addressText());
     return () => addressListeners.delete(fn);
   });
+  context.exposure.command("browser.content.read", () => ({ ...content }));
   context.exposure.command("browser.address.select", reported("browser.address.select", () => { address.focus(); address.select(); return null; }));
   context.exposure.command("browser.navigate", reported("browser.navigate", navigated(({ url }) => {
     // 주소가 없는 이동은 문서 영역에 보내지 않고 여기서 거부한다.

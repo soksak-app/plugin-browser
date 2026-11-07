@@ -1,5 +1,7 @@
 # Browser plugin
 
+`browser.content.read` reads the main view model: `{kind:"empty", instruction:"주소를 입력하세요"}` for the empty view, or `{kind:"document", instruction:null}` when the document region is selected. It does not read external page text or assert loading completion; `browser.location` retains loading and error state. The reply and visible instruction use the same view model.
+
 [한국어](README.ko.md)
 
 Browser plugin: an address bar and a document region that shows web pages. The plugin format is defined in the soksak core specification (`docs/spec/plugins.md`).

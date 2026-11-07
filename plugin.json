@@ -178,6 +178,18 @@
     ],
     "commands": [
       {
+        "name": "browser.content.read",
+        "description": "Reads the rendered main-view model: the exact empty instruction, or a document region with no instruction. Document does not mean loading is complete and this command does not read the external page text.",
+        "params": { "type": "object", "properties": {} },
+        "result": {
+          "type": "object",
+          "enum": [
+            { "kind": "empty", "instruction": "주소를 입력하세요" },
+            { "kind": "document", "instruction": null }
+          ]
+        }
+      },
+      {
         "name": "browser.history.go",
         "description": "Loads the session history entry at a position; returns whether a load started, false for the current entry.",
         "params": { "type": "object", "properties": { "index": { "type": "integer" } } },

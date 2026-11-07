@@ -1,5 +1,7 @@
 # 브라우저 plugin
 
+`browser.content.read`는 메인 뷰 모델을 읽는다. 빈 뷰는 `{kind:"empty", instruction:"주소를 입력하세요"}`, 문서 영역은 `{kind:"document", instruction:null}`을 반환한다. 외부 페이지 본문이나 로딩 완료를 뜻하지 않으며 로딩과 오류 상태는 `browser.location`에 그대로 있다. 응답과 화면 안내는 같은 뷰 모델을 쓴다.
+
 [English](README.md)
 
 Plugin 형식은 soksak core spec(`docs/spec/plugins.md`)이 정한다.

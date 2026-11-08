@@ -22,6 +22,7 @@ for (const app of Object.values(APPS)) {
     ] });
     const result = await runViewMeasurements(t, s, {
       plugin: browserViewDescriptor.plugin,
+      // The DOM mount baseline of the browser view (docs/spec/view-measurement.md).
       baselinesMs: { wailsv3: 13, tauriv2: 22 },
       collect: () => collectBrowserViewMeasurements(t, s, browserViewDescriptor),
     });

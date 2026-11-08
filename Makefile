@@ -1,5 +1,5 @@
 # browser plugin repository 의 test 와 pack(docs/features.md). pack 은 pnpm pack 으로 release 를 쓴다.
-.PHONY: install test check pack check-push install-hooks
+.PHONY: install test test-app check pack check-push install-hooks
 
 # The installation stage (core docs/spec/plugins.md#repositories): it installs the locked dependencies; the tests, checks and packs consume them without installing.
 install:
@@ -8,6 +8,12 @@ install:
 # test runs only the tests of this plugin, over fakes of the core side.
 test:
 	pnpm test
+
+# test-app runs the window checks of this plugin (e2e/) against the published core application of the core release of the installed
+# @soksak/window-check (core docs/spec/plugins.md#window-checks-of-a-plugin): scripts/test-app.mjs keeps the application zips of that
+# release in build/app-cache/, installs this plugin from its packed release into each application and runs the checks.
+test-app:
+	node scripts/test-app.mjs
 
 # check runs the checks of the kit releases that package.json pins: sok-check events counts the records missing from the sources
 # and matches events.json with the emit sites, and sok-check docs checks the records. The application validates plugin.json

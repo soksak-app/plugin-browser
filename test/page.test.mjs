@@ -23,7 +23,7 @@ test("the document region is a declared element entry and the start address is t
   assert.match(source, /browser.document/);
   assert.equal(manifest.home, undefined);
   assert.deepEqual(manifest.settings.home, { label: "홈 주소", description: manifest.settings.home.description, type: "address", default: "" });
-  assert.deepEqual(names("commands"), ["browser.history.go", "browser.address.select", "browser.navigate", "browser.back", "browser.forward", "browser.reload", "browser.stop", "browser.tab.select"]);
+  assert.deepEqual(names("commands"), ["browser.content.read", "browser.history.go", "browser.address.select", "browser.navigate", "browser.back", "browser.forward", "browser.reload", "browser.stop", "browser.tab.select"]);
   assert.deepEqual(names("status"), ["browser.location", "browser.address.text", "browser.history", "browser.elements", "browser.requests", "browser.tabs", "browser.section"]);
 });
 

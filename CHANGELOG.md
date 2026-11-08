@@ -1,5 +1,6 @@
 # Changelog
 
+- P125: The page test names `browser.content.read`, which P123 declares, among the declared commands. Red: the test failed on the extra name. Green: it passes.
 - P123 (core F696-4-1): Add public `browser.content.read` from the main view model shared with the visible empty instruction. Document state does not claim loading completion. The missing-reader and initial-markup preservation cases failed before their fixes; all 13 scoped cases and maintained checks pass. The staged package returned the public empty response in the actual mygo app, whose original-resolution capture showed the instruction.
 
 [한국어](CHANGELOG.ko.md)

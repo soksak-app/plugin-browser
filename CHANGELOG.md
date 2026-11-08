@@ -1,6 +1,6 @@
 # Changelog
 
-- P124 (core F715-5): The window checks of the browser content, navigation, sections and view measurement are in `e2e/` and run with `make test-app`, the bin `soksak-test-app` of `@soksak/window-check`, against the published core application; they wait for the window-check exports `view-metrics-collection.mjs`, `view-frame-geometry.mjs` and `view-content.mjs` and the release of core v0.0.40.
+- P124 (core F715-5): The window checks of the browser content, navigation, sections and view measurement are in `e2e/` and run with `make test-app`, the bin `soksak-test-app` of `@soksak/window-check`, against the published core application; they wait for the release of core v0.0.40.
 - P123 (core F696-4-1): Add public `browser.content.read` from the main view model shared with the visible empty instruction. Document state does not claim loading completion. The missing-reader and initial-markup preservation cases failed before their fixes; all 13 scoped cases and maintained checks pass. The staged package returned the public empty response in the actual mygo app, whose original-resolution capture showed the instruction.
 
 [한국어](CHANGELOG.ko.md)

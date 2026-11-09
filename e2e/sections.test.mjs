@@ -109,7 +109,7 @@ for (const app of Object.values(APPS)) {
       ? { ...set, sections: ["browser.tabs"], layout: "list" } : set) }, scope: "common" });
     await s.run("core.card.focus", { card: "browser" });
     const of = (sidebars) => sidebars.find((item) => item.sidebar === "right");
-    const sidebars = await s.until("core.sidebars", (value) => of(value)?.sections.find((item) => item.id === "browser.tabs")?.mounted,
+    const sidebars = await s.until("core.sidebars", (value) => of(value)?.sections.some((item) => item.id === "browser.tabs" && item.mounted) === true,
       "the right sidebar did not mount the tabs section");
     const surface = of(sidebars).surface;
     const label = (grid) => grid.cards.flatMap((card) => card.tabs).find((tab) => tab.id === surface)?.label;

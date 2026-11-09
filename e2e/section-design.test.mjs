@@ -12,7 +12,7 @@ const OUTPUT = new URL("../build/section-design/", import.meta.url).pathname;
 async function shown(s, sidebar, sections) {
   await s.until("core.sidebars", (bars) => {
     const bar = bars.find((item) => item.sidebar === sidebar);
-    return bar && sections.every((id) => bar.sections.find((item) => item.id === id)?.mounted)
+    return bar !== undefined && sections.every((id) => bar.sections.find((item) => item.id === id)?.mounted)
       && bar.sections.every((item) => item.error === null);
   }, `${sidebar} did not mount ${sections.join(", ")}`);
 }

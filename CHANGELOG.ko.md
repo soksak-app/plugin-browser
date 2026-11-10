@@ -1,5 +1,6 @@
 # 변경 기록
 
+- P126 (core F718-6): call 은 답, cancel, 상대의 끝으로 끝난다. `calls.json` copy 는 core F718-6 의 file 이고, view bridge model 은 timer 를 시작하지 않으며, document stream 의 첫 read 는 첫 message, subscription 의 실패, region 의 page 의 끝, view 의 dispose 로 끝난다. test 는 자기가 확인하는 occurrence 를 기다리고 시간 한도를 두지 않는다. Red: `calls.end.*` 재생과 stream read test 3개가 timer 와 limit 에서 실패했다. Green: 통과한다.
 - P125: page test 가 선언된 command 에 P123 이 선언한 `browser.content.read`를 적는다. Red: 남는 이름에서 test 가 실패했다. Green: 통과한다.
 - P123 (core F696-4-1): 화면의 빈 상태 안내와 같은 메인 뷰 모델을 읽는 공개 `browser.content.read`를 추가한다. 문서 상태는 로딩 완료를 뜻하지 않는다. reader 부재와 초기 마크업 보존 테스트의 RED 후 수정했고, 소유 테스트 13개와 유지되는 검사를 통과했다. 실제 mygo 앱에 설치한 package의 공개 응답과 원본 해상도 캡처에서 안내를 확인했다.
 

@@ -46,7 +46,7 @@ test("the browser declares its session history status and the command that loads
   assert.ok(manifest.exposes.commands.some((entry) => entry.name === "browser.history.go"));
 });
 
-test("browser.history follows the region state and browser.history.go loads an entry by its offset", { timeout: 10000 }, async (t) => {
+test("browser.history follows the region state and browser.history.go loads an entry by its offset", async (t) => {
   const { statuses, commands, entries, send } = await setup(t);
   const seen = [];
   // The status serves the value of the 히스토리 section (#P27.2): the current entry is the selected item.
@@ -71,14 +71,14 @@ test("browser.history follows the region state and browser.history.go loads an e
 });
 
 // The page of the view pushes no declared UI snapshot: the section reads the status, and the context of the page has no push.
-test("the browser pushes no declared UI value of the history section, before or after the region reports a state", { timeout: 10000 }, async (t) => {
+test("the browser pushes no declared UI value of the history section, before or after the region reports a state", async (t) => {
   const { send, pushed, state } = await setup(t);
   send(1);
   state("https://a.test/one", "One");
   assert.deepEqual(pushed, []);
 });
 
-test("the tab title is the document title, or the address without one, and is removed without both", { timeout: 10000 }, async (t) => {
+test("the tab title is the document title, or the address without one, and is removed without both", async (t) => {
   const { titles, errors, state } = await setup(t);
   state("https://a.test/one", "One");
   state("https://a.test/plain", "");

@@ -17,4 +17,4 @@ make install-hooks                                  # once after cloning: check 
 
 The checklist is [docs/features.md](docs/features.md).
 
-The specifications are [docs/spec/core-compatibility.md](docs/spec/core-compatibility.md) and [docs/spec/unload.md](docs/spec/unload.md), which states what each view keeps across an unload.
+The specifications are [docs/spec/core-compatibility.md](docs/spec/core-compatibility.md), [docs/spec/unload.md](docs/spec/unload.md), which states what each view keeps across an unload, and [docs/spec/calls.md](docs/spec/calls.md), which states how each call and wait of a view ends.

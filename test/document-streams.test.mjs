@@ -1,23 +1,27 @@
 // The statuses browser.elements and browser.requests follow the document streams of the region (core docs/spec/native-surfaces.md#document-streams)
 // and serve the values of the DOM and 네트워크 sections (#P27.2). The region is a fake at the consumer
-// boundary: it records each subscription and its close.
+// boundary: it records each subscription and its close, and each of them is an occurrence that a test waits for.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { elementsValue, requestsValue } from "../build/test/ui/browser.js";
-
-const flush = () => new Promise((resolve) => setImmediate(resolve));
+import { createOccurrences } from "./occurrences.mjs";
 // The address of the document that a region shows when a test reads its streams.
 const DOCUMENT = "https://example.test/page";
 
 function fakeRegion() {
-  const subscriptions = [];
+  const { until, occurred, list } = createOccurrences();
+  const subscriptions = list();
   return {
     subscriptions,
+    until,
+    // refuse makes the next subscribe fail with its text, as a region that refuses the subscription.
+    refuse: null,
     subscribe(stream, listener) {
+      if (this.refuse !== null) return Promise.reject(new Error(this.refuse));
       const subscription = { stream, listener, closed: false };
       subscriptions.push(subscription);
-      return Promise.resolve({ stream, close() { subscription.closed = true; return Promise.resolve(); } });
+      return Promise.resolve({ stream, close() { subscription.closed = true; occurred(); return Promise.resolve(); } });
     },
     state: null,
     stateListeners: new Set(),
@@ -62,18 +66,22 @@ async function mountBrowser() {
 const snapshot = (nodes, total = nodes.length, truncated = false) => ({ type: "snapshot", seq: 1, nodes, total, truncated });
 const element = { node: 1, depth: 0, tag: "html", id: "", class: "" };
 const request = (url) => ({ url, type: "script", start: 0, duration: 1 });
+// A document state of the region: the document of the region shows url, with change applied.
+const documentState = (url, change = {}) => ({ url, title: "", link: "", error: null, loading: false, history: { entries: [], index: -1 }, ...change });
+const subscribed = (region, count) => region.until(() => region.subscriptions.length >= count);
+const closed = (region, index) => region.until(() => region.subscriptions[index].closed);
 
 
 test("browser.elements subscribes to the elements stream while watched and closes it when the watch stops", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   const values = [];
   const stop = statuses.get("browser.elements").subscribe((value) => values.push(value));
-  await flush();
+  await subscribed(region, 1);
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["elements", false]]);
   region.subscriptions[0].listener(snapshot([element], 1));
   assert.deepEqual(values.at(-1), elementsValue({ nodes: [element], total: 1, truncated: false }));
   stop();
-  await flush();
+  await closed(region, 0);
   assert.equal(region.subscriptions[0].closed, true, "stopping the watch closes the elements subscription");
   await mounted.dispose();
   dom.window.close();
@@ -83,7 +91,7 @@ test("a read of browser.elements without a watch takes one snapshot and closes i
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };
   const read = statuses.get("browser.elements").read();
-  await flush();
+  await subscribed(region, 1);
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["elements", false]]);
   region.subscriptions[0].listener(snapshot([element], 2000, true));
   assert.deepEqual(await read, elementsValue({ nodes: [element], total: 2000, truncated: true }));
@@ -110,7 +118,7 @@ test("a read of browser.elements while a watch holds its subscription is the wat
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };
   const stop = statuses.get("browser.elements").subscribe(() => {});
-  await flush();
+  await subscribed(region, 1);
   assert.deepEqual(await statuses.get("browser.elements").read(), elementsValue(null));
   assert.deepEqual(region.subscriptions.map((s) => s.stream), ["elements"], "the read opened a second subscription");
   region.subscriptions[0].listener(snapshot([element], 1));
@@ -120,17 +128,54 @@ test("a read of browser.elements while a watch holds its subscription is the wat
   dom.window.close();
 });
 
-test("a read of browser.elements fails with an explicit error when no snapshot arrives within 10 seconds", async (t) => {
+// The first read of a stream has no time limit (docs/spec/calls.md): it ends by its first data message, a failure of its subscription,
+// the end of the page of the region or the end of the region, and it starts no timer.
+test("a read of browser.elements starts no timer and ends by its first snapshot", async (t) => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const timers = t.mock.method(globalThis, "setTimeout");
   const read = statuses.get("browser.elements").read();
-  t.mock.timers.tick(9999);
-  t.mock.timers.tick(1);
-  await assert.rejects(read, { message: "document elements stream sent no message within 10000ms" });
-  await flush();
-  assert.equal(region.subscriptions[0].closed, true, "the failed read ends its subscription");
-  t.mock.timers.reset();
+  await subscribed(region, 1);
+  assert.equal(timers.mock.callCount(), 0, "the read started a timer");
+  region.subscriptions[0].listener(snapshot([element], 1));
+  assert.deepEqual(await read, elementsValue({ nodes: [element], total: 1, truncated: false }));
+  assert.equal(timers.mock.callCount(), 0, "the read started a timer");
+  timers.mock.restore();
+  await mounted.dispose();
+  dom.window.close();
+});
+
+test("a read of browser.elements ends with the end of the page of the region and closes its subscription", async () => {
+  const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = documentState(DOCUMENT);
+  const read = statuses.get("browser.elements").read();
+  await subscribed(region, 1);
+  // The host reports the end of the WebContent process of the region as the document state with this error.
+  for (const fn of region.stateListeners) fn(documentState(DOCUMENT, { error: "the web content process ended" }));
+  await assert.rejects(read, { message: "document elements stream ended: the web content process ended" });
+  await closed(region, 0);
+  assert.equal(region.subscriptions[0].closed, true, "the ended read ends its subscription");
+  await mounted.dispose();
+  dom.window.close();
+});
+
+test("a load failure of the region does not end a read of browser.elements", async () => {
+  const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = documentState(DOCUMENT);
+  const read = statuses.get("browser.elements").read();
+  await subscribed(region, 1);
+  for (const fn of region.stateListeners) fn(documentState(DOCUMENT, { error: "net::ERR_NAME_NOT_RESOLVED" }));
+  region.subscriptions[0].listener(snapshot([element], 1));
+  assert.deepEqual(await read, elementsValue({ nodes: [element], total: 1, truncated: false }));
+  await mounted.dispose();
+  dom.window.close();
+});
+
+test("a read of browser.elements ends with the failure of its subscription", async () => {
+  const { dom, region, statuses, mounted } = await mountBrowser();
+  region.state = documentState(DOCUMENT);
+  region.refuse = "the region refused the subscription";
+  await assert.rejects(statuses.get("browser.elements").read(), { message: "the region refused the subscription" });
   await mounted.dispose();
   dom.window.close();
 });
@@ -139,13 +184,13 @@ test("a message that arrives after the watch stops does not set the value that a
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };
   const stop = statuses.get("browser.elements").subscribe(() => {});
-  await flush();
+  await subscribed(region, 1);
   const late = region.subscriptions[0].listener;
   stop();
-  await flush();
+  await closed(region, 0);
   late(snapshot([element], 1));
   const read = statuses.get("browser.elements").read();
-  await flush();
+  await subscribed(region, 2);
   assert.equal(region.subscriptions.length, 2, "the read subscribes again instead of returning the message of the closed watch");
   region.subscriptions[1].listener(snapshot([], 0));
   assert.deepEqual(await read, elementsValue({ nodes: [], total: 0, truncated: false }));
@@ -157,7 +202,7 @@ test("browser.elements reports null after a reset of the document", async () => 
   const { dom, region, statuses, mounted } = await mountBrowser();
   const values = [];
   const stop = statuses.get("browser.elements").subscribe((value) => values.push(value));
-  await flush();
+  await subscribed(region, 1);
   region.subscriptions[0].listener(snapshot([element], 1));
   region.subscriptions[0].listener({ type: "reset" });
   assert.deepEqual(values.at(-1), elementsValue(null), "a reset draws the empty tree of the section");
@@ -170,7 +215,7 @@ test("browser.requests accumulates the entries of each batch, clears on reset, a
   const { dom, region, statuses, mounted } = await mountBrowser();
   const values = [];
   const stop = statuses.get("browser.requests").subscribe((value) => values.push(value));
-  await flush();
+  await subscribed(region, 1);
   assert.deepEqual(region.subscriptions.map((s) => [s.stream, s.closed]), [["requests", false]]);
   const [a, b, c, d, e] = ["a", "b", "c", "d", "e"].map((name) => request(`https://${name}.test/`));
   const stream = region.subscriptions[0];
@@ -185,7 +230,7 @@ test("browser.requests accumulates the entries of each batch, clears on reset, a
   stream.listener({ type: "entries", entries: [e], dropped: 0 });
   assert.deepEqual(values.at(-1), requestsValue({ entries: [e], dropped: 0 }));
   stop();
-  await flush();
+  await closed(region, 0);
   assert.equal(stream.closed, true, "stopping the watch closes the requests subscription");
   await mounted.dispose();
   dom.window.close();
@@ -195,7 +240,7 @@ test("browser.requests keeps the newest 200 entries of its log", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   const values = [];
   const stop = statuses.get("browser.requests").subscribe((value) => values.push(value));
-  await flush();
+  await subscribed(region, 1);
   const batch = Array.from({ length: 201 }, (_, index) => request(`https://r${index}.test/`));
   region.subscriptions[0].listener({ type: "entries", entries: batch, dropped: 1 });
   const value = values.at(-1);
@@ -211,7 +256,7 @@ test("a read of browser.requests returns the request log of its first entries me
   const { dom, region, statuses, mounted } = await mountBrowser();
   region.state = { url: DOCUMENT };
   const read = statuses.get("browser.requests").read();
-  await flush();
+  await subscribed(region, 1);
   region.subscriptions[0].listener({ type: "entries", entries: [request("https://log.test/")], dropped: 3 });
   assert.deepEqual(await read, requestsValue({ entries: [request("https://log.test/")], dropped: 3 }));
   assert.equal(region.subscriptions[0].closed, true, "the read ends its subscription");
@@ -219,17 +264,15 @@ test("a read of browser.requests returns the request log of its first entries me
   dom.window.close();
 });
 
-test("a read of browser.requests fails with an explicit error when no entries arrive within 10 seconds", async (t) => {
+test("a read of browser.requests ends with the close of the region at the dispose of the view", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
-  region.state = { url: DOCUMENT };
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  region.state = documentState(DOCUMENT);
   const read = statuses.get("browser.requests").read();
-  t.mock.timers.tick(10000);
-  await assert.rejects(read, { message: "document requests stream sent no message within 10000ms" });
-  await flush();
-  assert.equal(region.subscriptions[0].closed, true);
-  t.mock.timers.reset();
+  const ended = read.then(() => null, (error) => error.message);
+  await subscribed(region, 1);
   await mounted.dispose();
+  assert.equal(await ended, "document requests stream ended: the region closed");
+  assert.equal(region.subscriptions[0].closed, true, "the ended read ends its subscription");
   dom.window.close();
 });
 
@@ -237,7 +280,7 @@ test("disposing the browser closes the watched document streams", async () => {
   const { dom, region, statuses, mounted } = await mountBrowser();
   statuses.get("browser.elements").subscribe(() => {});
   statuses.get("browser.requests").subscribe(() => {});
-  await flush();
+  await subscribed(region, 2);
   await mounted.dispose();
   assert.deepEqual(region.subscriptions.map((s) => s.closed), [true, true]);
   dom.window.close();
@@ -247,7 +290,7 @@ test("browser.requests shows an error when its log sheds entries that the region
   const { dom, region, statuses, errors, mounted } = await mountBrowser();
   const values = [];
   const stop = statuses.get("browser.requests").subscribe((value) => values.push(value));
-  await flush();
+  await subscribed(region, 1);
   const batch = (count) => Array.from({ length: count }, (_, index) => request(`https://r${index}.test/`));
   region.subscriptions[0].listener({ type: "entries", entries: batch(200), dropped: 0 });
   region.subscriptions[0].listener({ type: "entries", entries: batch(5), dropped: 0 });

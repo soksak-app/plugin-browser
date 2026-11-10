@@ -8,11 +8,11 @@ import { createViewPage } from "./view-host.mjs";
 test("an address commit begins an operation whose first record carries its identifiers", async (t) => {
   const host = createViewPage(t, "operation-commit");
   await import("../build/test/ui/view.js?case=operation-commit");
-  await host.settle();
+  await host.started();
   const address = host.window.document.body.lastElementChild.shadowRoot.querySelector("#address");
   address.value = "d.test";
   address.dispatchEvent(new host.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  await host.settle();
+  await host.until(() => host.logs.some((entry) => entry.event === "address.commit"));
   const commit = host.logs.find((entry) => entry.event === "address.commit");
   assert.ok(commit, `the page recorded no address.commit; recorded ${host.logs.map((entry) => entry.event).join(", ")}`);
   assert.equal(commit.level, "info");
@@ -23,11 +23,11 @@ test("an address commit begins an operation whose first record carries its ident
 test("a relayed command passes its identifiers to its record and to the core command it calls", async (t) => {
   const host = createViewPage(t, "operation-command");
   await import("../build/test/ui/view.js?case=operation-command");
-  await host.settle();
+  await host.started();
   host.status("core.grid", { cards: [{ id: "main", active: "browser-1", tabs: [{ id: "browser-1", plugin: "browser", title: "브라우저", label: null }] }] });
-  await host.settle();
+  // The command replies after the core call, and its record follows the reply.
   await host.run("browser.tab.select", { tab: "browser-1" }, { cids: ["p7.1"] });
-  await host.settle();
+  await host.until(() => host.logs.some((entry) => entry.event === "command" && entry.fields.name === "browser.tab.select"));
   assert.deepEqual(host.reports.cids, [{ command: "core.tab.select", cids: ["p7.1"] }], "the core call carries the identifiers");
   const record = host.logs.find((entry) => entry.event === "command" && entry.fields.name === "browser.tab.select");
   assert.ok(record, "the page recorded no command of browser.tab.select");

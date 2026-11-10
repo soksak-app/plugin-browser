@@ -13,8 +13,9 @@ const css = `:host{display:flex;height:100%;flex-direction:column;background:var
 
 // The document region keeps at most 200 request entries (docs/spec/native-surfaces.md#document-streams), and the status keeps the same bound.
 const REQUEST_LOG_LIMIT = 200;
-// A read of a document stream fails when no data message arrives within this limit (docs/spec/native-surfaces.md#document-streams).
-const STREAM_READ_LIMIT_MS = 10000;
+// The error of the document state that the host reports when the WebContent process of the region ends: the page of the region has
+// ended, so no message of its streams follows it (docs/spec/calls.md).
+const PAGE_ENDED = "the web content process ended";
 
 // 기록 단추는 카드 머리 단추(.chrome__act)와 같은 크기, 색, hover 를 쓴다. 획 폭 1.95 는 24 단위 아이콘을
 // 14px 로 그릴 때 카드 머리의 16 단위 획 1.3 과 같은 굵기다.
@@ -213,7 +214,14 @@ export async function mount(root, context) {
       emitEvent("error", "plugin.browser.region.failure", { url: state.url, reason: typeof state.error === "string" ? state.error : JSON.stringify(state.error) });
     }
   };
+  // The first reads of the document streams that wait for their first message: each ends by the end of the page of the region or
+  // of the region (docs/spec/calls.md), so the state and the dispose end them with their reason.
+  const firstReads = new Set();
+  const endFirstReads = (reason) => {
+    for (const end of [...firstReads]) end(reason);
+  };
   const show = ({ history: sessionHistory, ...state }) => {
+    if (state.error === PAGE_ENDED) endFirstReads(PAGE_ENDED);
     observe(state);
     current = state;
     tabTitle(state);
@@ -302,12 +310,15 @@ export async function mount(root, context) {
       if (closing === null) return Promise.resolve();
       return closing.then((handle) => handle?.close()).catch((error) => { reportError(`document ${stream} close`, error); });
     };
-    // Reads the first data message of a new subscription. The subscription ends with the read, and the read fails when no data message
-    // arrives within STREAM_READ_LIMIT_MS.
+    // Reads the first data message of a new subscription. The read has no time limit: it ends by that message, a failure of the
+    // subscription or of a message, the end of the page of the region or the end of the region (docs/spec/calls.md). The
+    // subscription ends with the read.
     const readFirst = async () => {
       let resolveFirst;
       let rejectFirst;
       const first = new Promise((resolve, reject) => { resolveFirst = resolve; rejectFirst = reject; });
+      const end = (reason) => rejectFirst(new Error(`document ${stream} stream ended: ${reason}`));
+      firstReads.add(end);
       const opening = region.subscribe(stream, (message) => {
         try {
           if (message.type === dataType) resolveFirst(next(null, message));
@@ -317,11 +328,10 @@ export async function mount(root, context) {
         }
       });
       opening.catch(rejectFirst);
-      const timer = setTimeout(() => rejectFirst(new Error(`document ${stream} stream sent no message within ${STREAM_READ_LIMIT_MS}ms`)), STREAM_READ_LIMIT_MS);
       try {
         return await first;
       } finally {
-        clearTimeout(timer);
+        firstReads.delete(end);
         // default: a failed subscription has no handle to close, and its failure already rejected the read through rejectFirst.
         const handle = await opening.catch(() => null);
         if (handle !== null) await handle.close();
@@ -442,6 +452,8 @@ export async function mount(root, context) {
     await stopTextSize.then((stop) => stop());
     locationListeners.clear();
     historyListeners.clear();
+    // The dispose closes the region, which ends each first read that waits for its message.
+    endFirstReads("the region closed");
     // The watched streams end before the region closes, so each subscription is closed by its own handle.
     await Promise.all([elementStream.close(), requestStream.close()]);
     await composition.dispose();

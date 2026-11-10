@@ -24,9 +24,8 @@ const tabsValue = async (host) => (await host.expose("status.get", { name: "brow
 test("the tabs status lists the browser tabs of the card that holds the surface", async (t) => {
   const host = createViewPage(t, "tabs-value");
   await import("../build/test/ui/view.js?case=tabs-value");
-  await host.settle();
+  await host.started();
   host.status("core.grid", grid);
-  await host.settle();
   assert.deepEqual(await tabsValue(host), {
     elements: [{
       kind: "list",
@@ -43,9 +42,8 @@ test("the tabs status lists the browser tabs of the card that holds the surface"
 test("the tabs status is empty when the grid holds no card of the surface", async (t) => {
   const host = createViewPage(t, "tabs-empty");
   await import("../build/test/ui/view.js?case=tabs-empty");
-  await host.settle();
+  await host.started();
   host.status("core.grid", { cards: [] });
-  await host.settle();
   assert.deepEqual(await tabsValue(host), {
     elements: [{ kind: "list", key: "tabs", empty: "브라우저 탭 없음", items: [] }],
   });
@@ -54,18 +52,17 @@ test("the tabs status is empty when the grid holds no card of the surface", asyn
 test("a press on a tab row runs core.tab.select with the tab", async (t) => {
   const host = createViewPage(t, "tabs-select");
   await import("../build/test/ui/view.js?case=tabs-select");
-  await host.settle();
+  await host.started();
   host.status("core.grid", grid);
-  await host.settle();
+  // The command replies after the core call, so its reply ends the handling.
   assert.equal(await host.run("browser.tab.select", { tab: "b2" }), null);
-  await host.settle();
   assert.deepEqual(host.calls.filter(([name]) => name === "core.tab.select"), [["core.tab.select", { tab: "b2" }]]);
 });
 
 test("the tabs section has a registered status, which core reads for the section source", async (t) => {
   const host = createViewPage(t, "tabs-registered");
   await import("../build/test/ui/view.js?case=tabs-registered");
-  await host.settle();
+  await host.until(() => host.reports.native.some(([name, payload]) => name === "registered" && payload.kind === "status" && payload.name === "browser.tabs"));
   const registered = host.reports.native.filter(([name]) => name === "registered").map(([, payload]) => payload);
   assert.ok(
     registered.some((payload) => payload.kind === "status" && payload.name === "browser.tabs"),

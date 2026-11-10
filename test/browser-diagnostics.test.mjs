@@ -5,6 +5,7 @@ import { attach } from "../build/test/ui/browser-diagnostics.js";
 import { createSectionView } from "../build/test/ui/section-view.js";
 import { loadDiagnostics } from "../build/test/ui/view-diagnostics.js";
 import { createWindow } from "./dom.mjs";
+import { createOccurrences } from "./occurrences.mjs";
 
 const eventFields = JSON.parse(readFileSync(new URL("../events.json", import.meta.url), "utf8"))
   .events["plugin.browser.view.content_frame"].fields;
@@ -38,7 +39,7 @@ function fixture() {
   };
 }
 
-test("diagnostic observer records only explicit ResizeObserver-to-animation-frame samples", { timeout: 1000 }, async () => {
+test("diagnostic observer records only explicit ResizeObserver-to-animation-frame samples", async () => {
   const f = fixture();
   const dispose = await f.attach();
   const command = f.commands.get("browser.view.measure");
@@ -88,7 +89,7 @@ test("diagnostic observer records only explicit ResizeObserver-to-animation-fram
   await dispose();
 });
 
-test("the content-frame catalog requires the complete coalesced source interval", { timeout: 1000 }, async () => {
+test("the content-frame catalog requires the complete coalesced source interval", async () => {
   const f = fixture();
   await f.attach();
   const command = f.commands.get("browser.view.measure");
@@ -107,7 +108,7 @@ test("the content-frame catalog requires the complete coalesced source interval"
   await command({ action: "stop" });
 });
 
-test("the content-frame adapter rejects invalid coalesced intervals and fields", { timeout: 1000 }, async () => {
+test("the content-frame adapter rejects invalid coalesced intervals and fields", async () => {
   const f = fixture();
   await f.attach();
   const command = f.commands.get("browser.view.measure");
@@ -131,7 +132,7 @@ test("the content-frame adapter rejects invalid coalesced intervals and fields",
   await command({ action: "stop" });
 });
 
-test("diagnostic observer refuses repeated starts and unknown actions", { timeout: 1000 }, async () => {
+test("diagnostic observer refuses repeated starts and unknown actions", async () => {
   const f = fixture();
   await f.attach();
   const command = f.commands.get("browser.view.measure");
@@ -141,18 +142,18 @@ test("diagnostic observer refuses repeated starts and unknown actions", { timeou
   await command({ action: "stop" });
 });
 
-test("a release view without a diagnostic declaration in its start values attaches no diagnostic module", { timeout: 1000 }, async () => {
+test("a release view without a diagnostic declaration in its start values attaches no diagnostic module", async () => {
   assert.equal(await loadDiagnostics({ surface: "browser-1", diagnostics: null }), null);
 });
 
-test("a diagnostic view loads the declaration of its start values and its attach function", { timeout: 1000 }, async () => {
+test("a diagnostic view loads the declaration of its start values and its attach function", async () => {
   const declaration = { module: "ui/browser-diagnostics.js", exposes: {} };
   const diagnostics = await loadDiagnostics({ surface: "browser-1", diagnostics: declaration });
   assert.deepEqual(diagnostics.declaration, declaration);
   assert.equal(typeof diagnostics.attach, "function");
 });
 
-test("start values without a diagnostic declaration are refused with an error that names them", { timeout: 1000 }, async () => {
+test("start values without a diagnostic declaration are refused with an error that names them", async () => {
   await assert.rejects(loadDiagnostics({ surface: "browser-1" }),
     /^Error: the start values of the browser view have no diagnostics: window\.sokSurface \{surface, params, origin, project, declarations, diagnostics\} carries it$/);
 });
@@ -175,10 +176,41 @@ const MARKER = [255, 0, 255];
  * A section page in a jsdom window: the theme tokens on its root, the body painted with the card token as section.html paints it, the
  * section view in the body, the exposure of the page and a fake of the shared view-frame observer. The animation frames of the window
  * wait for frame(), and deliver(name, value, surface) gives a value to the live watches of the section view on that surface.
+ * Each mutation observer of the page is paired with a watcher of the same target and options, and each run of its callback is an
+ * occurrence: after a delivery or a frame changes what an observer observes, the fixture waits for that observer to handle it.
  */
 function sectionFixture(tokens = THEME, section = SECTION) {
   const { window } = createWindow("sok://browser/ui/section.html");
   window.ResizeObserver = function ResizeObserver() {};
+  const { until, occurred } = createOccurrences();
+  const Platform = window.MutationObserver;
+  const observers = new Set();
+  window.MutationObserver = class extends Platform {
+    constructor(callback) {
+      super((records, observer) => {
+        callback(records, observer);
+        this.handled += 1;
+        occurred();
+      });
+      this.handled = 0;
+      this.watcher = new Platform(() => {});
+    }
+    observe(target, options) {
+      super.observe(target, options);
+      this.watcher.observe(target, options);
+      observers.add(this);
+    }
+    disconnect() {
+      super.disconnect();
+      this.watcher.disconnect();
+      observers.delete(this);
+    }
+  };
+  // Waits until each connected observer whose target changed has run its callback for that change.
+  const observed = () => {
+    const changed = [...observers].filter((observer) => observer.watcher.takeRecords().length > 0).map((observer) => [observer, observer.handled]);
+    return until(() => changed.every(([observer, handled]) => observer.handled > handled));
+  };
   const pending = new Map();
   let handle = 0;
   window.requestAnimationFrame = (run) => { handle += 1; pending.set(handle, run); return handle; };
@@ -224,14 +256,14 @@ function sectionFixture(tokens = THEME, section = SECTION) {
     // Delivers a value and lets the observers of the document run.
     deliver: async (name, value, surface) => {
       for (const watch of watches.filter((entry) => entry.name === name && entry.surface === surface && !entry.stopped)) watch.listener(value);
-      await new Promise((resolve) => setImmediate(resolve));
+      await observed();
     },
     // Runs the animation frames that wait, as the frame that renders the document does.
     frame: async () => {
       const due = [...pending.values()];
       pending.clear();
       for (const run of due) run(0);
-      await new Promise((resolve) => setImmediate(resolve));
+      await observed();
     },
     getObservation: () => observation,
     isStopped: () => stopped,
@@ -248,7 +280,7 @@ const FRAME = { sequence: 0, documentTimeOriginMs: 1_700_000_000_000, firstResiz
   resizeCount: 2, frameTimeMs: 45, width: 240, height: 160 };
 
 for (const id of STATUS_OF_SECTION.keys()) {
-  test(`the ${id} section view serves browser.view.frames, browser.view.history and only ${id}.view.ready`, { timeout: 1000 }, async () => {
+  test(`the ${id} section view serves browser.view.frames, browser.view.history and only ${id}.view.ready`, async () => {
     const section = sectionFixture(THEME, { ...SECTION, id });
     await section.attach();
     assert.deepEqual([...section.commands.keys()].sort(), ["browser.view.frames", "browser.view.history"]);
@@ -256,13 +288,13 @@ for (const id of STATUS_OF_SECTION.keys()) {
   });
 }
 
-test("the tab view serves browser.view.measure", { timeout: 1000 }, async () => {
+test("the tab view serves browser.view.measure", async () => {
   const tab = fixture();
   await tab.attach();
   assert.deepEqual([...tab.commands.keys()], ["browser.view.measure"]);
 });
 
-test("browser.view.frames start observes the content frames of the section view and paints its document root with the marker color until stop", { timeout: 1000 }, async () => {
+test("browser.view.frames start observes the content frames of the section view and paints its document root with the marker color until stop", async () => {
   const f = sectionFixture();
   await f.attach();
   const frames = f.commands.get("browser.view.frames");
@@ -286,7 +318,7 @@ test("browser.view.frames start observes the content frames of the section view 
   assert.equal(f.records.length, 1, "no frame is recorded after stop");
 });
 
-test("browser.view.frames refuses a repeated start, a stop without a start and an unknown action", { timeout: 1000 }, async () => {
+test("browser.view.frames refuses a repeated start, a stop without a start and an unknown action", async () => {
   const f = sectionFixture();
   await f.attach();
   const frames = f.commands.get("browser.view.frames");
@@ -297,7 +329,7 @@ test("browser.view.frames refuses a repeated start, a stop without a start and a
   await frames({ action: "stop" });
 });
 
-test("browser.view.frames start fails without observing or painting when the marker color is within 4 of a theme color in every channel", { timeout: 1000 }, async () => {
+test("browser.view.frames start fails without observing or painting when the marker color is within 4 of a theme color in every channel", async () => {
   const f = sectionFixture({ ...THEME, "--edge": "#fd02fb" });
   await f.attach();
   const before = f.paint();
@@ -311,14 +343,14 @@ test("browser.view.frames start fails without observing or painting when the mar
     /^Error: browser\.view\.frames reads the theme color --card as #rrggbb, not "var\(--bg\)"$/);
 });
 
-test("browser.view.history answers the length of the session history of the section view", { timeout: 1000 }, async () => {
+test("browser.view.history answers the length of the session history of the section view", async () => {
   const f = sectionFixture();
   await f.attach();
   assert.deepEqual(await f.commands.get("browser.view.history")({}), { length: f.window.history.length });
 });
 
 for (const [id, status] of STATUS_OF_SECTION) {
-  test(`${id}.view.ready is true while the section view shows the empty text, once a frame renders it`, { timeout: 1000 }, async () => {
+  test(`${id}.view.ready is true while the section view shows the empty text, once a frame renders it`, async () => {
     const f = sectionFixture(THEME, { ...SECTION, id });
     await f.attach();
     const ready = f.ready();
@@ -335,7 +367,7 @@ for (const [id, status] of STATUS_OF_SECTION) {
     assert.deepEqual(seen, [false, true]);
   });
 
-  test(`${id}.view.ready is false while the section view shows the rows of a followed surface`, { timeout: 1000 }, async () => {
+  test(`${id}.view.ready is false while the section view shows the rows of a followed surface`, async () => {
     const f = sectionFixture(THEME, { ...SECTION, id });
     await f.attach();
     await f.deliver("core.surfaces", surfacesOf("tab-2", "browser"));
@@ -347,7 +379,7 @@ for (const [id, status] of STATUS_OF_SECTION) {
   });
 }
 
-test("the ready status follows the text: another empty text is false, and the text that returns is true after its frame", { timeout: 1000 }, async () => {
+test("the ready status follows the text: another empty text is false, and the text that returns is true after its frame", async () => {
   const f = sectionFixture();
   await f.attach();
   const ready = f.ready();
@@ -366,7 +398,7 @@ test("the ready status follows the text: another empty text is false, and the te
   assert.equal(ready.read().ready, true);
 });
 
-test("a text that leaves before its frame renders it is not ready", { timeout: 1000 }, async () => {
+test("a text that leaves before its frame renders it is not ready", async () => {
   const f = sectionFixture();
   await f.attach();
   await f.deliver("core.surfaces", surfacesOf("tab-2", "browser"));
@@ -376,7 +408,7 @@ test("a text that leaves before its frame renders it is not ready", { timeout: 1
   assert.equal(f.ready().read().ready, false);
 });
 
-test("the function that attach returns ends the watch of the content", { timeout: 1000 }, async () => {
+test("the function that attach returns ends the watch of the content", async () => {
   const f = sectionFixture();
   const dispose = await f.attach();
   dispose();
@@ -385,7 +417,7 @@ test("the function that attach returns ends the watch of the content", { timeout
   assert.equal(f.ready().read().ready, false);
 });
 
-test("a section view whose declaration lacks its status or a one-item enum of content and language is refused", { timeout: 1000 }, async () => {
+test("a section view whose declaration lacks its status or a one-item enum of content and language is refused", async () => {
   const ready = (fields) => ({ module: DECLARATION.module, exposes: { status: [{ name: "browser.tabs.view.ready", description: "", schema: { type: "object",
     properties: { ready: { type: "boolean" }, ...fields } } }] } });
   const refusal = /^TypeError: browser section diagnostics require the declaration of browser\.tabs\.view\.ready with a one-item enum of the strings content and language$/;
@@ -405,7 +437,7 @@ test("a section view whose declaration lacks its status or a one-item enum of co
   await sectionFixture().attach({ declaration: ready({ content, language }) });
 });
 
-test("diagnostics.json declares the entries of the tab view and of the section views, with a one-item enum of the content and language of each section", { timeout: 1000 }, () => {
+test("diagnostics.json declares the entries of the tab view and of the section views, with a one-item enum of the content and language of each section", () => {
   const { module, exposes } = DECLARATION;
   assert.equal(module, "ui/browser-diagnostics.js");
   assert.deepEqual(exposes.commands.map((entry) => entry.name), ["browser.view.measure", "browser.view.frames", "browser.view.history"]);
@@ -428,7 +460,7 @@ const unknownFields = (where, schema) => [
   ...(schema.items === undefined ? [] : unknownFields(`${where}.items`, schema.items)),
 ];
 
-test("every schema of diagnostics.json holds only the fields of the schema subset", { timeout: 1000 }, () => {
+test("every schema of diagnostics.json holds only the fields of the schema subset", () => {
   const { commands, status } = DECLARATION.exposes;
   const unknown = [
     ...commands.flatMap(({ name, params, result }) => [...unknownFields(`${name} params`, params), ...unknownFields(`${name} result`, result)]),

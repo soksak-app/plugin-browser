@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { createBinder } from "./sdk-models/binder.mjs";
+import { createOccurrences } from "./occurrences.mjs";
 import { mount } from "../build/test/ui/browser.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
@@ -16,8 +17,10 @@ async function setup(t) {
     assert.ok(commands.has(name), `unregistered command ${name}`);
     return commands.get(name)(params);
   }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
-  const navigations = [];
-  const errors = [];
+  // The navigations and the tab errors are the occurrences that the tests wait for.
+  const { until, list } = createOccurrences();
+  const navigations = list();
+  const errors = list();
   const region = {
     state: null,
     onState(fn) { states.add(fn); return () => states.delete(fn); },
@@ -42,10 +45,10 @@ async function setup(t) {
     address.dispatchEvent(event);
     return event;
   };
-  return { dom, root, address, requests, navigations, errors, controller, dispatch, commands, states };
+  return { dom, root, address, requests, navigations, errors, controller, dispatch, commands, states, until };
 }
 
-test("initial address focus selects all and native replacement navigates without appending", { timeout: 10000 }, async (t) => {
+test("initial address focus selects all and native replacement navigates without appending", async (t) => {
   const { dom, address, requests, navigations, controller, dispatch } = await setup(t);
   t.after(() => controller.dispose());
   dispatch("pointerdown");
@@ -58,7 +61,7 @@ test("initial address focus selects all and native replacement navigates without
   assert.deepEqual(navigations, ["https://example.test/old", "https://example.test/new"]);
 });
 
-test("subsequent address clicks preserve caret editing and disposal removes handlers", { timeout: 10000 }, async (t) => {
+test("subsequent address clicks preserve caret editing and disposal removes handlers", async (t) => {
   const { dom, address, requests, controller, dispatch } = await setup(t);
   address.focus();
   assert.deepEqual([address.selectionStart, address.selectionEnd], [0, address.value.length]);
@@ -78,8 +81,8 @@ test("subsequent address clicks preserve caret editing and disposal removes hand
   assert.equal(requests.filter((name) => name === "browser.address.select").length, 2);
 });
 
-test("a navigation that did not come from typing shows its address in the focused field", { timeout: 10000 }, async (t) => {
-  const { dom, root, address, controller, commands, states } = await setup(t);
+test("a navigation that did not come from typing shows its address in the focused field", async (t) => {
+  const { dom, root, address, controller, commands, states, navigations, until } = await setup(t);
   t.after(() => controller.dispose());
   const type = (text) => {
     address.value = text;
@@ -88,7 +91,7 @@ test("a navigation that did not come from typing shows its address in the focuse
   address.focus();
   type("https://example.test/typed");
   address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  await Promise.resolve();
+  await until(() => navigations.includes("https://example.test/typed"));
   assert.equal(root.activeElement, address, "the field keeps focus after Enter");
   await commands.get("browser.navigate")({ url: "https://example.test/other" });
   assert.equal(address.value, "https://example.test/other");
@@ -101,7 +104,7 @@ test("a navigation that did not come from typing shows its address in the focuse
   assert.equal(address.value, "https://example.test/typed");
 });
 
-test("browser.navigate refuses a missing or empty address before the document region", { timeout: 10000 }, async (t) => {
+test("browser.navigate refuses a missing or empty address before the document region", async (t) => {
   const { navigations, controller, commands } = await setup(t);
   t.after(() => controller.dispose());
   const before = [...navigations];
@@ -112,7 +115,7 @@ test("browser.navigate refuses a missing or empty address before the document re
   assert.deepEqual(navigations, before, "a refused address reached the document region");
 });
 
-test("the card footer shows the address of the link under the pointer", { timeout: 10000 }, async (t) => {
+test("the card footer shows the address of the link under the pointer", async (t) => {
   const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
   t.after(() => dom.window.close());
   const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
@@ -140,13 +143,14 @@ test("the card footer shows the address of the link under the pointer", { timeou
 });
 
 
-test("an empty address refused by Enter is shown as the tab error and reaches no document", { timeout: 10000 }, async (t) => {
-  const { dom, address, navigations, errors, controller } = await setup(t);
+test("an empty address refused by Enter is shown as the tab error and reaches no document", async (t) => {
+  const { dom, address, navigations, errors, controller, until } = await setup(t);
   t.after(() => controller.dispose());
   const before = [...navigations];
   address.value = "   ";
   address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  // The refusal ends the handling of the Enter: it is shown as the tab error, and then no navigation is asserted.
+  await until(() => errors.length > 0);
   assert.deepEqual(navigations, before, "an empty address reached the document region");
   assert.equal(errors.length, 1, `the refusal was not shown; errors ${JSON.stringify(errors)}`);
   assert.match(errors[0], /browser\.navigate requires an address/);

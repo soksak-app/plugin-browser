@@ -11,10 +11,13 @@ import { createBinder, INTERACTIVE } from "./binder.mjs";
 import { drawList } from "./list.mjs";
 import { createExpose } from "./expose.mjs";
 import { createViewBridge } from "./view.mjs";
+import { createOccurrences } from "../occurrences.mjs";
 
 const fixtureFile = (name) => JSON.parse(readFileSync(new URL(`../fixtures/contract/${name}.json`, import.meta.url), "utf8"));
 const fixture = (name) => fixtureFile(name).cases;
-const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0)); };
+// Each step waits for the records that its case expects: the occurrences of the lists below. A step that expects no record of a
+// list waits for none of it, and its awaited call is the event that ends its handling (docs/spec/calls.md, tests).
+const counts = (lists, expected) => () => Object.entries(lists).every(([key, [list, before]]) => list.length - before >= (expected[key]?.length ?? 0));
 const errorText = (error) => (error instanceof Error ? error.message : String(error?.message ?? error));
 
 const EXCLUDED_CASES = {
@@ -53,10 +56,11 @@ test("the excluded cases and steps are present in the copied fixtures", () => {
 
 test("expose cases replay against the exposure model", async () => {
   for (const testCase of fixture("expose")) {
-    const registered = [];
-    const replies = [];
-    const changes = [];
-    const effects = [];
+    const { until, list } = createOccurrences();
+    const registered = list();
+    const replies = list();
+    const changes = list();
+    const effects = list();
     const subscribers = new Set();
     const elements = new Map();
     let handle = null;
@@ -146,7 +150,7 @@ test("expose cases replay against the exposure model", async () => {
       } catch (error) {
         throws = errorText(error);
       }
-      await settle();
+      await until(counts({ registered: [registered, before.registered], replies: [replies, before.replies], changed: [changes, before.changed], effects: [effects, before.effects] }, step.output));
       const output = {
         registered: registered.slice(before.registered),
         replies: replies.slice(before.replies),
@@ -160,48 +164,70 @@ test("expose cases replay against the exposure model", async () => {
   }
 });
 
-test("call limit cases replay against the bridge model on a mocked clock", async (t) => {
+// The call end cases of calls.json: a call has no time limit and ends by its reply, its cancel or the end of its peer. No step moves a
+// clock: the clock is fixed at 0 so that the start of a call and the delay of a late reply are 0, and the replay finds that the
+// model started no timer. A step that the case expects to settle its watched call waits for that settlement.
+test("call end cases replay against the bridge model", async (t) => {
+  const ids = fixture("calls").map((entry) => entry.id);
+  assert.deepEqual(ids, ["calls.end.reply-resolves-the-call", "calls.end.error-reply-rejects-with-its-code",
+    "calls.end.cancel-ends-the-call-and-a-later-reply-is-late", "calls.end.peer-end-rejects-each-open-call"]);
   for (const testCase of fixture("calls")) {
-    // The clock of the case starts at 0 and moves only by the advance steps; the limit timers are the mocked timers.
-    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    t.mock.timers.enable({ apis: ["Date"], now: 0 });
+    const timers = t.mock.method(globalThis, "setTimeout");
     const sokView = { listener: null, attach(listener) { this.listener = listener; } };
     globalThis.window = { sokView, innerWidth: 800, innerHeight: 600, location: { host: "probe" } };
+    const { until, occurred } = createOccurrences();
     const posted = [];
     const reports = [];
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: (event) => reports.push(event) });
     const outcomes = new Map();
-    // Each step is followed by the microtasks of the settled promises only; the mocked timers do not run them.
-    const flush = async () => { for (let i = 0; i < 20; i += 1) await Promise.resolve(); };
-    for (const [index, step] of testCase.steps.entries()) {
-      const label = `${testCase.id}#${index}`;
-      const before = posted.length;
-      const reportsBefore = reports.length;
-      if (step.request) {
-        const name = step.request.name;
-        outcomes.set(name, null);
-        bridge.calls.request(step.request.command, step.request.params, step.request.timeout)
-          .then((value) => outcomes.set(name, { resolved: value }), (error) => outcomes.set(name, { rejected: error.message, code: error.code }));
-      } else if (step.advance !== undefined) {
-        t.mock.timers.tick(step.advance);
-      } else if (step.reply) {
-        sokView.listener({ sok: 1, ...step.reply });
-      } else throw new Error(`unknown call step in ${label}`);
-      await flush();
-      const output = {
-        sent: posted.slice(before).map(({ sok, ...rest }) => rest),
-        reports: reports.slice(reportsBefore),
-        outcome: outcomes.get(step.watch) ?? null,
-      };
-      assert.deepEqual(output, step.output, label);
+    const signals = new Map();
+    try {
+      for (const [index, step] of testCase.steps.entries()) {
+        const label = `${testCase.id}#${index}`;
+        const before = posted.length;
+        const reportsBefore = reports.length;
+        if (step.request) {
+          const { name, command, params, signal } = step.request;
+          const options = {};
+          if (signal) {
+            const controller = new AbortController();
+            signals.set(name, controller);
+            options.signal = controller.signal;
+          }
+          outcomes.set(name, null);
+          bridge.calls.request(command, params, options).then(
+            (value) => { outcomes.set(name, { resolved: value }); occurred(); },
+            (error) => { outcomes.set(name, { rejected: error.message, code: error.code ?? null }); occurred(); },
+          );
+        } else if (step.reply) {
+          sokView.listener({ sok: 1, ...step.reply });
+        } else if (step.cancel) {
+          signals.get(step.cancel).abort();
+        } else if (step.peerLost) {
+          bridge.calls.peerLost(step.peerLost);
+        } else throw new Error(`unknown call step in ${label}`);
+        if (step.output.outcome !== null) await until(() => (outcomes.get(step.watch) ?? null) !== null);
+        const output = {
+          sent: posted.slice(before).map(({ sok, ...rest }) => rest),
+          reports: reports.slice(reportsBefore),
+          outcome: outcomes.get(step.watch) ?? null,
+        };
+        assert.deepEqual(output, step.output, label);
+      }
+    } finally {
+      t.mock.timers.reset();
     }
-    t.mock.timers.reset();
+    assert.equal(timers.mock.callCount(), 0, `${testCase.id}: the model started a timer`);
+    timers.mock.restore();
   }
 });
 
 test("command registration cases replay against the exposure model", async () => {
   for (const testCase of fixture("command-registration")) {
-    const registered = [];
-    const replies = [];
+    const { until, list } = createOccurrences();
+    const registered = list();
+    const replies = list();
     let handle = null;
     const expose = createExpose({
       register: async (kind, name) => { registered.push({ kind, name }); },
@@ -220,7 +246,7 @@ test("command registration cases replay against the exposure model", async () =>
       } catch (error) {
         throws = errorText(error);
       }
-      await settle();
+      await until(counts({ registered: [registered, before.registered], replies: [replies, before.replies] }, step.output));
       assert.deepEqual({ registered: registered.slice(before.registered), replies: replies.slice(before.replies), result: null, throws }, step.output, label);
     }
   }
@@ -229,8 +255,9 @@ test("command registration cases replay against the exposure model", async () =>
 test("view bridge cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-bridge")) {
     const sokView = viewWindow();
-    const posted = [];
-    const received = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
+    const received = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const host = (message) => sokView.listener(JSON.parse(JSON.stringify(message)));
     const pending = new Map();
@@ -240,22 +267,21 @@ test("view bridge cases replay against the bridge model", async () => {
       if (step.action === "create") assert.deepEqual({ ready: true }, step.output, label);
       else if (step.action === "request") {
         const promise = bridge.calls.request(step.input.command, step.input.params);
-        await settle();
+        await until(() => posted.length > before);
         pending.set(posted[before].id, promise);
         assert.deepEqual(posted[before], step.output, label);
       } else if (step.action === "sidecar-send") {
         const promise = bridge.runtime.sidecar(step.input.sidecar).send(step.input.id, step.input.body);
-        await settle();
+        await until(() => posted.length > before);
         pending.set(posted[before].id, promise);
         assert.deepEqual(posted[before], step.output, label);
       } else if (step.action === "sidecar-subscribe") {
         const promise = bridge.runtime.sidecar(step.input.sidecar).on(step.input.id, () => {});
-        await settle();
+        await until(() => posted.length > before);
         pending.set(posted[before].id, promise);
         assert.deepEqual(posted[before], step.output, label);
       } else if (step.action === "host-reply") {
         host(step.input);
-        await settle();
         if (step.output !== undefined) {
           const value = await pending.get(step.input.id);
           assert.deepEqual(value, step.output, label);
@@ -265,7 +291,7 @@ test("view bridge cases replay against the bridge model", async () => {
       } else if (step.action === "host-event") {
         const count = received.length;
         host(step.input);
-        await settle();
+        await until(() => received.length > count);
         assert.deepEqual(received[count], step.output, label);
       } else throw new Error(`unknown bridge step ${step.action} in ${label}`);
     }
@@ -275,8 +301,9 @@ test("view bridge cases replay against the bridge model", async () => {
 test("view native cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-native")) {
     const sokView = viewWindow();
-    const posted = [];
-    const delivered = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
+    const delivered = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const listeners = new Map();
     const removers = new Map();
@@ -293,7 +320,7 @@ test("view native cases replay against the bridge model", async () => {
       if (step.on) {
         const promise = bridge.runtime.native.on(step.on.name, listenerFor(step.on.listener));
         if (step.answer) {
-          await settle();
+          await until(() => posted.length > before);
           sokView.listener({ sok: 1, id: posted.at(-1).id, ...step.answer });
         }
         try {
@@ -308,7 +335,7 @@ test("view native cases replay against the bridge model", async () => {
       } else if (step.event) {
         sokView.listener({ sok: 1, event: step.event.event, data: step.event.data });
       } else throw new Error(`unknown native step in ${label}`);
-      await settle();
+      await until(counts({ posted: [posted, before], delivered: [delivered, deliveredBefore] }, step.output));
       assert.deepEqual({ posted: posted.slice(before), delivered: delivered.slice(deliveredBefore), result, throws }, pick(step.output, ["posted", "delivered", "result", "throws"]), label);
     }
   }
@@ -318,15 +345,17 @@ test("view composition cases replay against the composition model", async () => 
   const { elements: rects, cases } = fixtureFile("view-composition");
   for (const testCase of cases.filter((entry) => !EXCLUDED_CASES[entry.id])) {
     const sokView = viewWindow();
-    const posted = [];
-    const delivered = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
+    const delivered = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const elements = Object.fromEntries(Object.entries(rects).map(([name, rect]) => [name, rectElement(rect)]));
-    // Answers the last posted call of the step, as the host does in posted order.
+    // Answers the call that the model posts after the last answered one, as the host does in posted order.
+    let answered = 0;
     const answer = async (payload) => {
-      await settle();
+      await until(() => posted.length > answered);
+      answered = posted.length;
       sokView.listener({ sok: 1, id: posted.at(-1).id, ...payload });
-      await settle();
     };
     let composition = null;
     const subscriptions = [];
@@ -392,7 +421,8 @@ test("view composition cases replay against the composition model", async () => 
       } catch (error) {
         throws = errorText(error);
       }
-      await settle();
+      await until(counts({ posted: [posted, before], delivered: [delivered, deliveredBefore] }, step.output));
+      answered = Math.max(answered, posted.length);
       const state = composition ? composition.region("doc").state : null;
       const history = composition ? composition.region("doc").history : null;
       assert.deepEqual(
@@ -412,7 +442,10 @@ test("binder cases replay against the binder model", async () => {
       ["fixture.save", (params) => { if (params?.fail) throw new Error("command failed"); return "accepted"; }],
       ["fixture.set", () => null],
     ]);
-    const binder = createBinder((name, params) => commands.get(name)(params), {
+    const { until, occurred } = createOccurrences();
+    // The binder records a call before it runs it and a failure before it passes it to the failed option, so each run and each
+    // failure is an occurrence of the records of the binder.
+    const binder = createBinder((name, params) => { occurred(); return commands.get(name)(params); }, {
       check(name) { if (!commands.has(name)) throw new Error(`command ${name} is not declared`); },
     });
     const root = window.document.createElement("div");
@@ -457,7 +490,7 @@ test("binder cases replay against the binder model", async () => {
           const when = step.bind.when ? (event) => Object.entries(step.bind.when).every(([key, value]) => event[key] === value) : undefined;
           // The trace gives paramsFromValue for params that a function reads from the value of the element at each run.
           const params = step.bind.paramsFromValue ? () => ({ value: element.value }) : step.bind.params;
-          await binder.bind(element, step.bind.command, params, { event: step.bind.event, when, failed: () => {} });
+          await binder.bind(element, step.bind.command, params, { event: step.bind.event, when, failed: () => occurred() });
         } else if (step.delegate) {
           await binder.delegate(root);
         } else if (step.event) {
@@ -469,7 +502,7 @@ test("binder cases replay against the binder model", async () => {
             ? new window.KeyboardEvent(step.event.type, { ...init, key: step.event.key })
             : new window.Event(step.event.type, init);
           element.dispatchEvent(event);
-          await new Promise((resolve) => setTimeout(resolve, 0));
+          await until(() => binder.state().calls.length >= step.output.calls.length && binder.state().failed.length >= step.output.failed.length);
         } else if (step.dispose) {
           binder.dispose();
         } else if (step.audit) {
@@ -549,8 +582,9 @@ test("draw list cases replay against the list model", async () => {
 test("view settings cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-settings")) {
     const sokView = viewWindow();
-    const posted = [];
-    const delivered = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
+    const delivered = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const listeners = new Map();
     const listenerFor = (label) => {
@@ -566,14 +600,14 @@ test("view settings cases replay against the bridge model", async () => {
       try {
         if (step.read) {
           const promise = bridge.runtime[step.read].read();
-          await settle();
+          await until(() => posted.length > before);
           sokView.listener({ sok: 1, id: posted.at(-1).id, ...step.answer });
           result = await promise;
         } else if (step.subscribe) {
           const listener = step.subscribe.listener === null ? null : listenerFor(step.subscribe.listener);
           const promise = bridge.runtime[step.subscribe.kind].on(listener);
           if (step.answer) {
-            await settle();
+            await until(() => posted.length > before);
             sokView.listener({ sok: 1, id: posted.at(-1).id, ...step.answer });
           }
           result = typeof (await promise);
@@ -583,7 +617,7 @@ test("view settings cases replay against the bridge model", async () => {
       } catch (failure) {
         throws = errorText(failure);
       }
-      await settle();
+      await until(counts({ posted: [posted, before], delivered: [delivered, deliveredBefore] }, step.output));
       assert.deepEqual({ posted: posted.slice(before), delivered: delivered.slice(deliveredBefore), result, throws }, pick(step.output, ["posted", "delivered", "result", "throws"]), label);
     }
   }
@@ -592,7 +626,8 @@ test("view settings cases replay against the bridge model", async () => {
 test("view command cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-commands")) {
     const sokView = viewWindow();
-    const posted = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const behaviors = { echo: (params) => params, fail: () => { throw new Error("save failed"); }, none: () => undefined, context: (params, context) => context };
     for (const [index, step] of testCase.steps.entries()) {
@@ -605,7 +640,7 @@ test("view command cases replay against the bridge model", async () => {
           const run = typeof step.register.run === "string" && step.register.run in behaviors ? behaviors[step.register.run] : step.register.run;
           const promise = bridge.commands.register(step.register.name, run);
           if (step.answer ?? step.register.answer) {
-            await settle();
+            await until(() => posted.length > before);
             sokView.listener({ sok: 1, id: posted.at(-1).id, ...(step.answer ?? step.register.answer) });
           }
           result = await promise;
@@ -615,7 +650,7 @@ test("view command cases replay against the bridge model", async () => {
       } catch (failure) {
         throws = errorText(failure);
       }
-      await settle();
+      await until(counts({ posted: [posted, before] }, step.output));
       assert.deepEqual({ posted: posted.slice(before), result, throws }, pick(step.output, ["posted", "result", "throws"]), label);
     }
   }
@@ -627,8 +662,9 @@ const PAGE = "6f1d2a3e-1111-4a2b-8c3d-00000000000a";
 test("view status cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-status")) {
     const sokView = viewWindow();
-    const posted = [];
-    const delivered = [];
+    const { until, list } = createOccurrences();
+    const posted = list();
+    const delivered = list();
     const bridge = createViewBridge({ handler: { postMessage: (message) => posted.push(JSON.parse(JSON.stringify(message))) }, report: () => {} });
     const stops = new Map();
     for (const [index, step] of testCase.steps.entries()) {
@@ -649,19 +685,19 @@ test("view status cases replay against the bridge model", async () => {
           sokView.listener({ sok: 1, event: step.event.event, data: step.event.data });
         } else throw new Error(`unknown status step in ${label}`);
         for (const [id, reply] of Object.entries(step.replies ?? {})) {
-          await settle();
+          await until(() => posted.some((message) => message.id === Number(id)));
           sokView.listener({ sok: 1, id: Number(id), ...reply });
         }
       } catch (failure) {
         throws = errorText(failure);
       }
-      await settle();
+      await until(counts({ posted: [posted, before], delivered: [delivered, deliveredBefore] }, step.output));
       assert.deepEqual({ posted: posted.slice(before), delivered: delivered.slice(deliveredBefore), result, throws }, pick(step.output, ["posted", "delivered", "result", "throws"]), label);
     }
   }
 });
 
-test("view operation cases replay against the bridge model", { timeout: 3000 }, async () => {
+test("view operation cases replay against the bridge model", async () => {
   for (const testCase of replayable("view-operations")) {
     const sokView = viewWindow();
     sokView.page = PAGE;

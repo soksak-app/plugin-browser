@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createWindow } from "./dom.mjs";
+import { createOccurrences } from "./occurrences.mjs";
 import { elementsValue, historyValue, requestsValue } from "../build/test/ui/browser.js";
 import { createSectionView } from "../build/test/ui/section-view.js";
 
@@ -372,7 +373,7 @@ test("a section id that the plugin does not declare is refused", async () => {
 
 // A press on an item, a redraw with the same keys between the press and the release, and the release: WebKit sends no click when the
 // pressed element was removed, so the element must stay connected and the release must run the command (core docs/spec/exposure.md).
-test("a redraw with the same keys between a press and its release keeps the pressed element, and the release runs its command", { timeout: 5000 }, async () => {
+test("a redraw with the same keys between a press and its release keeps the pressed element, and the release runs its command", async () => {
   const fake = fakeRuntime();
   const root = await mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
@@ -390,7 +391,7 @@ test("a redraw with the same keys between a press and its release keeps the pres
 });
 
 // A redraw creates an element only for a key that is new and removes an element only for a key that left; a kept key keeps its element.
-test("a redraw creates an element only for a new key and removes the element of a key that left", { timeout: 5000 }, async () => {
+test("a redraw creates an element only for a new key and removes the element of a key that left", async () => {
   const fake = fakeRuntime();
   const root = await mount(fake);
   deliver(fake, "core.surfaces", undefined, surfaces(["tab-2", "browser"]));
@@ -421,8 +422,11 @@ let views = 0;
 
 // jsdom lays out nothing, so the test gives the body of a section the layout that the section reads: a view of 200 by 100 pixels,
 // and content of 20 pixels per row that is 400 pixels wide while the body holds a row. A scroll offset stays within the content,
-// and an offset that a scroll or a smaller content changes fires scroll at the body after the task, as a layout does.
+// and an offset that a scroll or a smaller content changes fires scroll at the body after the task, as a layout does. Each fired
+// scroll is an occurrence, and scrolled() resolves when every scroll that the layout queued has reached the body.
 function layOut(root) {
+  const { until, occurred } = createOccurrences();
+  let queued = 0;
   const view = { width: 200, height: 100 };
   const rows = () => root.querySelectorAll("li").length;
   const limit = {
@@ -434,7 +438,12 @@ function layOut(root) {
     const next = Math.max(0, Math.min(value, limit[name]()));
     if (next === offsets[name]) return;
     offsets[name] = next;
-    setTimeout(() => root.dispatchEvent(new root.ownerDocument.defaultView.Event("scroll")), 0);
+    queued += 1;
+    setTimeout(() => {
+      root.dispatchEvent(new root.ownerDocument.defaultView.Event("scroll"));
+      queued -= 1;
+      occurred();
+    }, 0);
   };
   for (const name of ["scrollLeft", "scrollTop"]) {
     Object.defineProperty(root, name, {
@@ -447,12 +456,8 @@ function layOut(root) {
   Object.defineProperty(root, "clientHeight", { configurable: true, get: () => view.height });
   Object.defineProperty(root, "scrollWidth", { configurable: true, get: () => view.width + limit.scrollLeft() });
   Object.defineProperty(root, "scrollHeight", { configurable: true, get: () => view.height + limit.scrollTop() });
+  return { scrolled: () => until(() => queued === 0) };
 }
-
-// Resolves after the scroll events that the layout queued have run.
-const settle = async () => {
-  for (let round = 0; round < 4; round += 1) await new Promise((resolve) => setTimeout(resolve, 0));
-};
 
 // Opens a view of the section id as the host does: a new window whose body is the root of the section page (ui/section.js), and
 // the state that core gives the view.
@@ -463,9 +468,9 @@ async function openView(id, stored) {
   const fake = fakeRuntime({ stored });
   const reports = [];
   const root = view.document.body;
-  layOut(root);
+  const { scrolled } = layOut(root);
   await create({ runtime: fake.runtime, expose: fake.expose, declarations: DECLARATIONS, root, section: { id, sidebar: "left", card: null }, tabState: fake.tabState, report: (text) => reports.push(text) });
-  return { view, fake, root, reports };
+  return { view, fake, root, reports, scrolled };
 }
 
 // Core reports the section on the surface tab-1 of the browser plugin, and tab-1 gives each value of the status of the section.
@@ -509,7 +514,7 @@ for (const { id, status, values } of RESTORE_CASES) {
     follow(loaded, id, status, values);
     loaded.root.scrollLeft = 120;
     loaded.root.scrollTop = 90;
-    await settle();
+    await loaded.scrolled();
     const shown = loaded.root.innerHTML;
     // The unload closes the view, and core keeps the last state that the view wrote; a section that wrote no state has none, which
     // tab.state.read gives as null.
@@ -519,7 +524,7 @@ for (const { id, status, values } of RESTORE_CASES) {
     // that tab-1 gives a new watch of the status.
     const restored = await openView(id, stored);
     follow(restored, id, status, values);
-    await settle();
+    await restored.scrolled();
     assert.equal(restored.root.innerHTML, shown, "the restored section shows the rows that it had");
     assert.deepEqual({ x: restored.root.scrollLeft, y: restored.root.scrollTop }, { x: 120, y: 90 }, "the restored section shows the scroll position that it had");
     assert.deepEqual(stored, { surface: "tab-1", scroll: { x: 120, y: 90 } }, "the view writes the followed surface and the scroll position as its state");
@@ -532,7 +537,7 @@ test("a restored section that follows another surface than its state names start
   const [{ id, status, values }] = RESTORE_CASES;
   const restored = await openView(id, { surface: "tab-1", scroll: { x: 120, y: 90 } });
   follow(restored, id, status, values, "tab-2");
-  await settle();
+  await restored.scrolled();
   assert.deepEqual({ x: restored.root.scrollLeft, y: restored.root.scrollTop }, { x: 0, y: 0 });
   assert.deepEqual(restored.fake.writes, [{ surface: "tab-2", scroll: { x: 0, y: 0 } }]);
 });
@@ -544,9 +549,9 @@ test("a scroll of the person before the rows reach the stored position keeps the
   follow(restored, id, status, [requestsValue({ entries: Array.from({ length: 6 }, (_, index) => ({ url: `https://site.test/r${index}.js`, type: "script", start: index, duration: 1 })), dropped: 0 })]);
   restored.root.scrollLeft = 50;
   restored.root.scrollTop = 10;
-  await settle();
+  await restored.scrolled();
   follow(restored, id, status, values);
-  await settle();
+  await restored.scrolled();
   assert.deepEqual({ x: restored.root.scrollLeft, y: restored.root.scrollTop }, { x: 50, y: 10 });
   assert.deepEqual(restored.fake.writes, [{ surface: "tab-1", scroll: { x: 50, y: 10 } }]);
 });

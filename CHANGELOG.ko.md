@@ -4,6 +4,7 @@
 - P125: page test 가 선언된 command 에 P123 이 선언한 `browser.content.read`를 적는다. Red: 남는 이름에서 test 가 실패했다. Green: 통과한다.
 - P123 (core F696-4-1): 화면의 빈 상태 안내와 같은 메인 뷰 모델을 읽는 공개 `browser.content.read`를 추가한다. 문서 상태는 로딩 완료를 뜻하지 않는다. reader 부재와 초기 마크업 보존 테스트의 RED 후 수정했고, 소유 테스트 13개와 유지되는 검사를 통과했다. 실제 mygo 앱에 설치한 package의 공개 응답과 원본 해상도 캡처에서 안내를 확인했다.
 
+- P127: 대기는 그 occurrence 로만 끝나고, test script 의 runner 한도 `--test-timeout=120000` 이 occurrence 가 오지 않는 test 를 이름과 함께 실패시킨다. occurrences helper 는 더 이상 `beforeExit` 에서 열린 대기를 reject 하지 않는다. 한 file 에 오지 않는 대기 둘을 둔 probe 에서 두 test 가 모두 한도에서 이름과 함께 실패했다.
 [English](CHANGELOG.md)
 
 - P122: core 호환성 문서가 `^0.0.40`은 core 0.0.40부터 그 뒤의 모든 0.0 release를 허용한다고 적고, test가 이를 요구한다. Red: 이전 문장에서 test가 실패했다. Green: 통과한다.

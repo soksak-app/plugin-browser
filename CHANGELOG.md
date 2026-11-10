@@ -4,6 +4,7 @@
 - P125: The page test names `browser.content.read`, which P123 declares, among the declared commands. Red: the test failed on the extra name. Green: it passes.
 - P123 (core F696-4-1): Add public `browser.content.read` from the main view model shared with the visible empty instruction. Document state does not claim loading completion. The missing-reader and initial-markup preservation cases failed before their fixes; all 13 scoped cases and maintained checks pass. The staged package returned the public empty response in the actual mygo app, whose original-resolution capture showed the instruction.
 
+- P127: A wait ends only by its occurrence, and the limit of the test runner, `--test-timeout=120000` in the test script, fails a test whose occurrence does not come with its name; the occurrences helper no longer rejects the open waits at `beforeExit`. A probe of two waits that never come in one file failed both tests at the limit with their names.
 [한국어](CHANGELOG.ko.md)
 
 - P122: The core compatibility documents state that `^0.0.40` admits core 0.0.40 and every later 0.0 release, and a test requires it. Red: the test failed on the earlier statement. Green: it passes.

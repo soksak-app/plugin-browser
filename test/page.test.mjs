@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { INTERACTIVE } from "./sdk-models/binder.mjs";
+import { createOccurrences } from "./occurrences.mjs";
 
 const source = readFileSync(new URL("../build/test/ui/browser.js", import.meta.url), "utf8");
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
@@ -40,7 +41,8 @@ test("browser mount publishes document state, respects shadow focus, and dispose
     back: async () => {}, forward: async () => {}, reload: async () => {}, stop: async () => {},
     zoom: async (factor) => { zooms.push(factor); },
   };
-  const zooms = [];
+  const { until, list } = createOccurrences();
+  const zooms = list();
   let notifyTextSize = null;
   const composition = {
     region: () => region,
@@ -66,7 +68,7 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   // 문서의 페이지 확대는 표면의 글자 배율을 따른다(docs/spec/text-size.md).
   assert.deepEqual(zooms, [1.25], "the document starts at the surface text size");
   notifyTextSize(2);
-  await Promise.resolve();
+  await until(() => zooms.length === 2);
   assert.deepEqual(zooms, [1.25, 2], "the document follows text size changes");
   // 기록 이동과 새로 고침 단추는 core 아이콘 표의 경로를 직접 그린다.
   const pathOf = (command) => shadow.querySelector(`[data-command="${command}"] svg`)?.innerHTML;

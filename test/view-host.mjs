@@ -4,6 +4,7 @@
 // page imports with a distinct query per case, so each case mounts a fresh page into its own window.
 import { readFileSync } from "node:fs";
 import { createWindow, useWindow } from "./dom.mjs";
+import { createOccurrences } from "./occurrences.mjs";
 
 /**
  * Installs the view channel of the contract in window: the ready message {event: "view.ready", plugin, document, time_origin} through
@@ -40,35 +41,39 @@ function installViewChannel(window, handler) {
 const MANIFEST = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
 const declared = (kind, name) => (MANIFEST.exposes[kind] ?? []).some((entry) => entry.name === name);
 
-const settle = (rounds = 8) => {
-  let done = Promise.resolve();
-  for (let i = 0; i < rounds; i += 1) done = done.then(() => new Promise((resolve) => setTimeout(resolve, 0)));
-  return done;
-};
-
 /**
  * The document region "page" of the view. The host delivers each state of the region as the event document-state
  * {document, state} and each message of a stream as the event document-stream {document, handle, message} through the
  * subscriptions runtime.native.on, which emit(name, data) runs. show(url, change) reports one state, and load(url)
  * records the load and reports it. subscribe(stream) opens a subscription and stream(stream, message) delivers it.
  */
-function fakeRegion(name, emit) {
-  const region = { name, streams: [], handles: 0, loads: [], history: false, restoredState: null };
+function fakeRegion(name, emit, { list, occurred }) {
+  // The region delivers a state or a stream message after the task that queued it, as the host delivers its events. queued counts
+  // the deliveries that have not run yet, and each delivery is an occurrence.
+  const region = { name, streams: [], handles: 0, loads: list(), history: false, restoredState: null, queued: 0 };
+  const queue = (deliver) => {
+    region.queued += 1;
+    setTimeout(() => {
+      deliver();
+      region.queued -= 1;
+      occurred();
+    }, 0);
+  };
   region.stateOf = (url, change = {}) => ({ url, title: "", loading: false, progress: 1, canGoBack: false, canGoForward: false, error: null, scroll: { x: 0, y: 0 }, link: "", history: { entries: [], index: -1 }, ...change });
   region.show = (url, change = {}) => {
     const state = region.stateOf(url, change);
-    setTimeout(() => emit("document-state", { document: name, state }), 0);
+    queue(() => emit("document-state", { document: name, state }));
     return state;
   };
   region.load = (url) => { region.loads.push(url); region.show(url); return Promise.resolve(); };
   region.stream = (stream, message) => {
-    setTimeout(() => {
+    queue(() => {
       for (const subscription of region.streams) {
         if (subscription.stream === stream && !subscription.closed) {
           emit("document-stream", { document: name, handle: subscription.handle, message });
         }
       }
-    }, 0);
+    });
   };
   region.call = {
     attach: async () => ({ history: region.history }),
@@ -94,10 +99,15 @@ function fakeRegion(name, emit) {
  * the sok-view channel, and the composition and document routes of the view. The globals of the test process serve the
  * window.
  *
- * Returns { window, region, reports, logs, calls, run, post, settle, expose }. reports holds the tab reports, the state
+ * Returns { window, region, reports, logs, calls, run, post, until, started, delivered, list, expose }. reports holds the tab reports, the state
  * writes and the registrations that the page sent; logs holds the plugin events from the view log batches; calls holds the
  * composition and document calls of the page; run(name, params) sends one command request of core to the page; expose(method, params)
  * forwards one exposure request of core; post(message) posts one host message to the page.
+ *
+ * Each message that the page sends, each record of the host and each message that the host delivers is an occurrence
+ * (test/occurrences.mjs): until(holds) waits for the state that a test asserts. started() waits for the start of the page: its
+ * start record and, when it loads an address, that load and the delivery of its state. delivered() waits until the region has
+ * delivered every state and stream message that it queued. list() makes a list whose push is an occurrence of this host.
  */
 export function createViewPage(t, caseId, { stored = null, origin = { directory: "/work" }, start, textSize = 1, home = "https://home.test/", refuseLog = null } = {}) {
   const { window } = createWindow(`sok://browser/ui/index.html?case=${caseId}`);
@@ -110,24 +120,29 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     unobserve() {}
     disconnect() {}
   };
-  const reports = { title: [], footer: [], modified: [], error: [], errorLines: [], keep: [], state: [], registered: [], native: [], changed: [], cids: [] };
-  const logs = [];
+  const occurrences = createOccurrences();
+  const { list, until, occurred } = occurrences;
+  const reports = Object.fromEntries(["title", "footer", "modified", "error", "errorLines", "keep", "state", "registered", "native", "changed", "cids"].map((key) => [key, list()]));
+  const logs = list();
   let clockUs = 0;
   let monoNs = 0;
-  const snapshots = [];
-  const calls = [];
+  const snapshots = list();
+  const calls = list();
   const pending = new Map();
   const subscribed = new Set();
   // The statuses that the page watches; the host sends a value of a watched status with status(name, value).
   const watched = new Set();
   const exposurePending = new Map();
   const nativeListeners = new Set();
-  const post = (message) => window.dispatchEvent(new window.MessageEvent("message", { source: window, origin: "", data: message }));
+  const post = (message) => {
+    window.dispatchEvent(new window.MessageEvent("message", { source: window, origin: "", data: message }));
+    occurred();
+  };
   const emitNative = (name, data) => {
     if (nativeListeners.has(name)) post({ sok: 1, event: name, data });
   };
-  const region = fakeRegion("page", emitNative);
-  const handler = { postMessage: (sent) => { const message = JSON.parse(JSON.stringify(sent)); deliver(message); } };
+  const region = fakeRegion("page", emitNative, occurrences);
+  const handler = { postMessage: (sent) => { const message = JSON.parse(JSON.stringify(sent)); deliver(message); occurred(); } };
   window.webkit = { messageHandlers: { "sok-view": handler } };
 
   const reply = (id, payload) => post({ sok: 1, id, ...payload });
@@ -287,5 +302,11 @@ export function createViewPage(t, caseId, { stored = null, origin = { directory:
     exposurePending.set(id, resolve);
     post({ sok: 1, event: "exposure-request", data: { id, surface: "browser-1", method, params: paramsOfRequest } });
   });
-  return { window, region, reports, logs, calls, snapshots, subscribed, run, post, settle, expose, status };
+  const delivered = () => until(() => region.queued === 0);
+  const started = () => until(() => {
+    const start = logs.find((entry) => entry.event === "start");
+    if (start === undefined || region.queued > 0) return false;
+    return start.fields.source === "history" || start.fields.url === "" || region.loads.includes(start.fields.url);
+  });
+  return { window, region, reports, logs, calls, snapshots, subscribed, run, post, until, started, delivered, list, expose, status };
 }

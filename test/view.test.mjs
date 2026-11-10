@@ -50,15 +50,15 @@ for (const [label, change, reason] of [
 }
 
 test("the view page mounts the surface over the view channel and registers every declared name", async (t) => {
-  const { settle } = createViewPage(t, "mount");
+  const { started } = createViewPage(t, "mount");
   await import("../build/test/ui/view.js?case=mount");
-  await settle();
+  await started();
 });
 
 test("the view page attaches the document region, places it, and opens the home setting in it", async (t) => {
-  const { region, calls, settle } = createViewPage(t, "region");
+  const { region, calls, started } = createViewPage(t, "region");
   await import("../build/test/ui/view.js?case=region");
-  await settle();
+  await started();
   assert.deepEqual(calls.find(([name]) => name === "document.attach")?.[1], { name: "page" }, "the view attaches the declared region page");
   assert.ok(calls.some(([name, params]) => name === "composition.place" && params.regions.length === 1
     && params.regions[0].name === "page"), "the view places the region in one snapshot");
@@ -68,20 +68,20 @@ test("the view page attaches the document region, places it, and opens the home 
 });
 
 test("a browser.navigate run through the channel loads the document region", async (t) => {
-  const { region, run, settle } = createViewPage(t, "navigate");
+  const { region, run, started } = createViewPage(t, "navigate");
   await import("../build/test/ui/view.js?case=navigate");
-  await settle();
+  await started();
+  // The command replies after the load of the region, so its reply ends the handling.
   assert.equal(await run("browser.navigate", { url: "https://example.test/" }), null);
-  await settle();
   assert.deepEqual(region.loads, ["https://home.test/", "https://example.test/"]);
 });
 
 test("a document state updates the tab reports and the address field", async (t) => {
-  const { window, region, reports, expose, settle } = createViewPage(t, "state");
+  const { window, region, reports, expose, started, until } = createViewPage(t, "state");
   await import("../build/test/ui/view.js?case=state");
-  await settle();
+  await started();
   region.show("https://a.test/one", { title: "One", link: "https://a.test/two", canGoBack: true });
-  await settle();
+  await until(() => reports.title.includes("One") && reports.footer.includes("https://a.test/two"));
   assert.deepEqual(reports.title, ["https://home.test/", "One"], "the home state titles the tab with its address, the loaded state with its title");
   assert.deepEqual(reports.footer, [null, "https://a.test/two"]);
   assert.equal(window.document.body.lastElementChild.shadowRoot.querySelector("#address").value, "https://a.test/one");
@@ -93,7 +93,9 @@ test("a document state updates the tab reports and the address field", async (t)
 test("a tab with a tab state opens its stored address and writes no new tab state", async (t) => {
   const host = createViewPage(t, "restored", { stored: { url: "https://stored.test/" } });
   await import("../build/test/ui/view.js?case=restored");
-  await host.settle();
+  await host.started();
+  // The title of the stored address ends the handling of its state, after which no state write is asserted.
+  await host.until(() => host.reports.title.length > 0);
   assert.deepEqual(host.region.loads, ["https://stored.test/"]);
   assert.deepEqual(host.reports.state, [], "the address of the tab state writes no new tab state");
 });
@@ -105,7 +107,8 @@ test("a region that restored the session history of an unloaded tab loads nothin
   const host = createViewPage(t, "history-restored", { stored: { url: "https://stored.test/" } });
   host.region.history = true;
   await import("../build/test/ui/view.js?case=history-restored");
-  await host.settle();
+  // The start record of the history source follows the decision of the page, so no load follows it.
+  await host.started();
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
 });
 
@@ -116,7 +119,8 @@ test("a restored session history shows the state that the region reported before
   host.region.history = true;
   host.region.restoredState = host.region.stateOf("https://stored.test/", { title: "Stored" });
   await import("../build/test/ui/view.js?case=history-state");
-  await host.settle();
+  await host.started();
+  await host.until(() => host.reports.title.includes("Stored"));
   assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
   assert.ok(host.reports.title.includes("Stored"), `the restored state titles the tab, the titles are ${JSON.stringify(host.reports.title)}`);
 });
@@ -125,7 +129,7 @@ test("the page reports a failure of the view channel as the declared record of i
   const host = createViewPage(t, "report");
   await import("../build/test/ui/view.js?case=report");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await host.settle();
+  await host.until(() => host.logs.some((entry) => entry.event === "report"));
   const report = host.logs.find((entry) => entry.event === "report");
   assert.ok(report, `the page stored no report record; the records are ${JSON.stringify(host.logs.map((entry) => entry.event))}`);
   assert.equal(report.level, "error");
@@ -134,12 +138,12 @@ test("the page reports a failure of the view channel as the declared record of i
 
 test("the page report uses the bridge logger without a runtime.log request", async (t) => {
   const host = createViewPage(t, "bridge-logger");
-  const records = [];
+  const records = host.list();
   host.window.__sokViewRuntimeLog = Object.fromEntries(["error", "warn", "info", "debug", "trace"].map((level) => [level,
     (event, fields, options) => records.push({ level, event, fields, options })]));
   await import("../build/test/ui/view.js?case=bridge-logger");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("bridge logger probe"), message: "bridge logger probe" }));
-  await host.settle();
+  await host.until(() => records.some(({ event }) => event === "report"));
   assert.deepEqual(records.filter(({ event }) => event === "report"), [
     { level: "error", event: "report", fields: { text: "view browser: bridge logger probe" }, options: undefined },
   ]);
@@ -151,25 +155,23 @@ test("the page report uses the bridge logger without a runtime.log request", asy
 test("the page records its trace as the declared events of its catalog", async (t) => {
   const catalog = JSON.parse(readFileSync(new URL("../events.json", import.meta.url), "utf8")).events;
   const host = createViewPage(t, "trace");
-  const { region, run, settle, logs, window } = host;
+  const { region, run, started, until, logs, window } = host;
+  const recordedOf = (event) => () => logs.some((entry) => entry.event === event);
   await import("../build/test/ui/view.js?case=trace");
-  await settle();
+  await started();
   region.show("https://a.test/one", { loading: true });
-  await settle();
+  await until(recordedOf("navigation"));
   region.show("https://a.test/one", { title: "One" });
-  await settle();
+  await until(recordedOf("load"));
   await run("browser.navigate", { url: "https://b.test/" });
-  await settle();
   region.show("https://c.test/", { error: "net::ERR_NAME_NOT_RESOLVED", history: { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://c.test/", title: "" }], index: 1 } });
-  await settle();
+  await until(recordedOf("region.failure"));
   await run("browser.history.go", { index: 0 });
-  await settle();
   const address = window.document.body.lastElementChild.shadowRoot.querySelector("#address");
   address.value = "d.test";
   address.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  await settle();
   window.dispatchEvent(new window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await settle();
+  await until(() => ["command", "history.move", "address.commit", "report"].every((event) => recordedOf(event)()));
   const recorded = logs.map((entry) => entry.event);
   for (const event of ["start", "command", "navigation", "load", "region.failure", "history.move", "address.commit", "report"]) {
     assert.ok(recorded.includes(event), `the page recorded ${event}; recorded ${recorded.join(", ")}`);
@@ -183,11 +185,12 @@ test("the page records its trace as the declared events of its catalog", async (
 
 // The section statuses are read through their exposure statuses; the page sends no declared UI snapshot, because core keeps none.
 test("the page sends no declared UI snapshot, and each section status is read through its exposure status", async (t) => {
-  const { region, snapshots, settle, expose } = createViewPage(t, "no-snapshot");
+  const { region, reports, snapshots, started, until, expose } = createViewPage(t, "no-snapshot");
   await import("../build/test/ui/view.js?case=no-snapshot");
-  await settle();
+  await started();
   region.show("https://a.test/one", { title: "One" });
-  await settle();
+  // The title of the state ends its handling, after which no snapshot is asserted.
+  await until(() => reports.title.includes("One"));
   assert.deepEqual(snapshots, []);
   assert.deepEqual((await expose("status.get", { name: "browser.history" })).result.elements,
     [{ kind: "list", key: "history", empty: "기록 없음", items: [] }]);
@@ -195,9 +198,9 @@ test("the page sends no declared UI snapshot, and each section status is read th
 });
 
 test("a browser.address.select run focuses the address field of the view", async (t) => {
-  const { window, run, settle } = createViewPage(t, "select");
+  const { window, run, started } = createViewPage(t, "select");
   await import("../build/test/ui/view.js?case=select");
-  await settle();
+  await started();
   assert.equal(await run("browser.address.select", {}), null);
   const host = window.document.body.lastElementChild;
   assert.equal(window.document.activeElement, host, "the focus of the address is retargeted to the host of the shadow root");
@@ -209,7 +212,7 @@ test("a refused runtime.log batch is reported through runtime.error", async (t) 
   const host = createViewPage(t, "log-refused", { refuseLog: "log route refused" });
   await import("../build/test/ui/view.js?case=log-refused");
   host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await host.settle();
+  await host.until(() => host.reports.errorLines.some((line) => line.where === "log batch"));
   assert.equal(consoleError.mock.callCount(), 0, "a successful runtime.error route does not fall through to the console");
   assert.deepEqual(host.reports.errorLines.find((line) => line.where === "log batch"),
     { where: "log batch", text: "log route refused" });

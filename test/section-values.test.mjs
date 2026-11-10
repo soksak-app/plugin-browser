@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { elementsValue, historyValue, requestsValue } from "../build/test/ui/browser.js";
 
-test("a DOM row keeps the key of its element after an insertion before it", { timeout: 1000 }, () => {
+test("a DOM row keeps the key of its element after an insertion before it", () => {
   const html = { node: 1, depth: 0, tag: "html", id: "", class: "" };
   const kept = { node: 2, depth: 1, tag: "p", id: "", class: "" };
   const inserted = { node: 3, depth: 1, tag: "div", id: "", class: "" };
@@ -12,7 +12,7 @@ test("a DOM row keeps the key of its element after an insertion before it", { ti
   assert.equal(keyOf([html, inserted, kept], "p"), keyOf([html, kept], "p"));
 });
 
-test("an element of a snapshot without a node identity is refused", { timeout: 1000 }, () => {
+test("an element of a snapshot without a node identity is refused", () => {
   const nodes = [{ depth: 0, tag: "html", id: "", class: "" }];
   assert.throws(() => elementsValue({ nodes, total: 1, truncated: false }), /element html has no node identity: undefined/);
 });

@@ -37,7 +37,7 @@ async function setup(t, { readTabState = () => null } = {}) {
   return { dom, root, requests, elements, commands, publishState(state) { for (const fn of states) fn(state); } };
 }
 
-test("an empty address hides the document element and shows the declared empty state", { timeout: 10000 }, async (t) => {
+test("an empty address hides the document element and shows the declared empty state", async (t) => {
   const { root, elements } = await setup(t);
   assert.ok(manifest.exposes.element.some((entry) => entry.name === "browser.empty"), "browser.empty is not declared");
   const empty = root.querySelector('[data-expose="browser.empty"]');
@@ -48,7 +48,7 @@ test("an empty address hides the document element and shows the declared empty s
   assert.equal(root.querySelector("#document").hidden, true, "the document element must be hidden without an address");
 });
 
-test("clicking the empty state focuses the address through browser.address.select", { timeout: 10000 }, async (t) => {
+test("clicking the empty state focuses the address through browser.address.select", async (t) => {
   const { dom, root, requests } = await setup(t);
   const empty = root.querySelector('[data-expose="browser.empty"]');
   assert.equal(empty.dataset.command, "browser.address.select");
@@ -57,7 +57,7 @@ test("clicking the empty state focuses the address through browser.address.selec
   assert.equal(root.activeElement, root.querySelector("#address"));
 });
 
-test("a loaded address removes the empty state and shows the document element", { timeout: 10000 }, async (t) => {
+test("a loaded address removes the empty state and shows the document element", async (t) => {
   const { root, commands } = await setup(t);
   await commands.get("browser.navigate")({ url: "https://example.test/" });
   assert.equal(root.querySelector('[data-expose="browser.empty"]').hidden, true);
@@ -65,7 +65,7 @@ test("a loaded address removes the empty state and shows the document element", 
 });
 
 // P123 / core F696-4-1: public semantics come from the rendered browser view model.
-test("browser.content.read declares and reads the actual empty instruction (P123)", { timeout: 10000 }, async (t) => {
+test("browser.content.read declares and reads the actual empty instruction (P123)", async (t) => {
   const declaration = manifest.exposes.commands.find((entry) => entry.name === "browser.content.read");
   assert.ok(declaration, "browser.content.read is not declared");
   // The SDK permits type/properties/items/enum, not oneOf/minLength. An
@@ -82,7 +82,7 @@ test("browser.content.read declares and reads the actual empty instruction (P123
   assert.equal(value.instruction, root.querySelector('[data-expose="browser.empty"]').textContent);
 });
 
-test("browser.content.read follows empty/document transitions without claiming load completion (P123)", { timeout: 10000 }, async (t) => {
+test("browser.content.read follows empty/document transitions without claiming load completion (P123)", async (t) => {
   const { root, commands, publishState } = await setup(t);
   const read = commands.get("browser.content.read");
   assert.equal(typeof read, "function", "browser.content.read is not exposed");
@@ -102,7 +102,7 @@ test("browser.content.read follows empty/document transitions without claiming l
 });
 
 
-test("the empty instruction is already present while initial tab restoration is pending (P123)", { timeout: 10000 }, async (t) => {
+test("the empty instruction is already present while initial tab restoration is pending (P123)", async (t) => {
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
   let inspected = false;

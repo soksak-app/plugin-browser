@@ -17,4 +17,4 @@ make install-hooks                                  # clone 후 한 번: commit 
 
 Checklist는 [docs/features.md](docs/features.md)다.
 
-Spec은 [docs/spec/core-compatibility.ko.md](docs/spec/core-compatibility.ko.md)와 unload 너머로 각 view가 유지하는 것을 적은 [docs/spec/unload.ko.md](docs/spec/unload.ko.md)다.
+Spec은 [docs/spec/core-compatibility.ko.md](docs/spec/core-compatibility.ko.md), unload 너머로 각 view가 유지하는 것을 적은 [docs/spec/unload.ko.md](docs/spec/unload.ko.md), view 의 각 call 과 대기가 어떻게 끝나는지 적은 [docs/spec/calls.ko.md](docs/spec/calls.ko.md)다.

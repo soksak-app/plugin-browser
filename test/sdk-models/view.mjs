@@ -1,15 +1,17 @@
-// Model of createViewBridge of the plugin API view entry for the calls that the browser view page makes: calls.request with the
-// call limit, commands.register, runtime.native.on, runtime.theme, runtime.sidecar and composition.create. The wire form
+// Model of createViewBridge of the plugin API view entry for the calls that the browser view page makes: calls.request, which
+// follows the call layer of core (a call has no time limit and ends by its reply, its cancel or the end of its peer), commands.register, runtime.native.on, runtime.theme, runtime.sidecar and composition.create. The wire form
 // of each call is the form that the published view and calls cases (test/fixtures/contract) record. A call outside this
 // surface throws an error that names the call. The conformance test is test/sdk-models/conformance.test.mjs.
 import { createComposition } from "./composition.mjs";
 
-// The default limit of a call, in milliseconds, when the call declares none (calls.json).
-const DEFAULT_LIMIT = 10000;
+// The reasons that end a call when its peer is lost (calls.json).
+const PEER_LOST_REASONS = ["process-ended", "surface-closed", "sidecar-ended"];
+// The number of ended calls whose replies are still recognized as late replies (calls.js of core).
+const ENDED_CALLS_KEPT = 256;
 
 /**
  * Creates the bridge of one view page. The page posts through handler.postMessage and receives the host messages
- * through window.sokView.attach. report(event) receives the call-layer reports: timeout, late-reply and open-calls.
+ * through window.sokView.attach. report(event) receives the call-layer reports: peer-lost, late-reply and open-calls.
  */
 export function createViewBridge({ handler, report }) {
   if (typeof report !== "function") throw new TypeError("createViewBridge requires the report function");
@@ -20,6 +22,7 @@ export function createViewBridge({ handler, report }) {
   let operations = 0;
   // The listeners of each watched status: one request serves every listener of its name (view-status.json).
   const statusListeners = new Map();
+  // The open calls by id in the order of their start, and the calls that a cancel ended, whose replies are late replies.
   const pending = new Map();
   const late = new Map();
   const commands = new Map();
@@ -32,29 +35,56 @@ export function createViewBridge({ handler, report }) {
 
   const post = (message) => handler.postMessage(message);
   const openCalls = () => {
-    const started = [...pending.values()].map((entry) => entry.startedAt);
-    report({ kind: "open-calls", plugin: plugin(), count: pending.size, oldestStartedAt: started.length > 0 ? Math.min(...started) : null });
+    const oldest = pending.values().next().value;
+    report({ kind: "open-calls", plugin: plugin(), count: pending.size, oldestStartedAt: oldest ? oldest.startedAt : null });
   };
-  // A request posts {sok, id, command, params} and resolves with the result of the reply with the same id. A reply that
-  // arrives after the limit is reported as late and is not passed to the caller.
-  function request(command, params, timeout = DEFAULT_LIMIT, cids) {
+  const callError = (message, fields) => Object.assign(new Error(message), fields);
+  // Removes an open call and the abort listener of its signal; the caller settles its promise.
+  const end = (id) => {
+    const entry = pending.get(id);
+    pending.delete(id);
+    entry.detach();
+    return entry;
+  };
+  // A request posts {sok, id, command, params} and resolves with the result of the reply with the same id, or rejects with the
+  // message and the code of its error. The call has no time limit and the model starts no timer: the reply, the abort of
+  // options.signal or the end of the peer ends it. An abort posts {sok, id, cancel: true} and rejects with cancelled; a reply that
+  // arrives after it is reported as late and is not passed to the caller.
+  function request(command, params, options = {}) {
+    if (Object.hasOwn(options, "timeout")) throw new TypeError("timeout is not an option of a call: a call ends by its reply, its cancel or the end of its peer");
+    const { signal, cids } = options;
+    if (signal?.aborted) return Promise.reject(callError("cancelled", { reason: "cancelled" }));
     const id = ++sequence;
     const startedAt = Date.now();
     return new Promise((resolve, reject) => {
-      const entry = { command, startedAt, resolve, reject, timer: null };
-      entry.timer = setTimeout(() => {
-        pending.delete(id);
-        late.set(id, { command, startedAt });
-        report({ kind: "timeout", plugin: plugin(), command, timeout });
-        openCalls();
-        const error = new Error(`command ${command} did not reply within ${timeout}ms`);
-        error.code = -32000;
-        reject(error);
-      }, timeout);
+      const entry = { command, startedAt, resolve, reject, detach: () => {} };
       pending.set(id, entry);
+      if (signal) {
+        const onAbort = () => {
+          end(id);
+          late.set(id, { command, startedAt });
+          // An older ended call is forgotten, as the call layer of core keeps a bounded number of them.
+          if (late.size > ENDED_CALLS_KEPT) late.delete(late.keys().next().value);
+          openCalls();
+          post({ sok: 1, id, cancel: true });
+          reject(callError("cancelled", { reason: "cancelled" }));
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+        entry.detach = () => signal.removeEventListener("abort", onAbort);
+      }
       post(cids === undefined ? { sok: 1, id, command, params } : { sok: 1, id, command, params, cids });
       openCalls();
     });
+  }
+  // Ends every open call because its peer is gone: each call reports peer-lost and is rejected with its reason.
+  function peerLost(reason) {
+    if (!PEER_LOST_REASONS.includes(reason)) throw new RangeError(`peer lost reason must be one of ${PEER_LOST_REASONS.join(", ")}, got ${reason}`);
+    const ended = [...pending.keys()].map((id) => end(id));
+    for (const entry of ended) {
+      report({ kind: "peer-lost", plugin: plugin(), command: entry.command, reason });
+      entry.reject(callError(`command ${entry.command} ended: ${reason}`, { reason }));
+    }
+    openCalls();
   }
   const failure = (error) => ({ code: -32000, message: error instanceof Error ? error.message : String(error) });
 
@@ -100,12 +130,10 @@ export function createViewBridge({ handler, report }) {
     if (message.sok !== 1) return;
     if (message.command !== undefined) return void runCommand(message);
     if (message.id !== undefined && pending.has(message.id)) {
-      const entry = pending.get(message.id);
-      pending.delete(message.id);
-      clearTimeout(entry.timer);
-      if (message.error !== undefined) entry.reject(new Error(message.error.message));
-      else entry.resolve(message.result ?? null);
+      const entry = end(message.id);
       openCalls();
+      if (message.error !== undefined) entry.reject(callError(message.error.message, { code: message.error.code }));
+      else entry.resolve(message.result ?? null);
       return;
     }
     if (message.id !== undefined && late.has(message.id)) {
@@ -207,7 +235,7 @@ export function createViewBridge({ handler, report }) {
     },
     // A command of the host that the page calls, with the identifiers of the operation that causes it (view-operations.json).
     command(name, params, options) {
-      return request(name, params, undefined, options?.cids);
+      return request(name, params, options?.cids === undefined ? {} : { cids: options.cids });
     },
     // A watched status: the page sends runtime.status.watch once for each name, and each value arrives as the event status.
     status: {
@@ -258,9 +286,10 @@ export function createViewBridge({ handler, report }) {
     // Test-model drain for fire-and-forget log writes; the public bridge does not expose this method.
     async flushLogs() { await Promise.all([...logWrites]); },
     calls: {
-      request(command, params, timeout) {
-        return request(command, params, timeout);
+      request(command, params, options) {
+        return request(command, params, options);
       },
+      peerLost,
     },
     runtime,
     commands: {

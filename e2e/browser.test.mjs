@@ -511,11 +511,14 @@ for (const app of Object.values(APPS)) {
   });
 }
 
-/** Waits for the event `name` at the level info, written after offsets, whose fields the accept function accepts, and returns its fields. */
-async function recordFields(app, offsets, name, accept, reads) {
-  const line = await untilEventLine(app.configDir, offsets,
+/**
+ * Waits for the event `name` at the level info, written after offsets, whose fields the accept function accepts, and returns its
+ * fields. The wait ends by that line, an error or the end of the connection of the session.
+ */
+async function recordFields(s, offsets, name, accept, reads) {
+  const line = await untilEventLine(s.app.configDir, offsets,
     (text) => text.startsWith(`info plugin ${name}: `) && accept(JSON.parse(text.slice(text.indexOf("{")))),
-    30000, reading(app, reads));
+    { ...reading(s.app, reads), ended: s.client.ended });
   return JSON.parse(line.slice(line.indexOf("{")));
 }
 
@@ -544,27 +547,27 @@ for (const app of Object.values(APPS)) {
     await s.flushLog();
 
     // The command of the check navigates to record-one from the address that the surface had before.
-    const firstNavigation = await recordFields(app, offsets, "plugin.browser.navigation",
+    const firstNavigation = await recordFields(s, offsets, "plugin.browser.navigation",
       (fields) => fields.to === at("record-one"), reads);
     assert.equal(typeof firstNavigation.from, "string");
     assert.equal(firstNavigation.to, at("record-one"));
 
-    const firstLoad = await recordFields(app, offsets, "plugin.browser.load",
+    const firstLoad = await recordFields(s, offsets, "plugin.browser.load",
       (fields) => fields.url === at("record-one"), reads);
     assert.equal(firstLoad.ok, true);
     assert.equal(typeof firstLoad.micros, "number");
     assert.ok(firstLoad.micros >= 0, `load micros must not be negative: ${firstLoad.micros}`);
 
     // The address bar sends the text that the person typed, and the document then moves from record-one to record-two.
-    const commit = await recordFields(app, offsets, "plugin.browser.address.commit",
+    const commit = await recordFields(s, offsets, "plugin.browser.address.commit",
       (fields) => fields.value === at("record-two"), reads);
     assert.equal(commit.url, at("record-two"));
 
-    const secondNavigation = await recordFields(app, offsets, "plugin.browser.navigation",
+    const secondNavigation = await recordFields(s, offsets, "plugin.browser.navigation",
       (fields) => fields.to === at("record-two"), reads);
     assert.equal(secondNavigation.from, at("record-one"));
 
-    const secondLoad = await recordFields(app, offsets, "plugin.browser.load",
+    const secondLoad = await recordFields(s, offsets, "plugin.browser.load",
       (fields) => fields.url === at("record-two"), reads);
     assert.equal(secondLoad.ok, true);
     assert.equal(typeof secondLoad.micros, "number");

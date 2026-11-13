@@ -1,6 +1,6 @@
 # 변경 기록
 
-- P124 (core F715-5): browser 내용, 탐색, section, view 측정의 window check가 `e2e/`에 있고 `make test-app`, 곧 `@soksak/window-check`의 bin `soksak-test-app`으로 공개된 core 앱을 대상으로 실행된다. core v0.0.40 release 를 기다린다.
+- P124 (core F715-5): browser 내용, 탐색, section, view 측정의 window check가 `e2e/`에 있고 `make test-app`, 곧 `@soksak/window-check`의 bin `sok-test-app`으로 공개된 core 앱을 대상으로 실행된다. core v0.0.40 release 를 기다린다.
 - P123 (core F696-4-1): 화면의 빈 상태 안내와 같은 메인 뷰 모델을 읽는 공개 `browser.content.read`를 추가한다. 문서 상태는 로딩 완료를 뜻하지 않는다. reader 부재와 초기 마크업 보존 테스트의 RED 후 수정했고, 소유 테스트 13개와 유지되는 검사를 통과했다. 실제 mygo 앱에 설치한 package의 공개 응답과 원본 해상도 캡처에서 안내를 확인했다.
 
 [English](CHANGELOG.md)

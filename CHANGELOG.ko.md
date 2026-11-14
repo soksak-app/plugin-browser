@@ -7,6 +7,7 @@
 - P127: 대기는 그 occurrence 로만 끝나고, test script 의 runner 한도 `--test-timeout=120000` 이 occurrence 가 오지 않는 test 를 이름과 함께 실패시킨다. occurrences helper 는 더 이상 `beforeExit` 에서 열린 대기를 reject 하지 않는다. 한 file 에 오지 않는 대기 둘을 둔 probe 에서 두 test 가 모두 한도에서 이름과 함께 실패했다.
 [English](CHANGELOG.md)
 
+- P114: version은 0.0.26이며, `engines.soksak` `^0.0.40`과 함께 P113를 release한다.
 - P122: core 호환성 문서가 `^0.0.40`은 core 0.0.40부터 그 뒤의 모든 0.0 release를 허용한다고 적고, test가 이를 요구한다. Red: 이전 문장에서 test가 실패했다. Green: 통과한다.
 - P113: core 0.0.35부터 0.0.39까지는 F502-13 없이 release되어 `exposes.element`를 거부하므로, `engines.soksak`은 F502-13의 core release인 `^0.0.40`이다. Red: version test가 `^0.0.39`에서 실패했다. Green: 통과한다.
 - P121: `expose.json` 사본과 digest는 core main의 파일이고, exposure model은 `element.rect`에서 core의 규칙으로 element의 role을 답한다. Red: `expose.element.act-rect-and-refusals` replay가 `role` 없이 실패했고, role test가 이전 규칙에서 실패했다. Green: 통과한다.

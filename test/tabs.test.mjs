@@ -2,7 +2,7 @@
 // that holds its surface, each row running browser.tab.select, which selects the tab through core.tab.select.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createViewPage } from "./view-host.mjs";
+import { TAB_PAGE, callsOf, exposure, openTab } from "./fixtures/view.mjs";
 
 const grid = {
   cards: [
@@ -19,14 +19,14 @@ const grid = {
   ],
 };
 
-const tabsValue = async (host) => (await host.expose("status.get", { name: "browser.tabs" })).result;
+const tabsValue = (view) => exposure(view, "status.get", { name: "browser.tabs" });
 
 test("the tabs status lists the browser tabs of the card that holds the surface", async (t) => {
-  const host = createViewPage(t, "tabs-value");
-  await import("../build/test/ui/view.js?case=tabs-value");
-  await host.started();
-  host.status("core.grid", grid);
-  assert.deepEqual(await tabsValue(host), {
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await view.change.status("core.grid", grid);
+  assert.deepEqual(await tabsValue(view), {
     elements: [{
       kind: "list",
       key: "tabs",
@@ -40,30 +40,31 @@ test("the tabs status lists the browser tabs of the card that holds the surface"
 });
 
 test("the tabs status is empty when the grid holds no card of the surface", async (t) => {
-  const host = createViewPage(t, "tabs-empty");
-  await import("../build/test/ui/view.js?case=tabs-empty");
-  await host.started();
-  host.status("core.grid", { cards: [] });
-  assert.deepEqual(await tabsValue(host), {
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await view.change.status("core.grid", { cards: [] });
+  assert.deepEqual(await tabsValue(view), {
     elements: [{ kind: "list", key: "tabs", empty: "브라우저 탭 없음", items: [] }],
   });
 });
 
 test("a press on a tab row runs core.tab.select with the tab", async (t) => {
-  const host = createViewPage(t, "tabs-select");
-  await import("../build/test/ui/view.js?case=tabs-select");
-  await host.started();
-  host.status("core.grid", grid);
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await view.change.status("core.grid", grid);
   // The command replies after the core call, so its reply ends the handling.
-  assert.equal(await host.run("browser.tab.select", { tab: "b2" }), null);
-  assert.deepEqual(host.calls.filter(([name]) => name === "core.tab.select"), [["core.tab.select", { tab: "b2" }]]);
+  assert.equal(await view.request("browser.tab.select", { tab: "b2" }), null);
+  assert.deepEqual(view.observed.commands.filter(({ name }) => name === "core.tab.select").map(({ name, params }) => [name, params]),
+    [["core.tab.select", { tab: "b2" }]]);
 });
 
 test("the tabs section has a registered status, which core reads for the section source", async (t) => {
-  const host = createViewPage(t, "tabs-registered");
-  await import("../build/test/ui/view.js?case=tabs-registered");
-  await host.until(() => host.reports.native.some(([name, payload]) => name === "registered" && payload.kind === "status" && payload.name === "browser.tabs"));
-  const registered = host.reports.native.filter(([name]) => name === "registered").map(([, payload]) => payload);
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  const registered = callsOf(view, "runtime.native.call").filter((params) => params.name === "registered").map((params) => params.payload);
   assert.ok(
     registered.some((payload) => payload.kind === "status" && payload.name === "browser.tabs"),
     `the page registered ${JSON.stringify(registered)}, not the status browser.tabs`,

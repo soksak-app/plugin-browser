@@ -2,7 +2,7 @@
 // which the section views draw (ui/section-view.js).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { elementsValue, historyValue, requestsValue } from "../build/test/ui/browser.js";
+import { elementsValue, historyValue, requestsValue } from "../ui/browser.js";
 
 test("a DOM row keeps the key of its element after an insertion before it", () => {
   const html = { node: 1, depth: 0, tag: "html", id: "", class: "" };

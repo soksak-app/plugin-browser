@@ -52,11 +52,14 @@ for (const [file, steps] of Object.entries(WORKFLOWS)) {
 }
 
 // The release starts on a push to main, runs ci.yml and the release gate, and writes the release with pnpm pack; it downloads
-// no core release, no workflow checks out another repository, and the dependency on core is the packed release file of a core
-// release that package.json pins (core docs/spec/plugins.md). The package name is built from parts, as the SDK boundary of test/
-// requires.
+// no core release, no workflow checks out another repository, and the dependency on core is the packed release file of the core
+// release that package.json pins (core docs/spec/plugins.md).
 const RELEASE_TEXT = readFileSync(path.join(ROOT, ".github", "workflows", "release.yml"), "utf8");
-const PLUGIN_API = "@soksak/" + "plugin-api";
+const PLUGIN_API = "@soksak/plugin-api";
+// The plugin depends on core only through the plugin API release of core that package.json pins as its devDependency: the packed
+// release file, downloaded from the release URL (docs/spec/plugins.md#repositories).
+// The core version is the one that engines.soksak names (P128), so the pin is the release download URL of that version.
+const CORE_VERSION = /^\^(0\.0\.\d+)$/.exec(manifest.engines.soksak)?.[1];
 
 test("the release starts on a push to main and runs ci.yml and the release gate", () => {
   assert.match(RELEASE_TEXT, /^on:\n {2}push:\n {4}branches: \[main\]\n/m, "release.yml must start on a push to main");
@@ -99,8 +102,11 @@ test("no workflow checks out another repository", () => {
   }
 });
 
-test("the checks come from the kit releases, and no check reads the plugin API of core", () => {
-  assert.equal(manifest.devDependencies[PLUGIN_API], undefined, "package.json must not pin the plugin API of core");
+test("the plugin depends on core only through the pinned plugin API release, and the checks come from the kit releases", () => {
+  // The reason: the view tests run with the SDK of the release that the plugin pins, so a pin of another form would test other code.
+  assert.ok(CORE_VERSION, `engines.soksak ${manifest.engines.soksak} is not a range ^0.0.z`);
+  const pin = `https://github.com/soksak-app/core/releases/download/v${CORE_VERSION}/soksak-plugin-api-${CORE_VERSION}.tgz`;
+  assert.equal(manifest.devDependencies[PLUGIN_API], pin, `package.json must pin the release file of the plugin API of core ${CORE_VERSION} as a devDependency`);
   for (const file of ["Makefile", ".githooks/commit-msg", ".githooks/pre-commit"]) {
     assert.doesNotMatch(readFileSync(path.join(ROOT, file), "utf8"), /CORE_PLUGIN_API_DIR|soksak-exposure|soksak-engines|node_modules\/@soksak|check-manifest|check-test-cases/,
       `${file} must run only the commands of the kit releases`);

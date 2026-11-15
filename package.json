@@ -11,14 +11,13 @@
     "url": "git+https://github.com/soksak-app/plugin-browser.git"
   },
   "engines": {
-    "soksak": "^0.0.40"
+    "soksak": "^0.0.41"
   },
   "files": [
     "plugin.json",
     "diagnostics.json",
     "ui/browser-diagnostics.js",
     "events.json",
-    "contract-copies.json",
     "ui/browser.js",
     "ui/events.js",
     "ui/index.html",
@@ -31,10 +30,11 @@
     "ui/view.js"
   ],
   "scripts": {
-    "test": "node scripts/build-test.mjs && node --test --test-timeout=120000 test/"
+    "test": "node --test --test-timeout=120000 test/"
   },
   "devDependencies": {
     "@soksak/kit": "https://github.com/soksak-app/kit/releases/download/v0.0.14/soksak-kit-0.0.14.tgz",
+    "@soksak/plugin-api": "https://github.com/soksak-app/core/releases/download/v0.0.41/soksak-plugin-api-0.0.41.tgz",
     "jsdom": "^30.0.1"
   }
 }

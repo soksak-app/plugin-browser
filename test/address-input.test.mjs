@@ -1,157 +1,124 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { JSDOM } from "jsdom";
-import { createBinder } from "./sdk-models/binder.mjs";
-import { createOccurrences } from "./occurrences.mjs";
-import { mount } from "../build/test/ui/browser.js";
+import { TAB_PAGE, callsOf, createRegion, documentState, openTab, pluginLogs, pushState } from "./fixtures/view.mjs";
 
-const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
+// The address field of the page: its selection on the first press and its caret after it, the navigation by Enter, and the refusal of an
+// empty address. The page is the real ui/view.js in host mode (test/fixtures/view.mjs supplies the document region).
 
-async function setup(t) {
-  const dom = new JSDOM("<button id='outside'>outside</button><div id='mount'></div>", { url: "https://app.test/" });
-  const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
-  const commands = new Map(), requests = [], states = new Set();
-  const binder = createBinder((name, params) => {
-    requests.push(name);
-    assert.ok(commands.has(name), `unregistered command ${name}`);
-    return commands.get(name)(params);
-  }, { check(name) { assert.ok(manifest.exposes.commands.some((entry) => entry.name === name), `undeclared command ${name}`); } });
-  // The navigations and the tab errors are the occurrences that the tests wait for.
-  const { until, list } = createOccurrences();
-  const navigations = list();
-  const errors = list();
-  const region = {
-    state: null,
-    onState(fn) { states.add(fn); return () => states.delete(fn); },
-    async load(url) { navigations.push(url); for (const fn of states) fn({ url, title: url, history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" }); },
-    async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
-  };
-  const controller = await mount(root, {
-    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://example.test/old" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
-    tab: { title() {}, footer() {}, error: (text) => errors.push(text), state: { read: () => null, write() {} } },
-    surfaceId: "browser-address-test",
-    composition: { async create() { return { region: () => region, async dispose() {} }; } },
-    exposure: {
-      status() {}, element() {}, command(name, run) { commands.set(name, run); },
-      bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose,
-    },
-    status: { report(phase) { assert.equal(phase, "ready"); } },
-  });
-  t.after(() => dom.window.close());
+const HOME = "https://example.test/old";
+
+/** Opens the tab view at the home address, and returns it with its region, its address field and a dispatcher of pointer events. */
+async function setup(t, { home = HOME } = {}) {
+  const region = createRegion();
+  const view = await openTab(t, { region, home });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  const root = view.window.document.body.lastElementChild.shadowRoot;
   const address = root.querySelector("#address");
   const dispatch = (type) => {
-    const event = new dom.window.MouseEvent(type, { bubbles: true, cancelable: true, composed: true });
+    const event = new view.window.MouseEvent(type, { bubbles: true, cancelable: true, composed: true });
     address.dispatchEvent(event);
     return event;
   };
-  return { dom, root, address, requests, navigations, errors, controller, dispatch, commands, states, until };
+  return { view, region, root, address, dispatch };
 }
 
+// The runs of a page command, as the page records each one in its log.
+const runsOf = (view, name) => pluginLogs(view).filter((entry) => entry.event === "command" && entry.fields.name === name).length;
+
 test("initial address focus selects all and native replacement navigates without appending", async (t) => {
-  const { dom, address, requests, navigations, controller, dispatch } = await setup(t);
-  t.after(() => controller.dispose());
+  const { view, region, address, dispatch } = await setup(t);
   dispatch("pointerdown");
   address.focus();
+  // The focus binding runs browser.address.select, which selects the address, after the focus event.
+  await view.settled();
   assert.deepEqual([address.selectionStart, address.selectionEnd], [0, address.value.length]);
   assert.equal(dispatch("mouseup").defaultPrevented, true, "initial release must retain selection");
-  assert.equal(requests.filter((name) => name === "browser.address.select").length, 1);
+  await view.settled();
+  assert.equal(runsOf(view, "browser.address.select"), 1);
   address.setRangeText("https://example.test/new", address.selectionStart, address.selectionEnd, "end");
-  address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  assert.deepEqual(navigations, ["https://example.test/old", "https://example.test/new"]);
+  address.dispatchEvent(new view.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await view.settled();
+  assert.deepEqual(region.loads, ["https://example.test/old", "https://example.test/new"]);
+  await view.close();
 });
 
 test("subsequent address clicks preserve caret editing and disposal removes handlers", async (t) => {
-  const { dom, address, requests, controller, dispatch } = await setup(t);
+  const { view, address, dispatch } = await setup(t);
   address.focus();
+  await view.settled();
   assert.deepEqual([address.selectionStart, address.selectionEnd], [0, address.value.length]);
   address.setSelectionRange(4, 4);
   dispatch("pointerdown");
   assert.equal(dispatch("mouseup").defaultPrevented, false, "later clicks retain normal caret placement");
   assert.deepEqual([address.selectionStart, address.selectionEnd], [4, 4]);
-  dom.window.document.querySelector("#outside").focus();
+  view.window.document.body.insertAdjacentHTML("afterbegin", "<button id='outside'>outside</button>");
+  view.window.document.querySelector("#outside").focus();
   dispatch("pointerdown");
   address.focus();
   assert.equal(dispatch("mouseup").defaultPrevented, true);
-  assert.equal(requests.filter((name) => name === "browser.address.select").length, 2);
-  await controller.dispose();
+  await view.settled();
+  assert.equal(runsOf(view, "browser.address.select"), 2);
+  await view.close();
   dispatch("pointerdown");
-  address.dispatchEvent(new dom.window.FocusEvent("focus"));
+  address.dispatchEvent(new view.window.FocusEvent("focus"));
   assert.equal(dispatch("mouseup").defaultPrevented, false, "disposed handlers must not cancel input");
-  assert.equal(requests.filter((name) => name === "browser.address.select").length, 2);
+  assert.equal(runsOf(view, "browser.address.select"), 2, "the disposed focus binding runs no command");
 });
 
 test("a navigation that did not come from typing shows its address in the focused field", async (t) => {
-  const { dom, root, address, controller, commands, states, navigations, until } = await setup(t);
-  t.after(() => controller.dispose());
+  const { view, root, address, region } = await setup(t);
   const type = (text) => {
     address.value = text;
-    address.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    address.dispatchEvent(new view.window.Event("input", { bubbles: true }));
   };
   address.focus();
   type("https://example.test/typed");
-  address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  await until(() => navigations.includes("https://example.test/typed"));
+  address.dispatchEvent(new view.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await view.settled();
+  assert.deepEqual(region.loads.at(-1), "https://example.test/typed");
   assert.equal(root.activeElement, address, "the field keeps focus after Enter");
-  await commands.get("browser.navigate")({ url: "https://example.test/other" });
+  await view.request("browser.navigate", { url: "https://example.test/other" });
   assert.equal(address.value, "https://example.test/other");
   // 입력 중인 글자는 이동이 아닌 문서 상태 변화로 바뀌지 않는다.
   type("https://example.test/oth");
-  for (const fn of states) fn({ url: "https://example.test/other", title: "scrolled", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" });
+  await pushState(view, documentState("https://example.test/other", { title: "scrolled" }));
   assert.equal(address.value, "https://example.test/oth");
-  await commands.get("browser.back")({});
-  for (const fn of states) fn({ url: "https://example.test/typed", title: "back", history: { entries: [], index: -1 }, elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link: "" });
+  await view.request("browser.back", {});
+  await pushState(view, documentState("https://example.test/typed", { title: "back" }));
   assert.equal(address.value, "https://example.test/typed");
+  await view.close();
 });
 
 test("browser.navigate refuses a missing or empty address before the document region", async (t) => {
-  const { navigations, controller, commands } = await setup(t);
-  t.after(() => controller.dispose());
-  const before = [...navigations];
+  const { view, region } = await setup(t);
+  const before = [...region.loads];
   for (const params of [{}, { url: "" }, { url: 7 }]) {
-    await assert.rejects(Promise.resolve().then(() => commands.get("browser.navigate")(params)),
-      /browser\.navigate requires an address/, JSON.stringify(params));
+    await assert.rejects(view.request("browser.navigate", params), /browser\.navigate requires an address/, JSON.stringify(params));
   }
-  assert.deepEqual(navigations, before, "a refused address reached the document region");
+  assert.deepEqual(region.loads, before, "a refused address reached the document region");
+  await view.close();
 });
 
 test("the card footer shows the address of the link under the pointer", async (t) => {
-  const dom = new JSDOM("<div id='mount'></div>", { url: "https://app.test/" });
-  t.after(() => dom.window.close());
-  const root = dom.window.document.querySelector("#mount").attachShadow({ mode: "open" });
-  const states = new Set(), footers = [];
-  const binder = createBinder(() => null, { check() {} });
-  const region = {
-    state: null,
-    onState(fn) { states.add(fn); return () => states.delete(fn); },
-    async load() {}, async back() {}, async forward() {}, async reload() {}, async stop() {}, async zoom() {},
-  };
-  const controller = await mount(root, {
-    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "" }), on: () => () => {} }, textSize: { read: async () => 1, on: async () => () => {} } },
-    tab: { title() {}, footer(text) { footers.push(text); }, state: { read: () => null, write() {} } },
-    surfaceId: "browser-footer-test",
-    composition: { async create() { return { region: () => region, async dispose() {} }; } },
-    exposure: { status() {}, element() {}, command() {}, bind: binder.bind, delegate: binder.delegate, dispose: binder.dispose },
-    status: { report() {} },
-  });
-  t.after(() => controller.dispose());
-  const state = (link) => ({ url: "https://example.test/", title: "t", history: { entries: [], index: -1 },
-    elements: { nodes: [], truncated: false }, requests: { entries: [], truncated: false }, link });
+  const { view } = await setup(t, { home: "" });
   const long = `https://example.test/${"a".repeat(1100)}`;
-  for (const link of ["https://example.test/next", "", long]) for (const fn of states) fn(state(link));
-  assert.deepEqual(footers, ["https://example.test/next", null, `${long.slice(0, 1023)}…`]);
+  for (const link of ["https://example.test/next", "", long]) {
+    await pushState(view, documentState("https://example.test/", { title: "t", link }));
+  }
+  assert.deepEqual(callsOf(view, "tab.footer"), ["https://example.test/next", null, `${long.slice(0, 1023)}…`].map((text) => text));
+  await view.close();
 });
 
-
 test("an empty address refused by Enter is shown as the tab error and reaches no document", async (t) => {
-  const { dom, address, navigations, errors, controller, until } = await setup(t);
-  t.after(() => controller.dispose());
-  const before = [...navigations];
+  const { view, address, region } = await setup(t);
+  const before = [...region.loads];
   address.value = "   ";
-  address.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
-  // The refusal ends the handling of the Enter: it is shown as the tab error, and then no navigation is asserted.
-  await until(() => errors.length > 0);
-  assert.deepEqual(navigations, before, "an empty address reached the document region");
+  address.dispatchEvent(new view.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
+  await view.settled();
+  assert.deepEqual(region.loads, before, "an empty address reached the document region");
+  const errors = callsOf(view, "tab.error");
   assert.equal(errors.length, 1, `the refusal was not shown; errors ${JSON.stringify(errors)}`);
   assert.match(errors[0], /browser\.navigate requires an address/);
+  await view.close();
 });

@@ -63,6 +63,12 @@
 - P32: view의 시작 값이 directory가 null인 origin을 받는다. core docs/spec/native-surfaces.md#view-surfaces가 이를 정한다. 시작 값 검사를 `ui/start-values.js`로 바꾸지 않고 옮겼고, `test/start-values.test.mjs`가 이를 검사한다. Red: `the start values with an origin whose directory is null are accepted, because a tab can record no directory` 검사가 `origin is {"directory":null}`로 실패했다. Green: `make test`가 109개 중 109개를 통과하고, `CORE_PLUGIN_API_DIR`로 `make check`가 통과한다.
 ## 미배포
 
+- P128-1: 뷰 페이지는 pagehide에서 mount를 dispose하므로, 뷰가 끝날 때 그 document stream과 진단 관찰이 함께 끝난다. Red: 뷰 test는 `view.close()`에서 elements stream이 열린 채 실패했고(기대 `[["elements", true]]`, 실제 `[["elements", false]]`), 진단 test는 뷰가 남긴 frame(`the page cancels the frame that observes the root when the view ends`)에서 실패했다. Green: 둘 다 통과한다.
+- P128-2: section page는 pagehide에서 section diagnostic의 dispose로 그 content watch와 diagnostic 관찰을 끝낸다. Red: test는 `view.close()`에서 content를 그리는 frame이 pending으로 남은 채 실패했다(`the page cancels the frame that renders its content when the view ends`). Green: 통과한다.
+- P128-3: 정의되지 않은 command를 이름으로 가진 section 값은 `runtime.error`로 보고되고(`surface browser-1 section browser.tabs: command browser.unknown is not declared`), 그 item은 그려지지 않는다. Red: `observed.errors`가 비어 있었다. Green: 통과한다.
+- P128-4: `createPage`의 bridge 오류 보고는 콘솔이 아니라 `runtime.error`로 간다(`surface browser-1 view bridge: late reply to tab.state.read arrived after its call ended`). open-call 수는 diagnostic 기록으로 남는다. Red: `observed.errors`가 비어 있었고 보고는 `console.error`로 갔다. Green: 통과한다.
+- P128: 테스트는 package.json이 고정한 SDK release인 `@soksak/plugin-api` 0.0.40을 그 view test host(openView)로 실행한다. page 모듈 ui/view.js와 ui/section.js는 view.load로 적재한다. SDK logger는 각 record에 surface를 더하며, 정확한 record 비교는 그것을 포함한다. events.json은 그 field를 금지하지 않는다. core host와 view channel 동작의 복사본(test/view-host.mjs, test/dom.mjs, test/occurrences.mjs)은 제거했고, view test는 plugin 밖으로 나가는 것만 test/fixtures에서 응답한다.
+- P128: plugin은 core release 0.0.41에 고정된다. `@soksak/plugin-api` 0.0.41이 devDependency이고 `engines.soksak`은 `^0.0.41`이며, 테스트는 그 release의 view test host와 view log record를 쓴다.
 - F472-browser: 명령 이름이 하는 일을 말하고, `sok-check commands`가 이를 강제한다.
 - F468-browser: 저장소가 `event-sources.json`과 함께 kit의 `soksak-check docs`와 `soksak-check events`를 실행한다.
 - F466-browser: 저장소가 local build log와 임시 log의 인용을 보고하는 kit release를 pin한다.

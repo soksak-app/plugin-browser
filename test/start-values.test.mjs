@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { startValues } from "../build/test/ui/start-values.js";
+import { startValues } from "../ui/start-values.js";
 
 const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: {} };
 

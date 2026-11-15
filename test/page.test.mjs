@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { JSDOM } from "jsdom";
-import { INTERACTIVE } from "./sdk-models/binder.mjs";
-import { createOccurrences } from "./occurrences.mjs";
+import { callsOf, createRegion, documentState, exposure, openTab, pushState, sendExposure, START, TAB_PAGE } from "./fixtures/view.mjs";
 
-const source = readFileSync(new URL("../build/test/ui/browser.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../ui/browser.js", import.meta.url), "utf8");
 const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
-const { document } = new JSDOM("<div></div>").window;
 const names = (kind) => manifest.exposes[kind].map((entry) => entry.name);
 
 test("the browser module exports its mount function", () => {
@@ -28,48 +25,16 @@ test("the document region is a declared element entry and the start address is t
   assert.deepEqual(names("status"), ["browser.location", "browser.address.text", "browser.history", "browser.elements", "browser.requests", "browser.tabs", "browser.section"]);
 });
 
-test("browser mount publishes document state, respects shadow focus, and disposes every port", async () => {
-  const dom = new JSDOM("<div></div>", { url: "https://example.test/" });
-  const root = dom.window.document.createElement("div");
-  const shadow = root.attachShadow({ mode: "open" });
-  const states = [];
-  const exposed = { statuses: new Map(), commands: new Map(), elements: new Map(), disposed: false };
-  const region = {
-    state: null,
-    onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
-    load: async (url) => { states.forEach((fn) => fn({ url, title: "loaded", history: { entries: [], index: -1 }, link: "" })); },
-    back: async () => {}, forward: async () => {}, reload: async () => {}, stop: async () => {},
-    zoom: async (factor) => { zooms.push(factor); },
-  };
-  const { until, list } = createOccurrences();
-  const zooms = list();
-  let notifyTextSize = null;
-  const composition = {
-    region: () => region,
-    dispose: async () => { composition.disposed = true; },
-  };
-  const context = {
-    tab: { title() {}, footer() {}, state: { read: () => null, write() {} } },
-    surfaceId: "browser-page-test",
-    composition: { create: async () => composition },
-    exposure: {
-      status: async (name, read, subscribe) => exposed.statuses.set(name, { read, subscribe }),
-      command: async (name, fn) => exposed.commands.set(name, fn),
-      element: async (name, target) => exposed.elements.set(name, target),
-      delegate: async () => {}, bind: async () => {},
-      dispose: async () => { exposed.disposed = true; },
-    },
-    status: { report: (phase) => { exposed.phase = phase; } },
-    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} }, textSize: { read: async () => 1.25,
-      on: async (fn) => { notifyTextSize = fn; return () => { notifyTextSize = null; }; } } },
-  };
-  const { mount } = await import("../build/test/ui/browser.js");
-  const mounted = await mount(shadow, context);
+test("browser mount publishes document state, respects shadow focus, and disposes every port", async (t) => {
+  const region = createRegion();
+  const view = await openTab(t, { region, textSize: 1.25 });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  const shadow = view.window.document.body.lastElementChild.shadowRoot;
   // 문서의 페이지 확대는 표면의 글자 배율을 따른다(docs/spec/text-size.md).
-  assert.deepEqual(zooms, [1.25], "the document starts at the surface text size");
-  notifyTextSize(2);
-  await until(() => zooms.length === 2);
-  assert.deepEqual(zooms, [1.25, 2], "the document follows text size changes");
+  assert.deepEqual(region.zooms, [1.25], "the document starts at the surface text size");
+  await view.change.textSize(2);
+  assert.deepEqual(region.zooms, [1.25, 2], "the document follows text size changes");
   // 기록 이동과 새로 고침 단추는 core 아이콘 표의 경로를 직접 그린다.
   const pathOf = (command) => shadow.querySelector(`[data-command="${command}"] svg`)?.innerHTML;
   assert.deepEqual(["browser.back", "browser.forward", "browser.reload"].map(pathOf),
@@ -78,77 +43,58 @@ test("browser mount publishes document state, respects shadow focus, and dispose
   const address = shadow.querySelector("#address");
   address.focus();
   address.value = "https://typing.test/";
-  address.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-  states[0]({ url: "https://changed.test/", title: "changed", history: { entries: [], index: -1 }, link: "" });
+  address.dispatchEvent(new view.window.Event("input", { bubbles: true }));
+  await pushState(view, documentState("https://changed.test/", { title: "changed" }));
   assert.equal(address.value, "https://typing.test/", "text being typed is not overwritten");
-  const watchValues = [];
-  const stopWatch = exposed.statuses.get("browser.location").subscribe((value) => watchValues.push(value.url));
-  states[0]({ url: "https://next.test/", history: { entries: [], index: -1 }, link: "" });
-  assert.equal(exposed.statuses.get("browser.location").read().url, "https://next.test/");
+  await sendExposure(view, "status.watch", { name: "browser.location" });
+  await pushState(view, documentState("https://next.test/"));
+  assert.equal((await exposure(view, "status.get", { name: "browser.location" })).url, "https://next.test/");
+  const watchValues = callsOf(view, "runtime.native.call").filter((params) => params.name === "changed" && params.payload.name === "browser.location")
+    .map((params) => params.payload.value.url);
   assert.deepEqual(watchValues, ["https://changed.test/", "https://next.test/"]);
-  stopWatch();
-  await mounted.dispose();
-  assert.equal(composition.disposed, true);
-  assert.equal(exposed.disposed, true);
-  assert.equal(states.length, 0);
-  assert.equal(notifyTextSize, null, "disposing stops following the text size");
+  await sendExposure(view, "status.unwatch", { name: "browser.location" });
+  await view.close();
+  // The dispose of the mount ends the composition of the view, which detaches its region.
+  assert.deepEqual(callsOf(view, "document.detach"), [{ name: "page" }]);
   assert.equal(shadow.childNodes.length, 0);
-  dom.window.close();
 });
 
-/** Mounts the browser with a fake region whose attach restored a session history when history is true, and a tab state. */
-async function mountRestored({ stored, history }) {
-  const dom = new JSDOM("<div></div>", { url: "https://example.test/" });
-  const shadow = dom.window.document.createElement("div").attachShadow({ mode: "open" });
-  const states = [];
-  const loads = [];
-  const writes = [];
-  const region = {
-    history,
-    state: null,
-    onState(fn) { states.push(fn); return () => { states.splice(states.indexOf(fn), 1); }; },
-    load: async (url) => { loads.push(url); },
-    zoom: async () => {},
-  };
-  const context = {
-    tab: { title() {}, footer() {}, state: { read: () => stored, write: (value) => writes.push(value) } },
-    surfaceId: "browser-state-test",
-    composition: { create: async () => ({ region: () => region, dispose: async () => {} }) },
-    exposure: { status: async () => {}, command: async () => {}, element: async () => {}, delegate: async () => {}, bind: async () => {}, dispose: async () => {} },
-    status: { report() {} },
-    runtime: { status: { watch: () => () => {} }, beginOperation: () => [], command: async () => null, log: { error() {}, warn() {}, info() {}, debug() {}, trace() {} }, settings: { read: async () => ({ home: "https://home.test/" }), on: () => () => {} },
-      textSize: { read: async () => 1, on: async () => () => {} } },
-  };
-  const { mount } = await import("../build/test/ui/browser.js");
-  const mounted = await mount(shadow, context);
-  return { dom, states, loads, writes, mounted };
-}
-
-test("a tab opens the address of its tab state and writes each new address", async () => {
-  const { dom, states, loads, writes, mounted } = await mountRestored({ stored: { url: "https://stored.test/" }, history: false });
-  assert.deepEqual(loads, ["https://stored.test/"]);
-  assert.equal(dom.window.localStorage.length, 0, "the address is not kept in localStorage");
-  const state = (url) => ({ url, title: "", history: { entries: [], index: -1 }, link: "", error: null, scroll: { x: 0, y: 0 } });
-  states[0](state("https://stored.test/"));
-  states[0](state("https://next.test/"));
-  states[0](state("https://next.test/"));
-  assert.deepEqual(writes, [{ url: "https://next.test/" }]);
-  await mounted.dispose();
-  dom.window.close();
+// The tab state of a restored view: the address it opens and the addresses that it writes.
+test("a tab opens the address of its tab state and writes each new address", async (t) => {
+  const region = createRegion();
+  const view = await openTab(t, { region, stored: { url: "https://stored.test/" } });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  assert.deepEqual(region.loads, ["https://stored.test/"]);
+  // The view runs on the soksak origin, which jsdom gives no localStorage: the address cannot be kept there (not the same check as the
+  // length of an https origin's localStorage, which the view test could not reach).
+  assert.throws(() => view.window.localStorage, { name: "SecurityError" }, "the view origin has no localStorage");
+  await pushState(view, documentState("https://stored.test/"));
+  await pushState(view, documentState("https://next.test/"));
+  await pushState(view, documentState("https://next.test/"));
+  assert.deepEqual(callsOf(view, "tab.state.write"), [{ url: "https://next.test/" }]);
+  await view.close();
 });
 
-test("a region that restored the session history loads nothing, and a new tab opens home", async () => {
-  const restored = await mountRestored({ stored: { url: "https://stored.test/" }, history: true });
-  assert.deepEqual(restored.loads, []);
-  await restored.mounted.dispose();
-  restored.dom.window.close();
-  const fresh = await mountRestored({ stored: null, history: false });
-  assert.deepEqual(fresh.loads, ["https://home.test/"]);
-  await fresh.mounted.dispose();
-  fresh.dom.window.close();
+test("a region that restored the session history loads nothing, and a new tab opens home", async (t) => {
+  const restoredRegion = createRegion({ history: true });
+  const restored = await openTab(t, { region: restoredRegion, stored: { url: "https://stored.test/" } });
+  await restored.load(TAB_PAGE);
+  await restored.logged("plugin.browser.start");
+  assert.deepEqual(restoredRegion.loads, []);
+  await restored.close();
+  const freshRegion = createRegion();
+  const fresh = await openTab(t, { region: freshRegion, stored: null });
+  await fresh.load(TAB_PAGE);
+  await fresh.logged("plugin.browser.start");
+  assert.deepEqual(freshRegion.loads, ["https://home.test/"]);
+  await fresh.close();
 });
 
-test("a tab state without an http or https address is refused", async () => {
-  await assert.rejects(mountRestored({ stored: { url: "file:///etc" }, history: false }),
-    /the tab state of browser tab browser-state-test has no http or https address: \{"url":"file:\/\/\/etc"\}/);
+test("a tab state without an http or https address is refused", async (t) => {
+  const view = await openTab(t, { stored: { url: "file:///etc" }, start: { ...START, surface: "browser-state-test" } });
+  await view.load(TAB_PAGE);
+  const report = await view.logged("plugin.browser.report");
+  assert.match(report.fields.text, /the tab state of browser tab browser-state-test has no http or https address: \{"url":"file:\/\/\/etc"\}/);
 });
+

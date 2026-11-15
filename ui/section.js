@@ -20,10 +20,12 @@ const tabState = {
   read: () => bridge.calls.request("tab.state.read", null),
   write: (value) => send("tab.state.write", value),
 };
+// The diagnostic entries of the section, disposed when the view ends (the pagehide of the page ends the content watch and the observation).
+let disposeDiagnostics = null;
 try {
   await createSectionView({ runtime: bridge.runtime, expose, declarations: start.declarations, root: document.body, section: start.section, tabState, report });
   if (diagnostics !== null) {
-    await diagnostics.attach({
+    disposeDiagnostics = await diagnostics.attach({
       expose: { status: (name, read, subscribe) => expose.status(name, read, subscribe), command: exposeCommand(expose, bridge.commands) },
       root: document.documentElement,
       section: start.section,
@@ -34,3 +36,10 @@ try {
 } catch (error) {
   report(`view browser: section failed: ${error?.message ?? error}`);
 }
+addEventListener("pagehide", () => {
+  try {
+    disposeDiagnostics?.();
+  } catch (error) {
+    report(`view browser: section diagnostics dispose failed: ${error?.message ?? error}`);
+  }
+}, { once: true });

@@ -80,6 +80,13 @@ export function installPageErrors(report) {
   }
 }
 
+/** The text of an error event of the bridge: the late reply, the call that a peer loss ended, or the event as JSON for any other event. */
+function bridgeErrorText(event) {
+  if (event?.kind === "late-reply") return `late reply to ${event.command} arrived after its call ended`;
+  if (event?.kind === "peer-lost") return `command ${event.command} ended: ${event.reason}`;
+  return JSON.stringify(event);
+}
+
 /**
  * Creates the bridge, the reporter and the page hooks of a view page, and applies the theme. Returns {bridge, report}.
  */
@@ -87,9 +94,16 @@ export function createPage() {
   const bridge = createViewBridge({
     handler: window.webkit.messageHandlers["sok-view"],
     report: (event) => {
-      const text = `view bridge: ${JSON.stringify(event)}`;
-      if (event?.kind === "open-calls") console.debug(text);
-      else console.error(text);
+      // The count of the open calls is a diagnostic record of the page; each other event is an error of the bridge, which the
+      // runtime.error route writes to the application log at the moment it appears.
+      if (event?.kind === "open-calls") {
+        console.debug(`view bridge: ${JSON.stringify(event)}`);
+        return;
+      }
+      bridge.runtime.error("view bridge", bridgeErrorText(event)).catch((failure) => {
+        // The route of the error is itself refused, so no other route of the page can carry the error.
+        console.error(`view bridge: runtime.error refused: ${failure?.message ?? failure}; the error: ${bridgeErrorText(event)}`);
+      });
     },
   });
   const report = createReporter(bridge.runtime);

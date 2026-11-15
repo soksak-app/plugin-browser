@@ -85,8 +85,13 @@ const { bridge, report } = createPage();
 const { context } = createViewContext({ bridge, start, report, diagnostics });
 const host = document.body.appendChild(document.createElement("div"));
 host.style.cssText = "height:100%";
+let mounted = null;
 try {
-  await mount(host.attachShadow({ mode: "open" }), context);
+  mounted = await mount(host.attachShadow({ mode: "open" }), context);
 } catch (error) {
   report(`view browser: mount failed: ${error?.message ?? error}`);
 }
+// The view ends with its page: the mount disposes its document streams and watches, so the streams close with the view.
+addEventListener("pagehide", () => {
+  mounted?.dispose().catch((error) => report(`view browser: dispose failed: ${error?.message ?? error}`));
+}, { once: true });

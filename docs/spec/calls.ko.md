@@ -8,7 +8,7 @@ Browser view 는 core 0.0.40 의 call 규칙을 따른다(core `docs/spec/plugin
 
 `plugin.json` 은 command 에 `timeout` 을 선언하지 않는다. core 는 command 선언의 그 member 를 `<where>: timeout is not a member of a command declaration` 으로 거부한다. view 의 call 에는 시간 한도가 없다. call 은 답, cancel, 상대의 끝으로 끝나고, view 는 그것을 위해 timer 를 시작하지 않는다. 살아 있는 상대가 답하지 않으면 call 은 열린 채로 남고, core 가 그것을 `core.plugin.open-calls` 로 알린다.
 
-`test/sdk-models/view.mjs` 의 view bridge model 은 core 의 call layer(`packages/plugin-api/calls.js`)를 따른다. 답은 call 을 resolve 하거나, 그 error 의 message 와 code 로 reject 한다. abort 된 signal 은 `{id, cancel: true}` 를 보내고 call 을 `cancelled` 로 reject 한다. cancel 뒤에 온 답은 late reply 이며, 그 지연과 함께 알려지고 call 에 전달되지 않는다. 상대의 끝은 열린 call 을 각각 `command <name> ended: <reason>` 으로 reject 하고, call 마다 `peer-lost` 를 알린 뒤 열린 call 을 알린다. `test/sdk-models/conformance.test.mjs` 가 core `packages/plugin-api/contract/calls.json` copy 의 case `calls.end.*` 를 재생한다.
+`package.json` 이 고정한 plugin API release 의 view bridge(`@soksak/plugin-api/view` 의 `createViewBridge`)는 core 의 call layer(`packages/plugin-api/calls.js`)를 따른다. 답은 call 을 resolve 하거나, 그 error 의 message 와 code 로 reject 한다. abort 된 signal 은 `{id, cancel: true}` 를 보내고 call 을 `cancelled` 로 reject 한다. cancel 뒤에 온 답은 late reply 이며, 그 지연과 함께 알려지고 call 에 전달되지 않는다. 상대의 끝은 열린 call 을 각각 `command <name> ended: <reason>` 으로 reject 하고, call 마다 `peer-lost` 를 알린 뒤 열린 call 을 알린다. 이 저장소의 test 는 그 release 를 실행하며 core 의 case 를 재생하지 않는다.
 
 ## Document stream 의 첫 read
 

@@ -1,11 +1,11 @@
 // The view page at the consumer boundary (#P27.3): the page of the view carries the import map of the view, reads the
-// start values of the surface, builds its surface context over the view channel, attaches the document region "page"
-// through the composition of the view, and mounts the browser module into the page. The host side of the channel is
-// test/view-host.mjs, which serves the call route of a view as the core workbench answers it.
+// start values of the surface, builds its surface context over the view channel (@soksak/plugin-api/view), attaches the document
+// region "page" through the composition of the view, and mounts the browser module into the page. The page module is the real
+// ui/view.js, loaded into a view that the SDK opens in host mode (test/fixtures/view.mjs supplies the document region).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createViewPage } from "./view-host.mjs";
+import { TAB_PAGE, callsOf, createRegion, documentState, exposure, openTab, pluginLogs, pushState, SURFACE } from "./fixtures/view.mjs";
 
 // The check of a view page (core docs/spec/plugin-processes.md, rule 4): the page begins with its doctype and holds no import map,
 // because the host inserts the view import map after the doctype of each view page.
@@ -14,9 +14,7 @@ function checkViewPage(html) {
   assert.doesNotMatch(html, /<script\b[^>]*\btype\s*=\s*["']?importmap\b/i, "the view page holds no import map of its own");
 }
 
-const manifest = JSON.parse(readFileSync(new URL("../plugin.json", import.meta.url), "utf8"));
-const PAGE = new URL("../build/test/ui/index.html", import.meta.url);
-const START = { surface: "browser-1", params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, declarations: manifest.exposes, diagnostics: null };
+const PAGE = new URL("../ui/index.html", import.meta.url);
 
 test("the view page begins with its doctype, holds no import map, and carries the page script", () => {
   const html = readFileSync(PAGE, "utf8");
@@ -25,10 +23,8 @@ test("the view page begins with its doctype, holds no import map, and carries th
 });
 
 test("the view page refuses to mount without the start values of the surface", async (t) => {
-  const host = createViewPage(t, "no-start");
-  host.window.sokSurface = null;
-  await assert.rejects(import("../build/test/ui/view.js?case=no-start"),
-    /the view of browser has no start values: the host provides window\.sokSurface/);
+  const view = await openTab(t, { start: null });
+  await assert.rejects(view.load(TAB_PAGE), /the view of browser has no start values: the host provides window\.sokSurface/);
 });
 
 // Each start value of another form than core injects is refused before the page sends anything.
@@ -42,136 +38,134 @@ for (const [label, change, reason] of [
   ["without params", { params: undefined }, /params/],
 ]) {
   test(`the view page refuses start values ${label}`, async (t) => {
-    const caseId = `start-${label.replaceAll(" ", "-")}`;
-    const host = createViewPage(t, caseId, { start: { ...START, ...change } });
-    await assert.rejects(import(`../build/test/ui/view.js?case=${caseId}`), reason);
-    assert.deepEqual(host.reports.registered, []);
+    const view = await openTab(t);
+    // The host gives every view the declarations of the plugin, so a start value of another form replaces the injected one.
+    view.window.sokSurface = Object.freeze({ ...view.window.sokSurface, ...change });
+    await assert.rejects(view.load(TAB_PAGE), reason);
+    assert.deepEqual(callsOf(view, "runtime.command.register"), []);
   });
 }
 
 test("the view page mounts the surface over the view channel and registers every declared name", async (t) => {
-  const { started } = createViewPage(t, "mount");
-  await import("../build/test/ui/view.js?case=mount");
-  await started();
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
 });
 
 test("the view page attaches the document region, places it, and opens the home setting in it", async (t) => {
-  const { region, calls, started } = createViewPage(t, "region");
-  await import("../build/test/ui/view.js?case=region");
-  await started();
-  assert.deepEqual(calls.find(([name]) => name === "document.attach")?.[1], { name: "page" }, "the view attaches the declared region page");
-  assert.ok(calls.some(([name, params]) => name === "composition.place" && params.regions.length === 1
+  const region = createRegion();
+  const view = await openTab(t, { region });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  assert.deepEqual(callsOf(view, "document.attach"), [{ name: "page" }], "the view attaches the declared region page");
+  assert.ok(view.calls.some(({ command, params }) => command === "composition.place" && params.regions.length === 1
     && params.regions[0].name === "page"), "the view places the region in one snapshot");
   assert.deepEqual(region.loads, ["https://home.test/"], "a new tab opens the home setting");
-  assert.deepEqual(calls.filter(([name]) => name === "document.zoom").map(([, params]) => params),
-    [{ name: "page", zoom: 1 }], "the document starts at the text size of the surface");
+  assert.deepEqual(callsOf(view, "document.zoom"), [{ name: "page", zoom: 1 }], "the document starts at the text size of the surface");
 });
 
 test("a browser.navigate run through the channel loads the document region", async (t) => {
-  const { region, run, started } = createViewPage(t, "navigate");
-  await import("../build/test/ui/view.js?case=navigate");
-  await started();
+  const region = createRegion();
+  const view = await openTab(t, { region });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
   // The command replies after the load of the region, so its reply ends the handling.
-  assert.equal(await run("browser.navigate", { url: "https://example.test/" }), null);
+  assert.equal(await view.request("browser.navigate", { url: "https://example.test/" }), null);
   assert.deepEqual(region.loads, ["https://home.test/", "https://example.test/"]);
 });
 
 test("a document state updates the tab reports and the address field", async (t) => {
-  const { window, region, reports, expose, started, until } = createViewPage(t, "state");
-  await import("../build/test/ui/view.js?case=state");
-  await started();
-  region.show("https://a.test/one", { title: "One", link: "https://a.test/two", canGoBack: true });
-  await until(() => reports.title.includes("One") && reports.footer.includes("https://a.test/two"));
-  assert.deepEqual(reports.title, ["https://home.test/", "One"], "the home state titles the tab with its address, the loaded state with its title");
-  assert.deepEqual(reports.footer, [null, "https://a.test/two"]);
-  assert.equal(window.document.body.lastElementChild.shadowRoot.querySelector("#address").value, "https://a.test/one");
-  const reply = await expose("status.get", { name: "browser.location" });
-  assert.equal(reply.result.url, "https://a.test/one");
-  assert.equal(reply.result.canGoBack, true);
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  // The region reports the home load (the fixture), then the state of the link that the person followed.
+  await pushState(view, documentState("https://a.test/one", { title: "One", link: "https://a.test/two", canGoBack: true }));
+  assert.deepEqual(callsOf(view, "tab.title"), [text("https://home.test/"), text("One")], "the home state titles the tab with its address, the loaded state with its title");
+  assert.deepEqual(callsOf(view, "tab.footer"), [text(null), text("https://a.test/two")]);
+  assert.equal(view.window.document.body.lastElementChild.shadowRoot.querySelector("#address").value, "https://a.test/one");
+  const location = await exposure(view, "status.get", { name: "browser.location" });
+  assert.equal(location.url, "https://a.test/one");
+  assert.equal(location.canGoBack, true);
 });
 
+// The params of a tab call that carries one text value.
+const text = (value) => value;
+
 test("a tab with a tab state opens its stored address and writes no new tab state", async (t) => {
-  const host = createViewPage(t, "restored", { stored: { url: "https://stored.test/" } });
-  await import("../build/test/ui/view.js?case=restored");
-  await host.started();
-  // The title of the stored address ends the handling of its state, after which no state write is asserted.
-  await host.until(() => host.reports.title.length > 0);
-  assert.deepEqual(host.region.loads, ["https://stored.test/"]);
-  assert.deepEqual(host.reports.state, [], "the address of the tab state writes no new tab state");
+  const view = await openTab(t, { stored: { url: "https://stored.test/" } });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  // The state of the stored address ends the handling of the state, after which no state write is asserted.
+  await pushState(view, documentState("https://stored.test/", { title: "Stored" }));
+  assert.deepEqual(callsOf(view, "tab.state.write"), [], "the address of the tab state writes no new tab state");
 });
 
 // The page reads region.history and loads nothing when the attach restored a session history
-// (core docs/spec/plugins.md#memory-saver). The region handle reports history as a boolean after its attach
-// (core docs/spec/surface-composition.md); the fake attach reply carries it.
+// (core docs/spec/plugins.md#memory-saver). The region answers history as a boolean after its attach (core docs/spec/surface-composition.md).
 test("a region that restored the session history of an unloaded tab loads nothing", async (t) => {
-  const host = createViewPage(t, "history-restored", { stored: { url: "https://stored.test/" } });
-  host.region.history = true;
-  await import("../build/test/ui/view.js?case=history-restored");
+  const region = createRegion({ history: true });
+  const view = await openTab(t, { region, stored: { url: "https://stored.test/" } });
+  await view.load(TAB_PAGE);
   // The start record of the history source follows the decision of the page, so no load follows it.
-  await host.started();
-  assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
+  await view.logged("plugin.browser.start");
+  assert.deepEqual(region.loads, [], "a region that restored the session history loads nothing");
 });
 
 // A restored session history reports its state before the page subscribes to the region state (the host sends it while the
 // composition is placed); the page shows that state, because the subscription does not replay it.
 test("a restored session history shows the state that the region reported before the page subscribed", async (t) => {
-  const host = createViewPage(t, "history-state", { stored: { url: "https://stored.test/" } });
-  host.region.history = true;
-  host.region.restoredState = host.region.stateOf("https://stored.test/", { title: "Stored" });
-  await import("../build/test/ui/view.js?case=history-state");
-  await host.started();
-  await host.until(() => host.reports.title.includes("Stored"));
-  assert.deepEqual(host.region.loads, [], "a region that restored the session history loads nothing");
-  assert.ok(host.reports.title.includes("Stored"), `the restored state titles the tab, the titles are ${JSON.stringify(host.reports.title)}`);
+  const region = createRegion({ history: true, restoredState: documentState("https://stored.test/", { title: "Stored" }) });
+  const view = await openTab(t, { region, stored: { url: "https://stored.test/" } });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  assert.deepEqual(region.loads, [], "a region that restored the session history loads nothing");
+  assert.ok(callsOf(view, "tab.title").includes("Stored"), `the restored state titles the tab, the titles are ${JSON.stringify(callsOf(view, "tab.title"))}`);
 });
 
 test("the page reports a failure of the view channel as the declared record of its catalog", async (t) => {
-  const host = createViewPage(t, "report");
-  await import("../build/test/ui/view.js?case=report");
-  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await host.until(() => host.logs.some((entry) => entry.event === "report"));
-  const report = host.logs.find((entry) => entry.event === "report");
-  assert.ok(report, `the page stored no report record; the records are ${JSON.stringify(host.logs.map((entry) => entry.event))}`);
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  const report = await view.logged("plugin.browser.report");
   assert.equal(report.level, "error");
   assert.match(report.fields.text, /failed/);
 });
 
-test("the page report uses the bridge logger without a runtime.log request", async (t) => {
-  const host = createViewPage(t, "bridge-logger");
-  const records = host.list();
-  host.window.__sokViewRuntimeLog = Object.fromEntries(["error", "warn", "info", "debug", "trace"].map((level) => [level,
-    (event, fields, options) => records.push({ level, event, fields, options })]));
-  await import("../build/test/ui/view.js?case=bridge-logger");
-  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("bridge logger probe"), message: "bridge logger probe" }));
-  await host.until(() => records.some(({ event }) => event === "report"));
-  assert.deepEqual(records.filter(({ event }) => event === "report"), [
-    { level: "error", event: "report", fields: { text: "view browser: bridge logger probe" }, options: undefined },
+test("the page report is written through the SDK logger as the plugin event report", async (t) => {
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("bridge logger probe"), message: "bridge logger probe" }));
+  await view.logged("plugin.browser.report");
+  assert.deepEqual(pluginLogs(view).filter(({ event }) => event === "report"), [
+    { level: "error", event: "report", fields: { surface: "browser-1", text: "view browser: bridge logger probe" } },
   ]);
-  assert.equal(host.logs.some((entry) => entry.event === "report"), false, "the consumer sent a raw runtime.log request");
 });
 
 // The page writes each trace event through runtime.log with the name of its catalog entry without the plugin prefix
 // (core docs/spec/plugins.md#logging); the page stores it as plugin.browser.<event>, which events.json must declare.
 test("the page records its trace as the declared events of its catalog", async (t) => {
   const catalog = JSON.parse(readFileSync(new URL("../events.json", import.meta.url), "utf8")).events;
-  const host = createViewPage(t, "trace");
-  const { region, run, started, until, logs, window } = host;
-  const recordedOf = (event) => () => logs.some((entry) => entry.event === event);
-  await import("../build/test/ui/view.js?case=trace");
-  await started();
-  region.show("https://a.test/one", { loading: true });
-  await until(recordedOf("navigation"));
-  region.show("https://a.test/one", { title: "One" });
-  await until(recordedOf("load"));
-  await run("browser.navigate", { url: "https://b.test/" });
-  region.show("https://c.test/", { error: "net::ERR_NAME_NOT_RESOLVED", history: { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://c.test/", title: "" }], index: 1 } });
-  await until(recordedOf("region.failure"));
-  await run("browser.history.go", { index: 0 });
-  const address = window.document.body.lastElementChild.shadowRoot.querySelector("#address");
+  const region = createRegion();
+  const view = await openTab(t, { region });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await pushState(view, documentState("https://a.test/one", { loading: true }));
+  await view.logged("plugin.browser.navigation");
+  await pushState(view, documentState("https://a.test/one", { title: "One" }));
+  await view.logged("plugin.browser.load");
+  await view.request("browser.navigate", { url: "https://b.test/" });
+  await pushState(view, documentState("https://c.test/", { error: "net::ERR_NAME_NOT_RESOLVED", history: { entries: [{ url: "https://a.test/one", title: "One" }, { url: "https://c.test/", title: "" }], index: 1 } }));
+  await view.logged("plugin.browser.region.failure");
+  await view.request("browser.history.go", { index: 0 });
+  const address = view.window.document.body.lastElementChild.shadowRoot.querySelector("#address");
   address.value = "d.test";
-  address.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  window.dispatchEvent(new window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await until(() => ["command", "history.move", "address.commit", "report"].every((event) => recordedOf(event)()));
+  address.dispatchEvent(new view.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  await view.logged("plugin.browser.report");
+  await view.logged("plugin.browser.address.commit");
+  await view.logged("plugin.browser.history.move");
+  await view.logged("plugin.browser.command");
+  const logs = pluginLogs(view);
   const recorded = logs.map((entry) => entry.event);
   for (const event of ["start", "command", "navigation", "load", "region.failure", "history.move", "address.commit", "report"]) {
     assert.ok(recorded.includes(event), `the page recorded ${event}; recorded ${recorded.join(", ")}`);
@@ -185,35 +179,63 @@ test("the page records its trace as the declared events of its catalog", async (
 
 // The section statuses are read through their exposure statuses; the page sends no declared UI snapshot, because core keeps none.
 test("the page sends no declared UI snapshot, and each section status is read through its exposure status", async (t) => {
-  const { region, reports, snapshots, started, until, expose } = createViewPage(t, "no-snapshot");
-  await import("../build/test/ui/view.js?case=no-snapshot");
-  await started();
-  region.show("https://a.test/one", { title: "One" });
+  const region = createRegion();
+  const view = await openTab(t, { region });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await pushState(view, documentState("https://a.test/one", { title: "One" }));
   // The title of the state ends its handling, after which no snapshot is asserted.
-  await until(() => reports.title.includes("One"));
-  assert.deepEqual(snapshots, []);
-  assert.deepEqual((await expose("status.get", { name: "browser.history" })).result.elements,
+  assert.ok(callsOf(view, "tab.title").includes("One"));
+  assert.deepEqual(view.sent.filter((message) => message.event === "declared-ui.snapshot"), []);
+  assert.deepEqual((await exposure(view, "status.get", { name: "browser.history" })).elements,
     [{ kind: "list", key: "history", empty: "기록 없음", items: [] }]);
-  assert.deepEqual((await expose("status.get", { name: "browser.tabs" })).result.elements[0].kind, "list");
+  assert.deepEqual((await exposure(view, "status.get", { name: "browser.tabs" })).elements[0].kind, "list");
 });
 
 test("a browser.address.select run focuses the address field of the view", async (t) => {
-  const { window, run, started } = createViewPage(t, "select");
-  await import("../build/test/ui/view.js?case=select");
-  await started();
-  assert.equal(await run("browser.address.select", {}), null);
-  const host = window.document.body.lastElementChild;
-  assert.equal(window.document.activeElement, host, "the focus of the address is retargeted to the host of the shadow root");
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  assert.equal(await view.request("browser.address.select", {}), null);
+  const host = view.window.document.body.lastElementChild;
+  assert.equal(view.window.document.activeElement, host, "the focus of the address is retargeted to the host of the shadow root");
   assert.equal(host.shadowRoot.activeElement, host.shadowRoot.querySelector("#address"));
 });
 
 test("a refused runtime.log batch is reported through runtime.error", async (t) => {
-  const consoleError = t.mock.method(console, "error", () => {});
-  const host = createViewPage(t, "log-refused", { refuseLog: "log route refused" });
-  await import("../build/test/ui/view.js?case=log-refused");
-  host.window.dispatchEvent(new host.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await host.until(() => host.reports.errorLines.some((line) => line.where === "log batch"));
-  assert.equal(consoleError.mock.callCount(), 0, "a successful runtime.error route does not fall through to the console");
-  assert.deepEqual(host.reports.errorLines.find((line) => line.where === "log batch"),
-    { where: "log batch", text: "log route refused" });
+  const view = await openTab(t, { faults: { "command.runtime.log": "log route refused" } });
+  await view.load(TAB_PAGE);
+  view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
+  await view.settled();
+  assert.equal(view.observed.errors.find((line) => line.includes("log batch")),
+    "surface browser-1 log batch: page event batch of 3 events failed: log route refused");
 });
+
+// P128-4: a bridge error report (a reply that arrives after its call ended) is written through runtime.error, which the application log
+// records. The host answers the call once, then sends the same reply again through the window message channel of the view.
+test("a late reply of a bridge call is reported through runtime.error", async (t) => {
+  const view = await openTab(t);
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  const answered = view.sent.find((message) => message.command === "tab.state.read" && message.id !== undefined);
+  assert.ok(answered, "the page made a call that the host answered");
+  view.window.dispatchEvent(new view.window.MessageEvent("message", { data: { sok: 1, id: answered.id, result: null }, source: view.window }));
+  await view.settled();
+  assert.deepEqual(view.observed.errors, ["surface browser-1 view bridge: late reply to tab.state.read arrived after its call ended"]);
+});
+
+// The red test of P128-1: the page closes its document streams when the view ends (the pagehide of the page disposes its mount).
+test("the view closes its document streams when the view ends", async (t) => {
+  const region = createRegion();
+  const view = await openTab(t, { region });
+  await view.load(TAB_PAGE);
+  await view.logged("plugin.browser.start");
+  await pushState(view, documentState("https://a.test/one", { title: "One" }));
+  // The status of the DOM section is watched, which opens its elements stream; the first value waits for a message of the stream.
+  await view.push("exposure-request", { id: 1, surface: SURFACE, method: "status.watch", params: { name: "browser.elements" } });
+  assert.deepEqual(region.subscriptions.map(({ stream, closed }) => [stream, closed]), [["elements", false]]);
+  await view.close();
+  assert.deepEqual(region.subscriptions.map(({ stream, closed }) => [stream, closed]), [["elements", true]],
+    "the view closes its elements stream when the view ends");
+});
+

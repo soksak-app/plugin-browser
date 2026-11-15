@@ -224,7 +224,16 @@ export async function createSectionView({ runtime, expose, declarations, root, s
     reach();
   };
 
+  // A value that the draw refuses (a command that the plugin does not declare, for example) is reported through runtime.error, which writes
+  // it to the application log; the status listener would otherwise drop the refusal.
   const draw = (value) => {
+    try {
+      drawValue(value);
+    } catch (error) {
+      runtime.error(`section ${section.id}`, String(error?.message ?? error)).catch((failure) => report(`section ${section.id}: ${failure?.message ?? failure}`));
+    }
+  };
+  const drawValue = (value) => {
     // The registry gives null while the followed surface has not registered the status, so the section draws nothing until the first value.
     if (value === null) {
       root.replaceChildren();

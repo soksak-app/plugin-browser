@@ -1,5 +1,6 @@
 # Features
 
+- [~] P130 — P0: Release P128, whose tests use the plugin API release of core 0.0.41, with `engines.soksak` `^0.0.41`, and list it in the registry. Active: the release run of main publishes it.
 - [o] P128 — P1: The tests use the SDK release that package.json pins and its view test host instead of SDK and host copies kept equal to core through copied contract cases; the plugin depends on core only through that version and engines.soksak. The plugin pins core release 0.0.41 (`@soksak/plugin-api` 0.0.41 devDependency, `engines.soksak` `^0.0.41`).
 - [o] P128-1 — P0: The view page disposes its mount on pagehide, so its document streams close when the view ends.
 - [o] P128-2 — P0: The section page ends its diagnostic observation on pagehide.

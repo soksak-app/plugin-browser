@@ -1,5 +1,6 @@
 # 기능
 
+- [~] P130 — P0: plugin API release of core 0.0.41로 시험하는 P128을 `engines.soksak` `^0.0.41`로 release하고 registry에 올린다. 진행: main의 release run이 게시한다.
 - [o] P128 — P1: 테스트는 package.json 이 고정한 SDK release와 그 view test host를 쓰며, core와 같게 유지되는 SDK·host 복사본을 복사한 contract case로 맞추지 않는다. plugin은 core에 그 version과 engines.soksak으로만 의존한다. plugin은 core release 0.0.41에 고정된다(`@soksak/plugin-api` 0.0.41 devDependency, `engines.soksak` `^0.0.41`).
 - [o] P128-1 — P0: 뷰 페이지는 pagehide에서 mount를 dispose하므로, 뷰가 끝날 때 그 document stream이 닫힌다.
 - [o] P128-2 — P0: section page는 pagehide에서 그 diagnostic 관찰을 끝낸다.

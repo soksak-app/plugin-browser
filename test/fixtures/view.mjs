@@ -1,9 +1,10 @@
-// The fixtures of a browser view opened with openView (@soksak/plugin-api/testing). Only what leaves the plugin is answered here: the
-// document region of the view is a core object, so its operations are the fixtures of composition.document, and each attach, load,
-// zoom and subscription is recorded in the region. A test delivers the states and the messages of the region with view.push, as the
-// host delivers them. The declarations of the plugin and the composition of the view come from the plugin manifest.
+// The fixtures of the browser views of these tests. A view is opened by openHostedView (host.mjs), the host of this repository, which
+// answers the sok-view wire of the view as the view contract states it. Only what leaves the plugin is answered here: the document region of
+// the view is a host object, so its operations are the handlers of createRegion, and each attach, load, zoom and subscription is recorded
+// in the region. A test delivers the states and the messages of the region with view.push, as the host delivers them. The declarations of
+// the plugin and the composition of the view come from the plugin manifest.
 import { readFileSync } from "node:fs";
-import { openView } from "@soksak/plugin-api/testing";
+import { openHostedView } from "./host.mjs";
 import { layOut } from "./layout.mjs";
 
 const manifest = JSON.parse(readFileSync(new URL("../../plugin.json", import.meta.url), "utf8"));
@@ -11,6 +12,9 @@ const manifest = JSON.parse(readFileSync(new URL("../../plugin.json", import.met
 /** The page module of the tab view and the page module of a section view. */
 export const TAB_PAGE = new URL("../../ui/view.js", import.meta.url);
 export const SECTION_PAGE = new URL("../../ui/section.js", import.meta.url);
+/** The document of each page, which the view loads in its window. */
+const TAB_HTML = readFileSync(new URL("../../ui/index.html", import.meta.url), "utf8");
+const SECTION_HTML = readFileSync(new URL("../../ui/section.html", import.meta.url), "utf8");
 /** The exposure declarations of the plugin, which the start values of each view carry. */
 export const DECLARATIONS = manifest.exposes;
 
@@ -87,25 +91,30 @@ export const documentState = (url, change = {}) => ({
 export function createRegion({ history = false, restoredState = null } = {}) {
   // refuse, when set, makes the next subscribe fail with its text, as a region that refuses the subscription.
   const region = { name: "page", history, restoredState, refuse: null, view: null, loads: [], zooms: [], subscriptions: [], unsubscribed: [] };
-  region.fixtures = {
+  // The handlers of the operations of the region, each named as the call of the view (document.<operation>) with its params.
+  region.handlers = {
     attach: () => ({ history: region.history }),
     // The region reports the state of each load after the load, as the document of the view does: the state is delivered in the next
     // microtask, after the call of the page has been answered.
-    load: (name, url) => {
+    load: ({ name, url }) => {
       region.loads.push(url);
-      queueMicrotask(() => region.view.push("document-state", { document: name, state: documentState(url) }));
+      queueMicrotask(() => region.view.deliverEvent("document-state", { document: name, state: documentState(url) }));
       return null;
     },
-    zoom: (name, zoom) => { region.zooms.push(zoom); return null; },
+    zoom: ({ zoom }) => {
+      region.zooms.push(zoom);
+      return null;
+    },
     go: () => null,
     post: () => null,
-    subscribe: (name, stream) => {
+    subscribe: ({ stream }) => {
       if (region.refuse !== null) throw new Error(region.refuse);
       const handle = region.subscriptions.length + 1;
       region.subscriptions.push({ stream, handle, closed: false });
-      return { handle };
+      // The reply of a subscription is its handle (core docs/spec/native-surfaces.md#document-streams).
+      return handle;
     },
-    unsubscribe: (name, handle) => {
+    unsubscribe: ({ handle }) => {
       region.subscriptions.find((entry) => entry.handle === handle).closed = true;
       region.unsubscribed.push(handle);
       return null;
@@ -116,48 +125,45 @@ export function createRegion({ history = false, restoredState = null } = {}) {
 }
 
 /**
- * The host fixtures of a tab view: the settings, the text size, the tab state, the statuses, the core commands that the page runs and the
- * composition of the region. core.tab.select is a core command the tab page runs; the other commands are given by the test.
+ * The host answers of a tab view: the settings, the text size, the tab state, the core commands that the page runs and the composition of
+ * the region. core.tab.select is a core command the tab page runs; the other commands are given by the test.
  */
-export function tabHost(region, { home = "https://home.test/", stored = null, textSize = 1, faults, statuses, commands = {}, declarations = DECLARATIONS } = {}) {
+export function tabHost(region, { home = "https://home.test/", stored = null, textSize = 1, faults, commands = {}, declarations = DECLARATIONS } = {}) {
   return {
     surface: SURFACE,
     declarations,
     settings: { home },
     textSize,
-    statuses,
     faults,
     commands: { "core.tab.select": () => null, ...commands },
-    // The host accepts each exposure reply of the page; the reply itself is recorded in view.calls.
-    native: { exposureReply: () => null },
     state: { read: () => stored, write: () => null },
     composition: {
-      declaration: () => manifest.surface.composition,
       // A restored session history reports its state while the composition is placed: the host sends it before the create of the page
       // returns, and the page subscribed to the region state already.
       place: () => {
         if (region.restoredState !== null) {
           const state = region.restoredState;
           region.restoredState = null;
-          region.view.push("document-state", { document: region.name, state });
+          region.view.deliverEvent("document-state", { document: region.name, state });
         }
         return null;
       },
-      document: region.fixtures,
+      document: region.handlers,
     },
   };
 }
 
 /**
- * Opens a tab view of the browser plugin in host mode, and closes it when the test ends (close is idempotent). The page module is loaded
- * by the test with view.load(TAB_PAGE). Options: region (createRegion), start (the start values; null for none), and the host fixtures of
+ * Opens a tab view of the browser plugin in the host fixture, and closes it when the test ends (close is idempotent). The page module is loaded
+ * by the test with view.load(TAB_PAGE). Options: region (createRegion), start (the start values; null for none), and the host answers of
  * tabHost.
  */
-export async function openTab(t, { region = createRegion(), start = START, declarations = DECLARATIONS, layout = {}, theme = null, ...fixtures } = {}) {
-  const view = await openView("browser", {
-    host: tabHost(region, { ...fixtures, declarations }),
+export async function openTab(t, { region = createRegion(), start = START, declarations = DECLARATIONS, layout = {}, theme = null, ...answers } = {}) {
+  const view = openHostedView({
+    plugin: "browser",
+    html: TAB_HTML,
+    host: tabHost(region, { ...answers, declarations }),
     start,
-    declarations,
     layout,
   });
   // The start theme of the host is set before the page runs, as the host sets it (the bridge applies it when the page starts).
@@ -254,7 +260,7 @@ export const pluginLogs = (view) => view.events.filter((entry) => entry.event.st
   .map(({ level, event, fields, cids }) => ({ level, event: event.slice("plugin.browser.".length), fields, ...(cids === undefined ? {} : { cids }) }));
 
 /**
- * The host fixtures of a section view: the tab state of the section surface, the surfaces that the window holds (the surfaces of the
+ * The host answers of a section view: the tab state of the section surface, the surfaces that the window holds (the surfaces of the
  * browser plugin named by surfaces), and the commands of the plugin that the section runs on the surface it follows.
  */
 export function sectionHost({ stored = null, surfaces = [], commands = {}, declarations = DECLARATIONS } = {}) {
@@ -262,9 +268,10 @@ export function sectionHost({ stored = null, surfaces = [], commands = {}, decla
     surface: SURFACE,
     declarations,
     surfaces,
+    settings: { home: "" },
     commands: { "browser.tab.select": () => null, "browser.history.go": () => null, ...commands },
-    native: { exposureReply: () => null },
     state: { read: () => stored, write: () => null },
+    composition: { place: () => null, document: {} },
   };
 }
 
@@ -277,10 +284,11 @@ export const SURFACES = [{ plugin: "browser", surface: "tab-1" }, { plugin: "bro
  * scroll events of the layout have reached the body.
  */
 export async function openSection(t, section, { stored = null, surfaces = SURFACES, commands = {}, layout = false, diagnostics = null, theme = null, viewLayout = {}, frames = false } = {}) {
-  const view = await openView("browser", {
+  const view = openHostedView({
+    plugin: "browser",
+    html: SECTION_HTML,
     host: sectionHost({ stored, surfaces, commands, declarations: diagnostics === null ? DECLARATIONS : DIAGNOSTIC_DECLARATIONS }),
     start: { surface: SURFACE, params: {}, origin: { directory: "/work" }, project: { id: "prj-project", root: "/project" }, diagnostics, section },
-    declarations: diagnostics === null ? DECLARATIONS : DIAGNOSTIC_DECLARATIONS,
     layout: viewLayout,
   });
   if (theme !== null) view.window.sokTheme = theme;

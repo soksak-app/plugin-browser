@@ -1,7 +1,7 @@
 // The view page at the consumer boundary (#P27.3): the page of the view carries the import map of the view, reads the
 // start values of the surface, builds its surface context over the view channel (@soksak/plugin-api/view), attaches the document
 // region "page" through the composition of the view, and mounts the browser module into the page. The page module is the real
-// ui/view.js, loaded into a view that the SDK opens in host mode (test/fixtures/view.mjs supplies the document region).
+// ui/view.js, loaded into a view that the host fixture opens (test/fixtures/host.mjs; test/fixtures/view.mjs supplies the document region).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";

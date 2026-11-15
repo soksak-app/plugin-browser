@@ -1,5 +1,5 @@
 // The section view (core docs/spec/plugins.md#sections, docs/spec/native-surfaces.md#view-surfaces): the section page (the real
-// ui/section.js, opened in host mode by openSection) draws the section of its start values. It watches core.sidebars for the surface that
+// ui/section.js, opened by openSection) draws the section of its start values. It watches core.sidebars for the surface that
 // its section follows, reads core.surfaces to keep only a surface of its own plugin, watches the status of its section on that surface,
 // draws the value as DOM, and runs the command of an item that the person clicks on that surface. The statuses of the core and of the
 // surfaces are delivered with view.change.status, and the runs of the commands are the commands that the host observed.

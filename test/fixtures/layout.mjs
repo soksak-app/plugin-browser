@@ -1,4 +1,4 @@
-// The scroll layout of a view document. jsdom has no layout engine: the sizes of the view are data (openView layout), and the scroll offsets
+// The scroll layout of a view document. jsdom has no layout engine: the sizes of the view are data (the layout of the host fixture), and the scroll offsets
 // of an element are the layout of the document, which this fixture gives the body of a view. An offset is clamped to the scroll range of the
 // content, and a change of the offset (by the page or by a change of the content) fires a scroll event at the element after the task.
 // scrolled() resolves when every scroll event that the layout queued has reached the element.

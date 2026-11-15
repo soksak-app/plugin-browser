@@ -1,5 +1,6 @@
 # Changelog
 
+- P131: The tests answer the host boundary with the fixture `test/fixtures/host.mjs`, which answers the `sok-view` wire of the view, instead of the view test host of the plugin API. The tests keep their expected values, and `grep -rn "plugin-api/testing" test` is empty. The fixture delivers each host answer in a later task, loads each page module into a window whose names the page reads as globals, and includes the core surface entries in the start values. Result: `pnpm test` runs 193 tests, 192 pass, and the commit-hook test fails only on the untracked fixture file.
 - P130: The version is 0.0.27, which releases P128 with `engines.soksak` `^0.0.41`.
 - P126 (core F718-6): Calls end by their reply, their cancel or the end of their peer: the copy of `calls.json` is the file of core F718-6, the view bridge model starts no timer, and the first read of a document stream ends by its first message, the failure of its subscription, the end of the page of the region or the dispose of the view. The tests wait for the occurrences that they assert and set no time limit. Red: the replay of `calls.end.*` and three stream read tests failed on the timers and the limit. Green: they pass.
 - P125: The page test names `browser.content.read`, which P123 declares, among the declared commands. Red: the test failed on the extra name. Green: it passes.

@@ -1,6 +1,6 @@
 // The diagnostic entries of the browser views (core docs/spec/plugin-processes.md#section-views), in a diagnostic build. The tab view
 // (ui/view.js) serves browser.view.measure; each section view (ui/section.js) serves browser.view.frames, browser.view.history and its
-// ready status. The page modules run in openView host mode: the commands and statuses are reached through the exposure requests of the
+// ready status. The page modules run in the host fixture (test/fixtures/host.mjs): the commands and statuses are reached through the exposure requests of the
 // host, and the animation frames and the ResizeObserver of the view document are driven by frameClock (fixtures/view.mjs), which runs a
 // frame only when the test runs it.
 import assert from "node:assert/strict";

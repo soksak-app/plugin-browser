@@ -1,5 +1,6 @@
 # 변경 기록
 
+- P132: version은 0.0.28이고, P131을 release한다.
 - P131: 테스트는 plugin API의 view test host 대신 `test/fixtures/host.mjs` fixture로 host 경계에 응답하며, 이 fixture는 view의 `sok-view` wire에 응답한다. 테스트의 기대값은 그대로 두며, `grep -rn "plugin-api/testing" test`는 비어 있다. fixture는 각 host 응답을 이후 task에서 전달하고, 각 page module을 page가 global로 읽는 이름을 가진 window에 적재하며, core surface 항목을 start values에 포함한다. Result: `pnpm test`는 193개 테스트를 실행해 192개가 통과하고, commit hook 테스트는 추적되지 않은 fixture 파일에서만 실패한다.
 - P130: version은 0.0.27이고, P128을 `engines.soksak` `^0.0.41`로 release한다.
 - P126 (core F718-6): call 은 답, cancel, 상대의 끝으로 끝난다. `calls.json` copy 는 core F718-6 의 file 이고, view bridge model 은 timer 를 시작하지 않으며, document stream 의 첫 read 는 첫 message, subscription 의 실패, region 의 page 의 끝, view 의 dispose 로 끝난다. test 는 자기가 확인하는 occurrence 를 기다리고 시간 한도를 두지 않는다. Red: `calls.end.*` 재생과 stream read test 3개가 timer 와 limit 에서 실패했다. Green: 통과한다.

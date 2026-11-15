@@ -1,10 +1,12 @@
-// The fixtures of the browser views of these tests. A view is opened by openHostedView (host.mjs), the host of this repository, which
-// answers the sok-view wire of the view as the view contract states it. Only what leaves the plugin is answered here: the document region of
-// the view is a host object, so its operations are the handlers of createRegion, and each attach, load, zoom and subscription is recorded
-// in the region. A test delivers the states and the messages of the region with view.push, as the host delivers them. The declarations of
-// the plugin and the composition of the view come from the plugin manifest.
+// The fixtures of the browser views of these tests. A view is opened by openView, which loads the page into a jsdom window and gives the page
+// a view handle (plugin-api/bridge-host.mjs). The page reaches the plugin API through the fixtures of plugin-api/: its calls are recorded
+// in the view record, and each call is answered with what the host answers here (answer). The document region of the view is a host object,
+// so its operations are the handlers of createRegion, and each attach, load, zoom and subscription is recorded in the region. A test
+// delivers the states and the messages of the region with view.push, as the host delivers them. The declarations of the plugin and the
+// composition of the view come from the plugin manifest.
 import { readFileSync } from "node:fs";
-import { openHostedView } from "./host.mjs";
+import { JSDOM } from "jsdom";
+import { createViewHandle, recordOf } from "./plugin-api/bridge-host.mjs";
 import { layOut } from "./layout.mjs";
 
 const manifest = JSON.parse(readFileSync(new URL("../../plugin.json", import.meta.url), "utf8"));
@@ -27,6 +29,22 @@ export const DIAGNOSTIC_DECLARATIONS = {
   commands: [...(DECLARATIONS.commands ?? []), ...DIAGNOSTICS.exposes.commands],
   status: [...(DECLARATIONS.status ?? []), ...DIAGNOSTICS.exposes.status],
 };
+
+// The entries that the host declares for every view of a surface document, beside the entries of the plugin: the document and input statuses
+// and the hit and clock commands of the surface (core docs/spec/native-surfaces.md#view-surfaces, view exposure).
+const CORE_DOCUMENT_ENTRIES = {
+  status: [{ name: "core.surface.document" }, { name: "core.surface.input" }],
+  commands: [{ name: "core.surface.hit" }, { name: "core.surface.clock" }],
+};
+
+// The declarations that the start values of a view carry: the entries of the plugin, with the core entries of the surface document.
+function declarationsOf(plugin) {
+  return {
+    ...plugin,
+    status: [...(plugin.status ?? []), ...CORE_DOCUMENT_ENTRIES.status],
+    commands: [...(plugin.commands ?? []), ...CORE_DOCUMENT_ENTRIES.commands],
+  };
+}
 
 /**
  * The frame clock of a view page under test: the window records each ResizeObserver that the page constructs and each animation frame that
@@ -128,13 +146,12 @@ export function createRegion({ history = false, restoredState = null } = {}) {
  * The host answers of a tab view: the settings, the text size, the tab state, the core commands that the page runs and the composition of
  * the region. core.tab.select is a core command the tab page runs; the other commands are given by the test.
  */
-export function tabHost(region, { home = "https://home.test/", stored = null, textSize = 1, faults, commands = {}, declarations = DECLARATIONS } = {}) {
+export function tabHost(region, { home = "https://home.test/", stored = null, textSize = 1, commands = {}, declarations = DECLARATIONS } = {}) {
   return {
     surface: SURFACE,
     declarations,
     settings: { home },
     textSize,
-    faults,
     commands: { "core.tab.select": () => null, ...commands },
     state: { read: () => stored, write: () => null },
     composition: {
@@ -153,13 +170,291 @@ export function tabHost(region, { home = "https://home.test/", stored = null, te
   };
 }
 
+// The most host events that the view keeps before the page loads; none is kept, a host event reaches the listeners that the page registered.
+/** The bound on the rounds that wait for the page to finish its calls; a page that never settles fails the wait. */
+const SETTLE_ROUNDS = 10_000;
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+/** The names of the window that a page reads as globals; the other names of the process stay the process values. */
+const WINDOW_GLOBALS = [
+  "window", "document", "location", "customElements", "addEventListener", "removeEventListener", "dispatchEvent",
+  "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "ResizeObserver", "MutationObserver", "Node", "Element",
+  "HTMLElement", "Text", "Comment", "DocumentFragment", "ShadowRoot", "CSSStyleDeclaration", "DOMParser", "HTMLButtonElement",
+  "HTMLInputElement", "HTMLAnchorElement", "HTMLStyleElement", "HTMLLinkElement", "HTMLIFrameElement", "HTMLScriptElement",
+  "HTMLImageElement",
+];
+
+// The views that are open, in the order they were opened: the page of the last open view reads the window globals.
+const openViews = [];
+let globalsInstalled = false;
+// Each load of a page evaluates its module again: the query of the module URL is unique in the process, so no view reads a module that an
+// earlier view evaluated (module instances are cached by their URL).
+let moduleInstances = 0;
+
+function currentView() {
+  if (openViews.length === 0) throw new Error("no view is open: the page globals are read outside a view");
+  return openViews.at(-1);
+}
+
+// Each global reads the window of the current view when the page reads it. A function of the window is bound to the window, so a bare call
+// such as addEventListener(...) runs on the window of the view.
+function installGlobals() {
+  if (globalsInstalled) return;
+  globalsInstalled = true;
+  for (const name of WINDOW_GLOBALS) {
+    Object.defineProperty(globalThis, name, {
+      configurable: true,
+      get() {
+        const target = currentView().window;
+        const value = target[name];
+        return typeof value === "function" && name[0] === name[0].toLowerCase() ? value.bind(target) : value;
+      },
+      set() {},
+    });
+  }
+}
+
+/** The resize source of the view document: it records the targets that the page observes and delivers the entries that the host reports. */
+class ResizeSource {
+  constructor(callback) {
+    this.callback = callback;
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  notify(entries) {
+    this.callback(entries, this);
+  }
+}
+
+
+let viewCounter = 0;
+
+/** The frame-free timers of the page: each timer and animation frame that the page starts is recorded with its delay (null for a frame). */
+function recordTimers(window, observed) {
+  for (const name of ["setTimeout", "setInterval"]) {
+    const base = window[name];
+    window[name] = function timed(callback, delay, ...rest) {
+      observed.timers.push({ kind: name, delay: delay ?? 0 });
+      return base.call(window, callback, delay, ...rest);
+    };
+  }
+  const baseFrame = window.requestAnimationFrame;
+  window.requestAnimationFrame = function timedFrame(callback) {
+    observed.timers.push({ kind: "requestAnimationFrame", delay: null });
+    return baseFrame.call(window, callback);
+  };
+}
+
+/**
+ * Opens a view of a plugin page in a jsdom window, and returns the view. The page module is loaded with view.load(url) and runs against the
+ * window of the view. host holds the answers of the host: surface, declarations, settings, textSize, commands, state, composition, surfaces.
+ *
+ *     plugin   the plugin id; the view is on soksak://<plugin>/ and its page is the html of the page
+ *     html     the document of the page (its own html file)
+ *     host     the host answers (see answerCall)
+ *     start    the start values of the surface (window.sokSurface), or null for none
+ *     layout   {rect} sets the rectangle of the root element of the view document; {} for none
+ */
+export function openView({ plugin, html, host, start, layout = {} }) {
+  installGlobals();
+  const dom = new JSDOM(html, { url: `soksak://${plugin}/index.html`, pretendToBeVisual: true });
+  const window = dom.window;
+  // The host loads the module that the page names, so the script element of the page is not part of the body that the page draws, and the
+  // white space between the elements of the document is not a node of the body (the document is what the page draws).
+  for (const script of [...window.document.querySelectorAll("script")]) script.remove();
+  for (const node of [...window.document.body.childNodes]) {
+    if (node.nodeType === window.Node.TEXT_NODE && node.textContent.trim() === "") node.remove();
+  }
+  const surface = host.surface;
+  const surfaces = host.surfaces ?? [{ plugin, surface }];
+  const observed = { timers: [], commands: [], errors: [] };
+  let closed = false;
+  viewCounter += 1;
+  const handle = createViewHandle({ plugin, surface, answer: (command, params) => answerCall(command, params) });
+  const record = recordOf(handle);
+  const view = {
+    window,
+    get calls() { return record.calls; },
+    get events() { return record.events; },
+    get observed() {
+      return { timers: observed.timers, commands: record.observed.commands, errors: record.errors.map(({ where, text }) => `surface ${surface} ${where}: ${text}`) };
+    },
+    get page() { return record.page; },
+  };
+
+  recordTimers(window, observed);
+  openViews.push({ window });
+  window.ResizeObserver = ResizeSource;
+  // The visual viewport of a web view: an event target with the size and the scale of the page, which jsdom does not provide.
+  window.visualViewport = Object.assign(new window.EventTarget(), { width: window.innerWidth, height: window.innerHeight, scale: 1, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0 });
+  window.sokTheme = { scheme: "light", tokens: {} };
+  if (start !== null) window.sokSurface = Object.freeze({ ...start, declarations: declarationsOf(host.declarations) });
+  if (layout.rect !== undefined) window.document.documentElement.getBoundingClientRect = layout.rect;
+  // The page reaches the plugin API through its view handle, which is the sok-view handler of the window.
+  window.webkit = { messageHandlers: { "sok-view": handle } };
+
+  // The answer of one call of the page, by its name. A call that this table does not serve is refused.
+  function answerCall(command, params) {
+    if (command.startsWith("core.")) {
+      const run = host.commands?.[command];
+      if (run === undefined) throw new Error(`view call ${command} is not served`);
+      return run(params);
+    }
+    if (command.startsWith("document.")) return host.composition.document[command.slice("document.".length)](params);
+    switch (command) {
+      case "tab.title":
+      case "tab.footer":
+      case "tab.notify":
+      case "tab.modified":
+      case "tab.error":
+      case "tab.keep":
+      case "tab.directory":
+      case "tab.focus":
+      case "composition.report":
+      case "image.attach":
+      case "image.focus":
+      case "image.caret":
+      case "image.text":
+      case "image.detach":
+        return null;
+      case "tab.state.read":
+        return host.state.read();
+      case "tab.state.write":
+        return host.state.write(params);
+      case "composition.declaration":
+        return manifest.surface.composition;
+      case "composition.place":
+        return host.composition.place(params);
+      case "surface.menu":
+        return false;
+      case "runtime.error":
+        return null;
+      case "runtime.command.register":
+      case "runtime.native.on":
+      case "runtime.native.call":
+      case "runtime.settings.on":
+      case "runtime.textSize.on":
+        return null;
+      case "runtime.status.watch":
+      case "runtime.status.unwatch":
+        if (params.surface !== undefined && !surfaces.some((entry) => entry.plugin === plugin && entry.surface === params.surface)) {
+          throw new Error(`view call ${command} surface ${params.surface} is not a surface of ${plugin}`);
+        }
+        return null;
+      case "runtime.textSize.read":
+        return host.textSize ?? 1;
+      case "runtime.settings.read":
+        return { home: host.settings.home };
+      case "runtime.command.run": {
+        const target = params.surface ?? surface;
+        if (!surfaces.some((entry) => entry.plugin === plugin && entry.surface === target)) {
+          throw new Error(`view call runtime.command.run surface ${target} is not a surface of ${plugin}`);
+        }
+        const run = host.commands?.[params.name];
+        if (run === undefined) throw new Error(`surface ${target} has not registered command ${params.name}`);
+        return run(params.params);
+      }
+      default:
+        throw new Error(`view call ${command} is not served`);
+    }
+  }
+
+  // Waits until the page has no call in flight: a round of the task queue, with no time limit. A round in which the page sends no call ends.
+  async function settled() {
+    let sent = -1;
+    for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
+      await tick();
+      if (record.calls.length === sent) return;
+      sent = record.calls.length;
+    }
+    throw new Error("the view did not settle: its page keeps sending calls");
+  }
+
+  // The host delivers an event to the page: document states and streams, status values, text size, theme, and native events.
+  const deliver = (event, data) => {
+    if (event === "document-state") {
+      const entry = record.regions.get(data.document);
+      entry.state = data.state;
+      for (const listener of [...entry.listeners]) listener(data.state);
+    } else if (event === "document-stream") {
+      record.streams.get(data.handle)?.(data.message);
+    } else if (event === "status") {
+      for (const listener of [...(record.statusListeners.get(`${data.surface ?? ""}\u0000${data.name}`) ?? [])]) listener(data.value);
+    } else if (event === "textSize") {
+      for (const listener of [...record.textSizeListeners]) listener(data);
+    } else if (event === "theme") {
+      for (const listener of [...record.themeListeners]) listener(data);
+    } else {
+      for (const listener of [...(record.nativeListeners.get(event) ?? [])]) listener(data);
+    }
+  };
+
+  Object.assign(view, {
+    /** Loads the module of the page into the window and resolves with the module (its evaluation ends the load). */
+    async load(url) {
+      moduleInstances += 1;
+      const href = url instanceof URL ? url.href : url;
+      return import(`${href}?view=${moduleInstances}`);
+    },
+    /** Delivers a host event with its data to the page, and waits until the page has handled it. */
+    async push(event, data) {
+      deliver(event, data);
+      await settled();
+    },
+    /** Delivers a host event without waiting; for a host answer that runs inside a call of the page. */
+    deliverEvent(event, data) {
+      deliver(event, data);
+    },
+    change: {
+      async status(name, value, statusSurface) {
+        deliver("status", { name, surface: statusSurface, value });
+        await settled();
+      },
+      async textSize(value) {
+        deliver("textSize", value);
+        await settled();
+      },
+    },
+    /** Invokes a command that the page registered with commands.register, and resolves with its result or rejects with its message. */
+    request(command, params, options = {}) {
+      const run = record.commands.get(command);
+      if (run === undefined) return Promise.reject(new Error(`the page has not registered command ${command}`));
+      return Promise.resolve().then(() => run(params, options));
+    },
+    /** Delivers an event of the bridge to the page, as the bridge reports it to the page (a late reply, for example). */
+    bridgeEvent(event) {
+      recordOf(handle).report(event);
+    },
+    settled,
+    /** Waits for the first record of the page with the event name, and resolves with it. */
+    async logged(event) {
+      for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
+        await settled();
+        const found = record.events.find((entry) => entry.event === event);
+        if (found !== undefined) return found;
+      }
+      throw new Error(`the page did not record ${event}`);
+    },
+    /** Ends the view: the page receives pagehide, its work ends, and the window closes. */
+    async close() {
+      if (closed) return;
+      closed = true;
+      window.dispatchEvent(new window.Event("pagehide"));
+      await settled();
+      openViews.splice(openViews.findIndex((entry) => entry.window === window), 1);
+      window.close();
+    },
+  });
+  return view;
+}
+
 /**
  * Opens a tab view of the browser plugin in the host fixture, and closes it when the test ends (close is idempotent). The page module is loaded
  * by the test with view.load(TAB_PAGE). Options: region (createRegion), start (the start values; null for none), and the host answers of
  * tabHost.
  */
 export async function openTab(t, { region = createRegion(), start = START, declarations = DECLARATIONS, layout = {}, theme = null, ...answers } = {}) {
-  const view = openHostedView({
+  const view = openView({
     plugin: "browser",
     html: TAB_HTML,
     host: tabHost(region, { ...answers, declarations }),
@@ -219,8 +514,8 @@ export async function exposure(view, method, params) {
  */
 export async function settleAll(view) {
   let sent = -1;
-  while (sent !== view.sent.length) {
-    sent = view.sent.length;
+  while (sent !== view.calls.length) {
+    sent = view.calls.length;
     await view.settled();
   }
 }
@@ -243,13 +538,9 @@ export const pushStream = async (view, handle, message, name = "page") => {
  */
 let commandRequests = 0;
 export async function requestWithCids(view, command, params, cids) {
-  const id = ++commandRequests;
-  view.window.dispatchEvent(new view.window.MessageEvent("message", { source: view.window, data: { sok: 1, id, command, params, cids } }));
+  const result = await view.request(command, params, { cids });
   await view.settled();
-  const answer = view.sent.find((message) => message.reply === id);
-  if (answer === undefined) throw new Error(`the page did not reply to the command ${command}`);
-  if ("error" in answer) throw new Error(answer.error.message);
-  return answer.result;
+  return result;
 }
 
 /** The params of each call of the view named command, in order. */
@@ -284,7 +575,7 @@ export const SURFACES = [{ plugin: "browser", surface: "tab-1" }, { plugin: "bro
  * scroll events of the layout have reached the body.
  */
 export async function openSection(t, section, { stored = null, surfaces = SURFACES, commands = {}, layout = false, diagnostics = null, theme = null, viewLayout = {}, frames = false } = {}) {
-  const view = openHostedView({
+  const view = openView({
     plugin: "browser",
     html: SECTION_HTML,
     host: sectionHost({ stored, surfaces, commands, declarations: diagnostics === null ? DECLARATIONS : DIAGNOSTIC_DECLARATIONS }),

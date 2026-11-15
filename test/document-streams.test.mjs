@@ -1,5 +1,5 @@
 // The statuses browser.elements and browser.requests follow the document streams of the region (core docs/spec/native-surfaces.md#document-streams)
-// and serve the values of the DOM and 네트워크 sections (#P27.2). The page is the real ui/view.js in the host fixture; the region is the
+// and serve the values of the DOM and 네트워크 sections (#P27.2). The page is the real ui/view.js in the view fixture; the region is the
 // fixture of test/fixtures/view.mjs, which records each subscription and its close. A status is watched or read through its exposure
 // request, and the messages of a stream reach the page as the host delivers them (view.push).
 import assert from "node:assert/strict";

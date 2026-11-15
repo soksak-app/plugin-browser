@@ -8,10 +8,10 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const script = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).scripts.test;
-const nodeTest = script.split("&&").map((part) => part.trim()).find((part) => part.startsWith("node --test "));
+// The command is node with its options (--import names a module, --test-timeout a limit), then --test, then the files it selects.
+const nodeTest = script.split("&&").map((part) => part.trim()).find((part) => /^node (\S+ )*--test( |$)/.test(part));
 assert.ok(nodeTest, "the test script runs no node --test command");
-// The options of node --test, such as the limit of the runner, select no file.
-const patterns = nodeTest.slice("node --test ".length).trim().split(/\s+/).filter((part) => !part.startsWith("--")).map((pattern) => pattern.replace(/^"(.*)"$/, "$1"));
+const patterns = nodeTest.slice(nodeTest.indexOf("--test") + "--test".length).trim().split(/\s+/).filter((part) => part !== "").map((pattern) => pattern.replace(/^"(.*)"$/, "$1"));
 
 // Each test file under test/, as a path relative to the repository root with forward slashes.
 function testFiles(directory) {

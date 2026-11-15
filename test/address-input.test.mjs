@@ -3,7 +3,7 @@ import test from "node:test";
 import { TAB_PAGE, callsOf, createRegion, documentState, openTab, pluginLogs, pushState } from "./fixtures/view.mjs";
 
 // The address field of the page: its selection on the first press and its caret after it, the navigation by Enter, and the refusal of an
-// empty address. The page is the real ui/view.js in the host fixture (test/fixtures/view.mjs supplies the document region).
+// empty address. The page is the real ui/view.js in the view fixture (test/fixtures/view.mjs supplies the document region).
 
 const HOME = "https://example.test/old";
 

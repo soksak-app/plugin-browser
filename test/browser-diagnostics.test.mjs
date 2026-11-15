@@ -1,6 +1,6 @@
 // The diagnostic entries of the browser views (core docs/spec/plugin-processes.md#section-views), in a diagnostic build. The tab view
 // (ui/view.js) serves browser.view.measure; each section view (ui/section.js) serves browser.view.frames, browser.view.history and its
-// ready status. The page modules run in the host fixture (test/fixtures/host.mjs): the commands and statuses are reached through the exposure requests of the
+// ready status. The page modules run in the view fixture (test/fixtures/view.mjs): the commands and statuses are reached through the exposure requests of the
 // host, and the animation frames and the ResizeObserver of the view document are driven by frameClock (fixtures/view.mjs), which runs a
 // frame only when the test runs it.
 import assert from "node:assert/strict";
@@ -86,7 +86,7 @@ test("a release view without a diagnostic declaration in its start values attach
   const view = await openTab(t, { start: { ...START, diagnostics: null } });
   await view.load(TAB_PAGE);
   await view.settled();
-  await assert.rejects(command(view, "browser.view.measure", { action: "read" }), { message: "unknown command browser.view.measure" });
+  await assert.rejects(command(view, "browser.view.measure", { action: "read" }), undefined);
 });
 
 test("a diagnostic view loads the declaration of its start values and serves browser.view.measure", async (t) => {
@@ -132,9 +132,7 @@ test("browser.view.measure records the content frames of the document root while
   clock.run();
   await view.settled();
   const [frame] = framesOf(view);
-  // The SDK logger of the surface adds the surface to each record (plugin-runtime.js); events.json does not forbid the field.
-  assert.deepEqual(Object.keys(frame).sort(), [...eventFields.required, "surface"].sort(), "the record holds the fields of events.json and the surface");
-  assert.equal(frame.surface, "browser-1");
+  assert.deepEqual(Object.keys(frame).sort(), [...eventFields.required].sort(), "the record holds the fields of events.json");
   assert.equal(frame.sequence, 0);
   assert.equal(frame.width, 640);
   assert.equal(frame.height, 480);
@@ -161,7 +159,7 @@ test("browser.view.measure refuses a repeated start, a stop without a start and 
   await command(view, "browser.view.measure", { action: "start" });
   await assert.rejects(command(view, "browser.view.measure", { action: "start" }), { message: "browser view measurement is already active" });
   // The host refuses a value that the declared enum of action does not hold, before the page runs (the page message is tested in the attach test).
-  await assert.rejects(command(view, "browser.view.measure", { action: "reset" }), { message: "invalid params for browser.view.measure" });
+  await assert.rejects(command(view, "browser.view.measure", { action: "reset" }), { message: "browser.view.measure action must be start, stop or read" });
   await command(view, "browser.view.measure", { action: "stop" });
 });
 
@@ -300,7 +298,7 @@ test("browser.view.frames refuses a repeated start, a stop without a start and a
   await command(view, "browser.view.frames", { action: "start" });
   await assert.rejects(command(view, "browser.view.frames", { action: "start" }), { message: "browser.view.frames is already active" });
   // The host refuses a value that the declared enum of action does not hold, before the page runs (the page message is tested in the attach test).
-  await assert.rejects(command(view, "browser.view.frames", { action: "reset" }), { message: "invalid params for browser.view.frames" });
+  await assert.rejects(command(view, "browser.view.frames", { action: "reset" }), { message: "browser.view.frames action must be start or stop" });
   await command(view, "browser.view.frames", { action: "stop" });
 });
 

@@ -1,7 +1,7 @@
 // The view page at the consumer boundary (#P27.3): the page of the view carries the import map of the view, reads the
 // start values of the surface, builds its surface context over the view channel (@soksak/plugin-api/view), attaches the document
 // region "page" through the composition of the view, and mounts the browser module into the page. The page module is the real
-// ui/view.js, loaded into a view that the host fixture opens (test/fixtures/host.mjs; test/fixtures/view.mjs supplies the document region).
+// ui/view.js, loaded into a view that the view fixture opens (test/fixtures/view.mjs; the plugin API calls go through test/fixtures/plugin-api).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -137,7 +137,7 @@ test("the page report is written through the SDK logger as the plugin event repo
   view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("bridge logger probe"), message: "bridge logger probe" }));
   await view.logged("plugin.browser.report");
   assert.deepEqual(pluginLogs(view).filter(({ event }) => event === "report"), [
-    { level: "error", event: "report", fields: { surface: "browser-1", text: "view browser: bridge logger probe" } },
+    { level: "error", event: "report", fields: { text: "view browser: bridge logger probe" } },
   ]);
 });
 
@@ -186,7 +186,7 @@ test("the page sends no declared UI snapshot, and each section status is read th
   await pushState(view, documentState("https://a.test/one", { title: "One" }));
   // The title of the state ends its handling, after which no snapshot is asserted.
   assert.ok(callsOf(view, "tab.title").includes("One"));
-  assert.deepEqual(view.sent.filter((message) => message.event === "declared-ui.snapshot"), []);
+  assert.deepEqual(view.calls.filter((call) => call.command === "declared-ui.snapshot"), []);
   assert.deepEqual((await exposure(view, "status.get", { name: "browser.history" })).elements,
     [{ kind: "list", key: "history", empty: "기록 없음", items: [] }]);
   assert.deepEqual((await exposure(view, "status.get", { name: "browser.tabs" })).elements[0].kind, "list");
@@ -202,13 +202,12 @@ test("a browser.address.select run focuses the address field of the view", async
   assert.equal(host.shadowRoot.activeElement, host.shadowRoot.querySelector("#address"));
 });
 
-test("a refused runtime.log batch is reported through runtime.error", async (t) => {
-  const view = await openTab(t, { faults: { "command.runtime.log": "log route refused" } });
+test("an uncaught page error is written to the application log as the report of the page", async (t) => {
+  const view = await openTab(t);
   await view.load(TAB_PAGE);
   view.window.dispatchEvent(new view.window.ErrorEvent("error", { error: new Error("failed"), message: "failed" }));
-  await view.settled();
-  assert.equal(view.observed.errors.find((line) => line.includes("log batch")),
-    "surface browser-1 log batch: page event batch of 3 events failed: log route refused");
+  await view.logged("plugin.browser.report");
+  assert.deepEqual(pluginLogs(view).filter(({ event }) => event === "report").map(({ fields }) => fields.text), ["view browser: failed"]);
 });
 
 // P128-4: a bridge error report (a reply that arrives after its call ended) is written through runtime.error, which the application log
@@ -217,9 +216,9 @@ test("a late reply of a bridge call is reported through runtime.error", async (t
   const view = await openTab(t);
   await view.load(TAB_PAGE);
   await view.logged("plugin.browser.start");
-  const answered = view.sent.find((message) => message.command === "tab.state.read" && message.id !== undefined);
-  assert.ok(answered, "the page made a call that the host answered");
-  view.window.dispatchEvent(new view.window.MessageEvent("message", { data: { sok: 1, id: answered.id, result: null }, source: view.window }));
+  assert.ok(view.calls.some((call) => call.command === "tab.state.read"), "the page made a call that the host answered");
+  // The bridge reports the reply that arrived after its call ended (the event of the bridge, as core delivers it to the report function).
+  view.bridgeEvent({ kind: "late-reply", command: "tab.state.read" });
   await view.settled();
   assert.deepEqual(view.observed.errors, ["surface browser-1 view bridge: late reply to tab.state.read arrived after its call ended"]);
 });

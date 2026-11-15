@@ -18,7 +18,7 @@ test("an address commit begins an operation whose first record carries its ident
   assert.ok(commit, `the page recorded no address.commit; recorded ${logs.map((entry) => entry.event).join(", ")}`);
   assert.equal(commit.level, "info");
   assert.equal(commit.cids.length, 1, `the record carries ${JSON.stringify(commit.cids)}`);
-  assert.equal(commit.cids[0], `p${view.window.sokView.page}.1`);
+  assert.equal(commit.cids[0], `p${view.page}.1`);
 });
 
 test("a relayed command passes its identifiers to its record and to the core command it calls", async (t) => {

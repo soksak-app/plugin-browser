@@ -1,5 +1,6 @@
 # Changelog
 
+- P133: The plugin declares no dependency on `@soksak/plugin-api`. The tests resolve its specifiers through the resolve hook of `test/fixtures/plugin-api/register.mjs` to fixture modules that record the calls of the page and return the answers that each test arranges; the wire fixture `test/fixtures/host.mjs` is removed. `package.json` names only `engines.soksak` for core, and `docs/spec/core-compatibility.md` states that the plugin names no plugin API release. Result: `pnpm test` runs 196 tests, 195 pass, and the commit-hook test fails only on the untracked fixture files.
 - P132: The version is 0.0.28, which releases P131.
 - P131: The tests answer the host boundary with the fixture `test/fixtures/host.mjs`, which answers the `sok-view` wire of the view, instead of the view test host of the plugin API. The tests keep their expected values, and `grep -rn "plugin-api/testing" test` is empty. The fixture delivers each host answer in a later task, loads each page module into a window whose names the page reads as globals, and includes the core surface entries in the start values. Result: `pnpm test` runs 193 tests, 192 pass, and the commit-hook test fails only on the untracked fixture file.
 - P130: The version is 0.0.27, which releases P128 with `engines.soksak` `^0.0.41`.

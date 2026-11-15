@@ -1,5 +1,6 @@
 # 변경 기록
 
+- P134: version은 0.0.29이고, P133를 `engines.soksak` `^0.0.41`로 release한다.
 - P133: Plugin은 `@soksak/plugin-api`에 의존성을 선언하지 않는다. Test는 `test/fixtures/plugin-api/register.mjs`의 resolve hook으로 그 specifier를 fixture 모듈에 해석하며, 이 모듈은 page의 call을 기록하고 각 test가 정한 답을 돌려준다. wire fixture `test/fixtures/host.mjs`는 제거되었다. `package.json`은 core와의 관계로 `engines.soksak`만 명명하며, `docs/spec/core-compatibility.ko.md`는 plugin이 plugin API release를 명명하지 않는다고 적는다. 결과: `pnpm test`는 196개 test를 실행해 195개가 통과하며, commit hook test는 추적되지 않은 fixture 파일에서만 실패한다.
 - P132: version은 0.0.28이고, P131을 release한다.
 - P131: 테스트는 plugin API의 view test host 대신 `test/fixtures/host.mjs` fixture로 host 경계에 응답하며, 이 fixture는 view의 `sok-view` wire에 응답한다. 테스트의 기대값은 그대로 두며, `grep -rn "plugin-api/testing" test`는 비어 있다. fixture는 각 host 응답을 이후 task에서 전달하고, 각 page module을 page가 global로 읽는 이름을 가진 window에 적재하며, core surface 항목을 start values에 포함한다. Result: `pnpm test`는 193개 테스트를 실행해 192개가 통과하고, commit hook 테스트는 추적되지 않은 fixture 파일에서만 실패한다.

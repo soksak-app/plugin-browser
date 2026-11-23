@@ -1,5 +1,6 @@
 # 변경 기록
 
+- P137: version은 0.0.30이고, P135와 P136을 release한다.
 - P136: 탭 section이 `core.grid`의 각 탭을 member `tab`으로 읽고 `active`가 true인 탭의 row를 선택하므로, `브라우저 탭 없음` 대신 card의 browser 탭을 나열한다. 검증: `core.grid` 모양 fixture의 Red(`items: []`), 이어 Green(197개 중 197개).
 - P135: 주소 칸은 WebKit 기본 focus ring 없이 theme 너비의 focus 색 테두리로 focus를 보인다. 검증: `test/address-focus.test.mjs`의 Red, 이어서 Green과 `pnpm test`.
 - P134: version은 0.0.29이고, P133를 `engines.soksak` `^0.0.41`로 release한다.

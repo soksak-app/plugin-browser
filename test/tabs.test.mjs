@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { TAB_PAGE, callsOf, exposure, openTab } from "./fixtures/view.mjs";
 
+// A tab of core.grid is {tab, plugin, title, active, params, label, ...} (core docs/spec/groups.md), and active of a card names its
+// active tab.
 const grid = {
   cards: [
     { id: "rail", active: null, tabs: [] },
@@ -11,9 +13,9 @@ const grid = {
       id: "main",
       active: "browser-1",
       tabs: [
-        { id: "browser-1", plugin: "browser", title: "브라우저", label: "One" },
-        { id: "other-1", plugin: "other", title: "다른", label: null },
-        { id: "b2", plugin: "browser", title: "브라우저", label: null },
+        { tab: "browser-1", plugin: "browser", title: "One", active: true, params: null, label: "One" },
+        { tab: "other-1", plugin: "other", title: "다른", active: false, params: null, label: null },
+        { tab: "b2", plugin: "browser", title: "브라우저", active: false, params: null, label: null },
       ],
     },
   ],

@@ -25,7 +25,7 @@ test("a relayed command passes its identifiers to its record and to the core com
   const view = await openTab(t);
   await view.load(TAB_PAGE);
   await view.logged("plugin.browser.start");
-  await view.change.status("core.grid", { cards: [{ id: "main", active: "browser-1", tabs: [{ id: "browser-1", plugin: "browser", title: "브라우저", label: null }] }] });
+  await view.change.status("core.grid", { cards: [{ id: "main", active: "browser-1", tabs: [{ tab: "browser-1", plugin: "browser", title: "브라우저", active: true, params: null, label: null }] }] });
   // The command replies after the core call, and its record follows the reply.
   await requestWithCids(view, "browser.tab.select", { tab: "browser-1" }, ["p7.1"]);
   await view.logged("plugin.browser.command");

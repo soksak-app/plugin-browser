@@ -1,5 +1,6 @@
 # Changelog
 
+- P136: The 탭 section reads each tab of `core.grid` by its member `tab` and selects the row of the tab whose `active` is true, so it lists the browser tabs of the card instead of `브라우저 탭 없음`. Verification: Red with a fixture in the shape of `core.grid` (`items: []`), then Green (197 of 197).
 - P135: The address field shows its focus with a border of the theme width in the focus color, and no default focus ring of WebKit. Verification: Red then Green of `test/address-focus.test.mjs`, and `pnpm test`.
 - P134: The version is 0.0.29, which releases P133 with `engines.soksak` `^0.0.41`.
 - P133: The plugin declares no dependency on `@soksak/plugin-api`. The tests resolve its specifiers through the resolve hook of `test/fixtures/plugin-api/register.mjs` to fixture modules that record the calls of the page and return the answers that each test arranges; the wire fixture `test/fixtures/host.mjs` is removed. `package.json` names only `engines.soksak` for core, and `docs/spec/core-compatibility.md` states that the plugin names no plugin API release. Result: `pnpm test` runs 196 tests, 195 pass, and the commit-hook test fails only on the untracked fixture files.

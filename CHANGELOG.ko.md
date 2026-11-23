@@ -1,5 +1,6 @@
 # 변경 기록
 
+- P136: 탭 section이 `core.grid`의 각 탭을 member `tab`으로 읽고 `active`가 true인 탭의 row를 선택하므로, `브라우저 탭 없음` 대신 card의 browser 탭을 나열한다. 검증: `core.grid` 모양 fixture의 Red(`items: []`), 이어 Green(197개 중 197개).
 - P135: 주소 칸은 WebKit 기본 focus ring 없이 theme 너비의 focus 색 테두리로 focus를 보인다. 검증: `test/address-focus.test.mjs`의 Red, 이어서 Green과 `pnpm test`.
 - P134: version은 0.0.29이고, P133를 `engines.soksak` `^0.0.41`로 release한다.
 - P133: Plugin은 `@soksak/plugin-api`에 의존성을 선언하지 않는다. Test는 `test/fixtures/plugin-api/register.mjs`의 resolve hook으로 그 specifier를 fixture 모듈에 해석하며, 이 모듈은 page의 call을 기록하고 각 test가 정한 답을 돌려준다. wire fixture `test/fixtures/host.mjs`는 제거되었다. `package.json`은 core와의 관계로 `engines.soksak`만 명명하며, `docs/spec/core-compatibility.ko.md`는 plugin이 plugin API release를 명명하지 않는다고 적는다. 결과: `pnpm test`는 196개 test를 실행해 195개가 통과하며, commit hook test는 추적되지 않은 fixture 파일에서만 실패한다.

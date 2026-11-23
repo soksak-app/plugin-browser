@@ -92,14 +92,14 @@ export const requestsValue = (requests) => {
 // The value of the 탭 section (#P28): one list of the browser tabs of the card that holds the surface, each row
 // running browser.tab.select with its tab, and the active tab selected. Without such a card the list is empty.
 const tabsOf = (grid, surface) => {
-  const card = grid?.cards.find((item) => item.tabs.some((tab) => tab.id === surface));
+  const card = grid?.cards.find((item) => item.tabs.some((tab) => tab.tab === surface));
   const tabs = card?.tabs.filter((tab) => tab.plugin === "browser") ?? [];
   return { elements: [{
     kind: "list",
     key: "tabs",
     empty: "브라우저 탭 없음",
     // default: core.grid 의 label 은 문서가 알린 제목이며 알리기 전에는 null 이므로 탭 이름을 보인다.
-    items: tabs.map((tab) => ({ key: tab.id, label: tab.label ?? tab.title, command: "browser.tab.select", params: { tab: tab.id }, selected: tab.id === card.active })),
+    items: tabs.map((tab) => ({ key: tab.tab, label: tab.label ?? tab.title, command: "browser.tab.select", params: { tab: tab.tab }, selected: tab.active })),
   }] };
 };
 
